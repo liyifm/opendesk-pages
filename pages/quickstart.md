@@ -15,12 +15,20 @@ OpenDesk同时具备命令行 (Shell Agent) 形态和独立应用形态。对于
 
 鸿蒙PC的应用市场中，有生态开发者提供了NodeJS的运行时安装包。你可以打开应用市场(AppGallery)搜索DevNode-OH安装即可。安装完成后关闭终端应用重新打开，输入`node`进行测试:
 
-```
+```shell
 localhost ~ % node -v
 v24.13.0
 ```
 
-![abc](/assets/images/quickstart/hmdevnode.png)
+![harmonyos devnode](/assets/images/quickstart/hmdevnode.png)
+
+安装完 DevNode 之后，打开终端应用，运行
+
+```
+echo 'export PATH=$(npm prefix -g)/bin:$PATH' >> $HOME/.zshrc
+```
+
+这一步是为了将 NodeJS 安装的所有命令的路径放到 PATH 中，让后续的 `opendesk` 命令可以正常执行下去。
 
 #### 在其他平台上安装NodeJS
 
