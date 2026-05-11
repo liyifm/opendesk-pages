@@ -1,8 +1,8 @@
 ---
 layout: single
 toc: true
-title:  2026.5.5 日构建更新
-date:   2026-05-05 09:00:00 +0800
+title:  2026.5.8 日构建更新
+date:   2026-05-08 09:00:00 +0800
 categories: nightly-release
 ---
 
