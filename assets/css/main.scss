@@ -3,7 +3,7 @@
 
 @import "minimal-mistakes";
 
-.page {
+.no-sidebar .page {
     width: 100%;
 }
 
@@ -45,4 +45,56 @@
 blockquote {
     margin-left: 0;
     margin-right: 0;
+}
+
+/* Platform tabs 样式 */
+.platform-tabs {
+    margin: 0.8em 0;
+    background: #fafbfc;
+    border-radius: 8px;
+    padding: 0.8em 1em;
+}
+
+.tab-buttons {
+    display: flex;
+    gap: 0;
+    border-bottom: 1px solid #d0d7de;
+    margin-bottom: 0.8em;
+}
+
+.tab-btn {
+    padding: 0.5em 1.2em;
+    background: transparent;
+    border: none;
+    border-bottom: 2px solid transparent;
+    margin-bottom: -1px;
+    cursor: pointer;
+    font-size: 0.95em;
+    color: #57606a;
+    transition: all 0.2s ease;
+    border-radius: 6px 6px 0 0;
+}
+
+.tab-btn:hover {
+    color: #24292f;
+}
+
+.tab-btn.active {
+    color: #24292f;
+    border-bottom-color: #24292f;
+    font-weight: 600;
+}
+
+.tab-btn i {
+    margin-right: 0.4em;
+}
+
+.tab-content {
+    display: none;
+    padding: 0.8em 0.5em;
+    border: none;
+}
+
+.tab-content.active {
+    display: block;
 }

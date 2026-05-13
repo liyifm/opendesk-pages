@@ -3,6 +3,7 @@ layout: single
 toc: true
 title:  正式版本更新 0.2.0
 date:   2026-04-07 09:00:00 +0800
+classes: no-sidebar
 categories: stable-release
 ---
 

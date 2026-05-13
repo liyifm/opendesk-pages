@@ -3,6 +3,7 @@ layout: single
 toc: true
 title:  2026.5.8 日构建更新
 date:   2026-05-08 09:00:00 +0800
+classes: no-sidebar
 categories: nightly-release
 ---
 

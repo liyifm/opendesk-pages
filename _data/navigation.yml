@@ -2,10 +2,43 @@ main:
   - title: "首页"
     url: /
   - title: "快速开始"
-    url: /quickstart
+    url: /docs/quickstart/cli
+  - title: "文档中心"
+    url: /docs
   - title: "使用场景"
     url: /gallery
   - title: "技能广场"
     url: https://matrix.openharmony.cn/#/skillSquare
   - title: "关于我们"
     url: /about
+
+docs:
+  - title: "快速开始"
+    children:
+      - title: "Opendesk Cli"
+        url: /docs/quickstart/cli
+      - title: "Opendesk Desktop (桌面版)"
+        url: /docs/quickstart/desktop
+
+  - title: "进阶场景"
+    children:
+      - title: "插件使用"
+        url: /docs/plugins/
+
+  - title: "完整使用手册"
+    children:
+      - title: "Opendesk Cli"
+        url: /docs/manual/cli/
+      - title: "Opendesk Desktop (桌面版)"
+        url: /docs/desktop/
+
+  - title: "开发者指南"
+    children:
+      - title: "架构介绍"
+        url: /docs/contribute/architecture
+      - title: "准备开发环境"
+        url: /docs/contribute/prepare
+      - title: "Opendesk Cli 开发上手"
+        url: /docs/contribute/cli
+      - title: "Opendesk Desktop 开发上手"
+        url: /docs/contribute/desktop

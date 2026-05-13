@@ -3,7 +3,7 @@ layout: single
 title: 使用场景
 permalink: /gallery
 toc: false
-classes: wide
+classes: wide no-sidebar
 ---
 
 > 作者的宗旨是：让 Agent 帮我们工作，解放我的双手享受生活；而不是让智能体加速社会节奏，让我们更加浮躁 :(

@@ -3,6 +3,7 @@ layout: single
 toc: true
 title:  2026.3.25 日构建更新
 date:   2026-03-25 09:00:00 +0800
+classes: no-sidebar
 categories: nightly-release
 ---
 

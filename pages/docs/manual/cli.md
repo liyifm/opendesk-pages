@@ -1,11 +1,14 @@
 ---
 layout: single
-title: OpenDesk CLI 使用手册
-permalink: /manual/cli
+title: OpenDesk 项目介绍
+permalink: /docs/manual/cli
+sidebar:
+  nav: "docs"
 toc: true
 toc_label: 目录
 toc_sticky: true
 ---
+
 
 # OpenDesk CLI 使用手册
 
@@ -15,7 +18,7 @@ OpenDesk 是一个功能强大的 AI 工作台，提供 CLI（命令行）和独
 
 ## 开始使用
 
-如果你还没有安装 OpenDesk，请先阅读 [快速开始](/quickstart) 指南，了解如何安装、配置和首次运行。
+如果你还没有安装 OpenDesk，请先阅读 [快速开始](/docs/quickstart/cli) 指南，了解如何安装、配置和首次运行。
 
 > **提示**：OpenDesk 的大部分配置都可以通过自然语言对话完成，无需手动编辑配置文件。
 

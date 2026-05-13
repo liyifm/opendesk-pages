@@ -31,7 +31,7 @@ github_username:  uv0xab
 
 # Build settings
 theme: minimal-mistakes-jekyll
-minimal_mistakes_skin: catppuccin_latte
+minimal_mistakes_skin: "dirt"
 plugins:
   - jekyll-feed
 
