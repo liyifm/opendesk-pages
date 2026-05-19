@@ -12,7 +12,7 @@ categories: nightly-release
 ## 新增功能
 
 - (Cli) 增加 /context 命令已查看当前已使用的上下文状态;
-- (桌面端) 在模型支持多模态时，，可以直接粘贴图片到 Agent 输入框中;
+- (桌面端) 在模型支持多模态时，可以直接粘贴图片到 Agent 输入框中;
 - (桌面端) 支持文件编辑功能，在工作空间中点击文件后，在预览框中可以点击编辑按钮进入编辑界面。当前使用 VSCode 同款的 [Monaco Editor](https://github.com/microsoft/monaco-editor) 作为编辑器插件。另外在工具调用的过程中，也可以点击文件类工具直接跳转（例如，Agent调用了读文件工具，读了 foo.txt 的170行，则单击该工具调用就会直接跳转到编辑器打开 foo.txt 的170行位置);
 
 ## 优化与 Bug 修复
