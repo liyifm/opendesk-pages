@@ -15,21 +15,23 @@ OpenDesk Desktop 提供图形化界面，无需安装 NodeJS 等运行环境。
 |------|----------|
 | **macOS** | 下载 `.dmg` 安装包，双击拖入 Applications |
 | **Windows** | 下载 `.exe` 安装包，运行安装向导 |
-| **HarmonyOS PC** | 在应用市场搜索 OpenDesk 安装 |
+| **HarmonyOS PC** | 下载 `.hap` 安装包，按系统提示安装 |
 
 > 安装包和平台差异说明持续更新中，请关注 [Release Notes](/news/) 获取最新版本。
 
 ### 1.2 首次启动
 
-安装完成后双击 OpenDesk 图标启动应用。首次启动时，需要配置模型相关信息。
+安装完成后双击 OpenDesk 图标启动应用。首次启动时，先选择登录方式，再配置模型相关信息。
+
+<img src="/assets/images/quickstart/desktop-login.png" alt="OpenDesk Desktop 登录方式配置" />
 
 ---
 
 ## 2. 快速完成初始配置
 
-首次启动 OpenDesk Desktop 时，如果尚未配置模型，会直接弹出配置面板（如上图所示）。面板左侧列出配置项，依次完成即可开始使用。
+首次启动 OpenDesk Desktop 时，如果尚未配置模型，会直接弹出配置面板。面板左侧列出配置项，依次完成即可开始使用。
 
-<img src="/assets/images/quickstart/firsttime_gui.jpg" alt="Desktop 首次配置界面" />
+<img src="/assets/images/quickstart/desktop-login-model-init.png" alt="OpenDesk Desktop 初始模型设置" />
 
 配置面板分为三个部分，从上到下依次操作：
 
@@ -59,11 +61,25 @@ OpenDesk Desktop 提供图形化界面，无需安装 NodeJS 等运行环境。
 
 启动后你会看到三栏布局：
 
+<img src="/assets/images/quickstart/desktop-main.png" alt="OpenDesk Desktop 主界面" />
+
 | 区域 | 功能 |
 |------|------|
 | **侧边栏** | 任务列表，支持搜索，底部为设置入口 |
 | **对话区** | 核心交互区：任务标题栏 + 消息列表 + 输入框 |
 | **结果区** | 右侧面板：展示生成的文件、执行步骤、文件变更；可展开/收起，也可导出为文件 |
+
+Windows 上从开始菜单或搜索栏打开 OpenDesk 时，默认工作空间通常位于 `C:\Users\用户名\opendesk`。你也可以在桌面端切换工作空间；切换后，文件读写和任务上下文都会围绕新的工作空间展开。
+
+### 设置与配置口令
+
+如果后续需要重新修改模型配置，点击侧边栏底部的设置按钮，在设置页面中打开模型相关配置。
+
+<img src="/assets/images/quickstart/desktop-model-setting.png" alt="OpenDesk Desktop 模型设置" />
+
+OpenDesk 也支持一键快速导出口令。在设置页面进入「快捷操作」，然后使用「导出口令」或「导入口令」。口令中会包含基础配置，你的朋友在自己的 OpenDesk 中导入口令后，即可快速应用对应配置。
+
+<img src="/assets/images/quickstart/desktop-quickpass.png" alt="OpenDesk Desktop 快捷操作口令" />
 
 ---
 
@@ -107,6 +123,18 @@ OpenDesk Desktop 提供图形化界面，无需安装 NodeJS 等运行环境。
 
 - 「再加一个饼图展示占比」
 - 「导出为 PDF」
+
+---
+
+## 6. 应用与技能中心
+
+桌面版在 Agent 能力之外，还提供了一组图形化内置应用，用于降低常见场景的使用门槛。你可以通过侧边栏入口打开应用，也可以直接把目标告诉 OpenDesk，让它在需要时调用对应能力。
+
+<img src="/assets/images/quickstart/desktop-applications.png" alt="OpenDesk Desktop 应用入口" />
+
+点击侧边栏的技能快捷图标，可以打开技能中心。你可以搜索需要的技能，也可以直接选中推荐技能并安装。
+
+<img src="/assets/images/quickstart/desktop-skills-center.png" alt="OpenDesk Desktop 技能中心" />
 
 ---
 
