@@ -1,0 +1,1113 @@
+---
+title: "OpenCode Server 模式接口"
+description: "OpenDesk opencode 兼容 server 模式的 HTTP、SSE、配置、session、MCP 和权限接口说明"
+---
+
+OpenDesk 当前实现了一个 opencode 兼容的 headless HTTP server 模式，用于让 opencode TUI 或兼容客户端连接 OpenDesk 的任务、模型、权限、MCP 和事件系统。
+
+本文只描述 OpenDesk 当前真实实现的接口。opencode 原项目中存在但 OpenDesk 尚未实现的接口，会明确标注为未实现或占位。
+
+## 启动方式
+
+CLI 子命令：
+
+```bash
+opendesk serve --mode opencode --port 4096 --hostname 127.0.0.1
+```
+
+可用参数：
+
+| 参数 | 默认值 | 说明 |
+| --- | --- | --- |
+| `--mode <mode>` | `opencode` | 当前真正实现 `opencode`。`acp` 只打印“暂未实现”并退出。 |
+| `--port <port>` | `4096` | HTTP 监听端口。 |
+| `--hostname <hostname>` | `127.0.0.1` | HTTP 监听地址。 |
+| `--cors <origins>` | 未设置 | 允许的跨域源，逗号分隔。不设置时允许 `*`。 |
+| `--password <password>` | 环境变量 | 启用 HTTP Basic Auth。也可用 `OPENCODE_SERVER_PASSWORD`。 |
+| `--username <username>` | 环境变量或 `opencode` | Basic Auth 用户名。也可用 `OPENCODE_SERVER_USERNAME`。 |
+
+启动时会初始化 CLI 平台、全局状态、内置 Agent、应用注册表和应用 Worker，然后启动 Hono HTTP server。
+
+健康检查：
+
+```bash
+curl http://127.0.0.1:4096/global/health
+```
+
+响应：
+
+```json
+{
+    "healthy": true,
+    "version": "0.2.0"
+}
+```
+
+## 认证
+
+如果未设置 password，所有请求直接放行，启动日志会打印警告。
+
+如果设置了 password，所有非 `OPTIONS` 请求都需要 Basic Auth：
+
+```bash
+curl -u opencode:your-password http://127.0.0.1:4096/global/health
+```
+
+也支持用 query 参数传递 Basic Auth token：
+
+```text
+?auth_token=<base64(username:password)>
+```
+
+认证失败时返回：
+
+```json
+{
+    "error": "Unauthorized"
+}
+```
+
+HTTP 状态码为 401，并带 `WWW-Authenticate: Basic realm="opendesk"`。
+
+## CORS
+
+server 允许的方法：
+
+```text
+GET, POST, PUT, PATCH, DELETE, OPTIONS
+```
+
+允许的请求头：
+
+```text
+Content-Type, Authorization, x-opencode-directory, x-opencode-sync
+```
+
+暴露的响应头：
+
+```text
+x-opencode-sync, x-next-cursor, link
+```
+
+## Workspace 路由
+
+大多数实例级接口会解析当前工作目录。
+
+优先级：
+
+1. query 参数 `directory`
+2. 请求头 `x-opencode-directory`
+3. 平台当前有效工作空间
+4. `process.cwd()` 兜底
+
+`directory` 会先 URL decode，再 `path.resolve()`。
+
+opencode workspace ID 和文件系统目录是分开的。OpenDesk 会读取：
+
+1. query 参数 `workspace`
+2. 请求头 `x-opencode-workspace`
+
+该值只作为 opencode workspace ID 透传到 session 信息中，不参与路径解析。
+
+示例：
+
+```bash
+curl 'http://127.0.0.1:4096/path?directory=/repo/demo&workspace=wrk_123'
+```
+
+## ID 映射
+
+OpenDesk 内部任务 ID 使用 `task_` 前缀，opencode session ID 使用 `ses_` 前缀。server 路由会自动互转：
+
+| 外部 ID | 内部 ID |
+| --- | --- |
+| `ses_abc` | `task_abc` |
+| `task_abc` | `task_abc` |
+
+其他 ID 前缀：
+
+| 前缀 | 用途 |
+| --- | --- |
+| `msg_` | message |
+| `prt_` | message part |
+| `evt_` | event |
+| `per_` | permission request |
+| `que_` | question request |
+
+## 错误格式
+
+通用错误通常返回：
+
+```json
+{
+    "error": "message"
+}
+```
+
+部分 opencode 兼容接口返回 opencode 风格错误对象，例如：
+
+```json
+{
+    "_tag": "PermissionNotFoundError",
+    "requestID": "per_missing",
+    "message": "Permission request not found: per_missing"
+}
+```
+
+## SSE 事件
+
+OpenDesk 当前实现两个 SSE 事件流：
+
+| 路径 | 说明 |
+| --- | --- |
+| `GET /event` | 实例事件流。 |
+| `GET /global/event` | 全局事件流，opencode TUI 主要连接这个端点。 |
+
+两个端点都使用 SSE event name `message`。
+
+连接成功后立即发送 `server.connected`，之后每 10 秒发送 `server.heartbeat`。
+
+`/event` 的 data 是 `BusEvent`：
+
+```json
+{
+    "id": "evt_connected_lx...",
+    "type": "server.connected",
+    "properties": {}
+}
+```
+
+`/global/event` 的 data 是 `GlobalBusEvent`：
+
+```json
+{
+    "directory": "/repo/demo",
+    "project": "proj_demo",
+    "payload": {
+        "id": "evt_connected_lx...",
+        "type": "server.connected",
+        "properties": {}
+    }
+}
+```
+
+常见事件类型包括：
+
+| 类型 | 触发场景 |
+| --- | --- |
+| `server.connected` | SSE 建连。 |
+| `server.heartbeat` | 心跳。 |
+| `session.created` | 创建 session。 |
+| `session.deleted` | 删除 session。 |
+| `session.status` | session busy/idle 状态变化。 |
+| `session.aborted` | 中止 session。 |
+| `message.updated` | message 元信息变化。 |
+| `message.part.updated` | 流式 part 更新。 |
+| `permission.asked` | 工具调用需要权限确认。 |
+| `permission.replied` | 权限请求已回复。 |
+| `question.asked` | Agent 需要用户回答问题。 |
+| `question.replied` | 问题已回答。 |
+| `question.rejected` | 问题被拒绝。 |
+| `server.instance.disposed` | 调用 dispose。 |
+
+## Global 接口
+
+### GET /global/health
+
+返回 server 健康状态和版本。
+
+```json
+{
+    "healthy": true,
+    "version": "0.2.0"
+}
+```
+
+### GET /global/event
+
+全局 SSE 事件流。格式见“SSE 事件”。
+
+### GET /global/config
+
+返回 opencode 兼容配置，等价于 `GET /config`。
+
+响应示例：
+
+```json
+{
+    "model": "openai/gpt4o",
+    "provider": {
+        "openai": {
+            "api": "openai",
+            "options": {
+                "apiKey": "sk-...",
+                "baseURL": "https://api.openai.com/v1",
+                "noProxy": false
+            }
+        }
+    },
+    "permission": {
+        "read": "allow"
+    }
+}
+```
+
+### PATCH /global/config
+
+更新配置，逻辑等价于 `PATCH /config`。
+
+支持两类 payload：
+
+```json
+{
+    "model": "openai/gpt4o",
+    "provider": {
+        "openai": {
+            "options": {
+                "apiKey": "sk-...",
+                "baseURL": "https://api.openai.com/v1",
+                "noProxy": false
+            },
+            "enabled": false
+        }
+    }
+}
+```
+
+或 OpenDesk 原生字段：
+
+```json
+{
+    "default_model": "gpt4o",
+    "applications": {
+        "search": {
+            "defaultWebSearch": "bing"
+        }
+    }
+}
+```
+
+发送 `{}` 或 `{ "config": {} }` 会触发从磁盘重新加载 `setting.json`，刷新 skills 和当前任务上下文。
+
+provider 的启用状态通过 OpenDesk 原生 `providers[].enabled` 保存。`enabled: false` 的 provider 不会出现在 `/config`、`/config/providers`、`/provider` 和 `/provider/auth` 中；未设置或 `true` 表示启用。
+
+### POST /global/dispose
+
+发布 `server.instance.disposed` 事件，返回：
+
+```json
+true
+```
+
+### 未实现
+
+opencode 的 `POST /global/upgrade` 当前没有在 OpenDesk server 中注册。
+
+## Config 接口
+
+### GET /config
+
+返回 opencode 兼容配置。
+
+生成规则：
+
+| OpenDesk 字段 | opencode 响应 |
+| --- | --- |
+| `providers[].name` | `provider.<name>` |
+| `providers[].api_key` | `provider.<name>.options.apiKey` |
+| `providers[].base_url` | `provider.<name>.options.baseURL` |
+| `providers[].no_proxy` | `provider.<name>.options.noProxy` |
+| `providers[].enabled` | `false` 时该 provider 不输出；未设置或 `true` 时输出。 |
+| `default_model` | `model`，格式为 `<provider_name>/<alias>` |
+| `permission` | 原样输出 |
+
+如果需要禁用某个 provider，请在 `setting.json` 的对应 `providers[]` 项里设置 `"enabled": false`。如果默认模型属于已禁用 provider，`model` 和默认 provider 映射都不会输出。
+
+### PATCH /config
+
+更新配置。行为与 `PATCH /global/config` 一致。
+
+opencode 风格 provider patch 会更新或新增 provider：
+
+```json
+{
+    "provider": {
+        "openai": {
+            "options": {
+                "apiKey": "new-key",
+                "baseURL": "https://new.example/v1",
+                "noProxy": true
+            },
+            "enabled": false
+        }
+    }
+}
+```
+
+`model` 可以是字符串：
+
+```json
+{
+    "model": "openai/gpt-4o"
+}
+```
+
+也可以是对象：
+
+```json
+{
+    "model": {
+        "providerID": "openai",
+        "modelID": "gpt-4o"
+    }
+}
+```
+
+OpenDesk 会把它解析为本地 `models[].alias`。如果能根据 provider 和 model 名称匹配到本地模型，使用对应 alias；否则退回使用 model id。
+
+### GET /config/providers
+
+返回配置中的 provider 列表和默认模型映射。
+
+```json
+{
+    "providers": [
+        {
+            "id": "openai",
+            "name": "openai",
+            "source": "config",
+            "env": [],
+            "options": {
+                "baseURL": "https://api.openai.com/v1"
+            },
+            "models": {
+                "gpt4o": {
+                    "id": "gpt4o",
+                    "providerID": "openai",
+                    "name": "gpt-4o",
+                    "status": "active"
+                }
+            }
+        }
+    ],
+    "default": {
+        "openai": "gpt4o"
+    }
+}
+```
+
+model 对象还包含 `capabilities`、`cost`、`limit`、`headers` 等字段。`context_length` 未配置时，`limit.context` 默认为 128000，`limit.output` 固定为 16384。
+
+`providers[].enabled === false` 的 provider 会从该接口返回中过滤掉。可以先修改磁盘上的 `setting.json`，再调用 `PATCH /config` 或 `PATCH /global/config` 并发送 `{}` 或 `{ "config": {} }` 触发 reload，随后请求 `/config/providers` 验证过滤结果。
+
+## Provider 接口
+
+### GET /provider
+
+列出可用 provider。
+
+```json
+{
+    "all": [],
+    "default": {},
+    "connected": []
+}
+```
+
+| 字段 | 说明 |
+| --- | --- |
+| `all` | provider 列表，格式同 `/config/providers` 中的 provider 对象。 |
+| `default` | provider 到默认模型 alias 的映射。 |
+| `connected` | `api_key` 非空的 provider 名称列表。 |
+
+### GET /provider/auth
+
+返回每个 provider 支持的认证方式。当前全部是 API Key：
+
+```json
+{
+    "openai": [
+        {
+            "type": "api_key",
+            "description": "API Key authentication"
+        }
+    ]
+}
+```
+
+### 未实现
+
+以下 opencode OAuth 接口当前没有在 OpenDesk server 中注册：
+
+| 接口 | 状态 |
+| --- | --- |
+| `POST /provider/:providerID/oauth/authorize` | 未实现 |
+| `POST /provider/:providerID/oauth/callback` | 未实现 |
+
+## Instance 和 Bootstrap 接口
+
+### GET /path
+
+返回路径信息。
+
+```json
+{
+    "directory": "/repo/demo",
+    "home": "/home/user",
+    "state": "",
+    "config": "",
+    "worktree": "/repo/demo"
+}
+```
+
+### GET /command
+
+列出 Agent 支持的模式，返回数组：
+
+```json
+[
+    {
+        "id": "main:standard",
+        "name": "standard",
+        "description": "..."
+    }
+]
+```
+
+### GET /agent
+
+列出所有 Agent：
+
+```json
+[
+    {
+        "name": "main",
+        "type": "main",
+        "modes": [
+            {
+                "id": "standard",
+                "description": "..."
+            }
+        ]
+    }
+]
+```
+
+### GET /skill
+
+列出用户可调用的 skills：
+
+```json
+[
+    {
+        "name": "skill-name",
+        "description": "description",
+        "location": "bundle-or-directory",
+        "content": "markdown body"
+    }
+]
+```
+
+返回内容包含已安装 skills、`skillmgr.external_paths` 扫描到的外部 skills，以及其它应用注册的用户可调用内置 skills。`external_paths` 会递归扫描包含 `SKILL.md` 的目录；外部 skill 的 `location` 是实际 skill 目录。修改磁盘配置后，可以通过 `PATCH /config` 或 `PATCH /global/config` 发送 `{}` / `{ "config": {} }` 触发 reload，再请求该接口验证新增或移除的外部 skill。
+
+### POST /instance/dispose
+
+当前只返回：
+
+```json
+true
+```
+
+### GET /project/current
+
+返回当前项目信息：
+
+```json
+{
+    "id": "proj_demo",
+    "name": "demo",
+    "path": "/repo/demo",
+    "directory": "/repo/demo"
+}
+```
+
+### Bootstrap stub
+
+这些接口主要用于让 opencode TUI 启动过程不崩溃，当前返回占位数据：
+
+| 接口 | 当前响应 |
+| --- | --- |
+| `GET /vcs` | `{ "sha": "", "branch": "", "dirty": false, "root": "<directory>" }` |
+| `GET /lsp` | `[]` |
+| `GET /formatter` | `[]` |
+| `GET /find` | `[]` |
+| `GET /find/file` | `[]` |
+| `GET /find/symbol` | `[]` |
+| `GET /experimental/console` | `{ "consoleManagedProviders": [], "switchableOrgCount": 0 }` |
+| `GET /experimental/resource` | `{}` |
+| `GET /experimental/worktree` | `[]` |
+| `GET /experimental/workspace` | `[]` |
+| `GET /experimental/workspace/status` | `[]` |
+| `POST /experimental/workspace/sync-list` | `[]` |
+
+### GET /experimental/session
+
+返回全局 session 列表，结构接近 `GET /session`。支持 query：
+
+| 参数 | 说明 |
+| --- | --- |
+| `roots=true` | 只返回根 session。 |
+| `start=<timestamp>` | 只返回创建时间大于等于该毫秒时间戳的 session。 |
+| `search=<text>` | 按标题模糊过滤。 |
+| `limit=<n>` | 返回最后 n 条。 |
+| `scope=project` | 不按当前 directory 过滤。 |
+
+## Session 接口
+
+### Session 对象
+
+OpenDesk 返回的 session 基本结构：
+
+```json
+{
+    "id": "ses_abc",
+    "slug": "abc",
+    "projectID": "proj_demo",
+    "workspaceID": "wrk_123",
+    "directory": "/repo/demo",
+    "path": "",
+    "title": "Task title",
+    "version": "1",
+    "agent": "explore",
+    "time": {
+        "created": 1710000000000,
+        "updated": 1710000000000
+    },
+    "tokens": {
+        "input": 0,
+        "output": 0,
+        "reasoning": 0,
+        "cache": {
+            "read": 0,
+            "write": 0
+        }
+    },
+    "cost": 0
+}
+```
+
+如果是 fork 出来的子任务，会额外包含 `parentID`。
+
+### GET /session
+
+列出 session。
+
+支持 query：
+
+| 参数 | 说明 |
+| --- | --- |
+| `search=<text>` | 按标题过滤。 |
+| `limit=<n>` | 只返回最后 n 条。 |
+| `roots=true` | 只返回没有父任务的 session。 |
+| `scope=project` | 不按当前 directory 过滤。 |
+| `directory=<path>` | 指定当前目录。 |
+| `workspace=<id>` | 透传 workspace ID。 |
+
+默认会按当前 directory 过滤。
+
+### GET /session/status
+
+返回所有 session 状态映射：
+
+```json
+{
+    "ses_abc": {
+        "type": "idle"
+    },
+    "ses_def": {
+        "type": "busy"
+    }
+}
+```
+
+OpenDesk 内部 `running` 和 `waiting` 都映射为 `busy`，其他状态映射为 `idle`。
+
+### POST /session
+
+创建 session。
+
+请求示例：
+
+```json
+{
+    "title": "Fix tests",
+    "workspaceID": "wrk_123",
+    "model": {
+        "providerID": "openai",
+        "modelID": "gpt-4o"
+    }
+}
+```
+
+也支持顶层 `providerID`、`modelID`，或字符串 `model: "openai/gpt-4o"`。
+
+创建时会初始化 OpenDesk task harness、权限提示器、ask-user 工具集、MCP workspace 和 system prompt，并发布 `session.created` 事件。
+
+### GET /session/:sessionID
+
+获取 session 详情。不存在返回 404：
+
+```json
+{
+    "error": "Session not found"
+}
+```
+
+### PATCH /session/:sessionID
+
+更新 session。当前支持：
+
+| 字段 | 说明 |
+| --- | --- |
+| `title` | 更新任务标题。 |
+| `model` / `providerID` / `modelID` | 更新该 task 使用的模型别名。 |
+
+### DELETE /session/:sessionID
+
+删除 session，返回 `true`，并发布 `session.deleted`。
+
+### GET /session/:sessionID/children
+
+返回子 session 列表。
+
+### GET /session/:sessionID/message
+
+返回消息列表。
+
+支持 query：
+
+| 参数 | 说明 |
+| --- | --- |
+| `limit=<n>` | 最多返回 n 条。 |
+| `before=<messageID>` | 返回指定 message 之前的消息。 |
+
+当 `limit` 截断结果时，响应头会设置：
+
+```text
+X-Next-Cursor: <messageID>
+Link: <current-url>&before=<messageID>; rel="next"
+```
+
+消息格式：
+
+```json
+{
+    "info": {
+        "id": "msg_abc",
+        "sessionID": "ses_abc",
+        "role": "assistant",
+        "time": {
+            "created": 1710000000000,
+            "completed": 1710000000000
+        },
+        "modelID": "",
+        "providerID": "",
+        "mode": "default",
+        "agent": "explore",
+        "path": {
+            "cwd": "/repo/demo",
+            "root": "/repo/demo"
+        },
+        "cost": 0
+    },
+    "parts": []
+}
+```
+
+### GET /session/:sessionID/message/:messageID
+
+返回单条消息。session 或 message 不存在时分别返回 404。
+
+### POST /session/:sessionID/message
+
+同步发送消息，等待 OpenDesk task 完成后返回 assistant message。
+
+请求体文本提取规则：
+
+| 字段 | 支持格式 |
+| --- | --- |
+| `parts` | 字符串数组，或 `{ "type": "text", "text": "..." }` 数组 |
+| `prompt` | string 或 text parts |
+| `message` | string 或 text parts |
+
+示例：
+
+```json
+{
+    "messageID": "msg_user_1",
+    "model": {
+        "providerID": "openai",
+        "modelID": "gpt-4o"
+    },
+    "parts": [
+        {
+            "type": "text",
+            "text": "帮我分析这个目录"
+        }
+    ]
+}
+```
+
+行为：
+
+1. 确保 task harness 已初始化。
+2. 如果 task 正在运行，先等待上一轮完成。
+3. 根据请求体更新 task model。
+4. 发布 `session.status` busy。
+5. 发布用户 `message.updated` 和 `message.part.updated`。
+6. 调用 `task.submitUserMessage(text)`。
+7. 通过 `waitUntilFinished` 将流式 chunk 转换为 `message.part.updated`。
+8. 完成后发布 assistant `message.updated` 和 `session.status` idle。
+9. 返回最终 assistant message。
+
+如果没有文本内容，返回 400：
+
+```json
+{
+    "error": "No message content"
+}
+```
+
+### POST /session/:sessionID/prompt_async
+
+异步发送消息，立即返回 204。请求体文本规则同 `POST /session/:sessionID/message`。
+
+后台仍会发布同样的 `session.status`、`message.updated` 和 `message.part.updated` 事件。
+
+### POST /session/:sessionID/abort
+
+调用 `task.stop("user")` 中止 session，返回 `true`，并发布 `session.aborted`。
+
+### POST /session/:sessionID/fork
+
+调用内部 `task.fork()` 创建子 session，并返回新 session 信息。
+
+### GET /session/:sessionID/todo
+
+当前返回空数组：
+
+```json
+[]
+```
+
+### GET /session/:sessionID/diff
+
+当前返回空数组：
+
+```json
+[]
+```
+
+### DELETE /session/:sessionID/message/:messageID
+
+删除一条消息，返回 `true`。session 或 message 不存在时返回 404。
+
+### 占位接口
+
+| 接口 | 当前行为 |
+| --- | --- |
+| `POST /session/:sessionID/command` | 返回 400 `{ "error": "Commands not supported" }` |
+| `POST /session/:sessionID/shell` | 返回 400 `{ "error": "Shell not supported" }` |
+
+opencode 原生的 summarize、revert、permission response 等更多 session 接口当前没有在 OpenDesk server 中注册。
+
+## Message Part 转换
+
+OpenDesk 会把内部消息 part 转换为 opencode part：
+
+| OpenDesk part | opencode part |
+| --- | --- |
+| `text` | `{ type: "text", text }` |
+| `tool_call` | `{ type: "tool", callID, tool, state, input, output }` |
+| `reasoning` | `{ type: "reasoning", text }` |
+| `image` | `{ type: "file", mediaType: "image", url }` |
+| `file` | `{ type: "file", file }` |
+| `error` | `{ type: "text", text: "Error: ..." }` |
+
+工具状态映射：
+
+| OpenDesk 状态 | opencode 状态 |
+| --- | --- |
+| `pending` | `pending` |
+| `running` | `running` |
+| `success`、`result` | `completed` |
+| `error`、`failed` | `error` |
+| 其他 | `completed` |
+
+流式输出期间，同一 assistant message 中同一类型的 part 会使用稳定 part ID，便于 opencode TUI 做增量更新。
+
+## MCP 接口
+
+### GET /mcp
+
+返回 MCP server 状态映射：
+
+```json
+{
+    "filesystem": {
+        "status": "connected"
+    },
+    "github": {
+        "status": "failed",
+        "error": "boom"
+    },
+    "fetch": {
+        "status": "disabled"
+    }
+}
+```
+
+状态来源优先是 `mcpmgr` worker 的 `getServers`，失败时回退到 `applications.mcpmgr.servers` 配置。
+
+映射规则：
+
+| OpenDesk 状态 | opencode 状态 |
+| --- | --- |
+| `connected` | `{ "status": "connected" }` |
+| `error` | `{ "status": "failed", "error": "..." }` |
+| 其他 | `{ "status": "disabled" }` |
+
+### POST /mcp/:name/connect
+
+按 MCP `name` 或 `id` 查找 server，调用 worker 的 `connectServer`。请求带 `directory` 时，会作为 stdio workspace 传入。
+
+`id` 是 OpenDesk 创建 MCP server 时生成的内部唯一标识，格式为 `mcp_<毫秒时间戳>_<6位base36随机后缀>`，例如 `mcp_1765200000000_ab12cd`。它不会根据 server 名称或配置内容稳定复用；删除后重新添加会生成新的 id。
+
+成功返回：
+
+```json
+true
+```
+
+找不到 server 返回 404：
+
+```json
+{
+    "_tag": "McpServerNotFoundError",
+    "name": "missing",
+    "message": "MCP server not found: missing"
+}
+```
+
+### POST /mcp/:name/disconnect
+
+按 MCP `name` 或 `id` 查找 server，调用 worker 的 `disconnectServer`。成功返回 `true`。
+
+### 未实现
+
+opencode 的 MCP add 和 OAuth 接口当前没有实现：
+
+| 接口 | 状态 |
+| --- | --- |
+| `POST /mcp` | 未实现 |
+| `POST /mcp/:name/auth` | 未实现 |
+| `POST /mcp/:name/auth/callback` | 未实现 |
+| `POST /mcp/:name/auth/authenticate` | 未实现 |
+| `DELETE /mcp/:name/auth` | 未实现 |
+
+## Permission 接口
+
+OpenDesk server 把内部权限请求桥接成 opencode permission request。
+
+### GET /permission
+
+返回待处理权限请求数组：
+
+```json
+[
+    {
+        "id": "per_lx...",
+        "sessionID": "ses_abc",
+        "permission": "read",
+        "patterns": ["D:/repo/README.md"],
+        "metadata": {
+            "toolName": "readFile",
+            "input": {
+                "file_path": "D:/repo/README.md"
+            },
+            "requests": [
+                {
+                    "resourceType": "file",
+                    "action": "read",
+                    "resourcePath": "D:/repo/README.md"
+                }
+            ],
+            "prefixOptions": []
+        },
+        "always": ["D:/repo/README.md"],
+        "tool": {
+            "messageID": "msg_...",
+            "callID": "call_..."
+        }
+    }
+]
+```
+
+`tool` 只有在当前权限请求能关联到 assistant message 和 tool call 时才出现。
+
+权限名推断规则：
+
+| 工具或资源 | permission |
+| --- | --- |
+| `readFile` 或文件 read | `read` |
+| `writeFile`、`editFile`、`searchReplace`、`applyPatch` 或文件 write | `edit` |
+| `globFiles` | `glob` |
+| `grepFiles` | `grep` |
+| `executePowerShell`、`executeBash`、`executeZsh` 或 execute action | `bash` |
+| `webFetch` 或 network | `webfetch` |
+| 名称包含 `websearch` 或以 `search` 结尾 | `websearch` |
+| `loadSkill`、`callSkill` 或 skill resource | `skill` |
+| `createSubTask` | `task` |
+
+### POST /permission/:requestID/reply
+
+回复权限请求。请求体支持两种格式：
+
+```json
+{
+    "reply": "once"
+}
+```
+
+或：
+
+```json
+{
+    "body": {
+        "reply": "always"
+    }
+}
+```
+
+`reply` 可选值：
+
+| 值 | OpenDesk 行为 |
+| --- | --- |
+| `once` | 本次允许，不记忆。 |
+| `always` | 允许并按首个 `always` pattern 记忆为 prefix 规则。 |
+| `reject` | 拒绝。并会拒绝同 session 的其他待处理权限请求。 |
+
+成功返回：
+
+```json
+true
+```
+
+非法请求体返回 400：
+
+```json
+{
+    "error": "Invalid permission reply"
+}
+```
+
+不存在的 request 返回 404：
+
+```json
+{
+    "_tag": "PermissionNotFoundError",
+    "requestID": "per_missing",
+    "message": "Permission request not found: per_missing"
+}
+```
+
+权限请求默认超时 300 秒。超时会按 `reject` 处理并发布 `permission.replied`。
+
+## Question 接口
+
+OpenDesk 的 ask-user 工具会通过 question broker 暴露给 opencode 客户端。
+
+### GET /question
+
+返回待处理问题数组：
+
+```json
+[
+    {
+        "id": "que_lx...",
+        "sessionID": "ses_abc",
+        "questions": [
+            {
+                "question": "Which mode should be used?",
+                "header": "Mode",
+                "options": [
+                    {
+                        "label": "Fast",
+                        "description": "Use the faster path"
+                    }
+                ],
+                "multiple": false,
+                "custom": true
+            }
+        ]
+    }
+]
+```
+
+### POST /question/:requestID/reply
+
+回复问题。
+
+```json
+{
+    "answers": [["Fast"]]
+}
+```
+
+`answers` 是二维字符串数组，第一层顺序对应 `questions` 顺序，第二层是选择的 label 列表。
+
+成功返回 `true`。非法请求体返回：
+
+```json
+{
+    "error": "Invalid question reply"
+}
+```
+
+不存在的 request 返回：
+
+```json
+{
+    "_tag": "QuestionNotFoundError",
+    "requestID": "que_missing",
+    "message": "Question request not found: que_missing"
+}
+```
+
+### POST /question/:requestID/reject
+
+拒绝问题，OpenDesk 内部会把 ask-user 结果解析为 cancelled。
+
+成功返回：
+
+```json
+true
+```
+
+## 当前实现范围总览
+
+| 类别 | 已实现 | 占位或未实现 |
+| --- | --- | --- |
+| 启动 | `serve --mode opencode` | `--mode acp` |
+| 认证 | Basic Auth、`auth_token` query | OAuth |
+| 事件 | `/event`、`/global/event` SSE | WebSocket 事件 |
+| 配置 | `/config`、`/global/config`、`/config/providers` | opencode 全量配置语义 |
+| provider | `/provider`、`/provider/auth` | provider OAuth |
+| session | CRUD、消息同步/异步、abort、fork、children、message list/delete | summarize、revert、session permission response 等 |
+| MCP | status、connect、disconnect | add、OAuth |
+| 权限 | list、reply | 无 |
+| 问题 | list、reply、reject | 无 |
+| bootstrap | path、project、agent、command、skill | VCS/LSP/find/formatter 仅 stub |
+| experimental | console/resource/session/worktree/workspace 部分 stub | tool、pty、sync、file、v2、tui 等未注册 |
+
+因此，当前 server 模式已经能支撑 opencode TUI 的基础连接、配置读取、session 对话、流式渲染、权限确认、用户问题确认和 MCP 连接状态，但还不是 opencode server 全量 API 的完整替代实现。

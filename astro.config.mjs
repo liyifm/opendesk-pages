@@ -64,6 +64,8 @@ export default defineConfig({
             { label: '准备开发环境', slug: 'docs/contribute/prepare' },
             { label: 'OpenDesk Cli 开发上手', slug: 'docs/contribute/cli' },
             { label: 'OpenDesk Desktop 开发上手', slug: 'docs/contribute/desktop' },
+            { label: '配置文件格式', slug: 'docs/contribute/config-format' },
+            { label: 'OpenCode Server API', slug: 'docs/contribute/opencode-server-api' },
           ],
         },
       ],
