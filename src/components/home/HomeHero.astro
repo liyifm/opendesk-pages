@@ -8,12 +8,22 @@
       <h1>OpenDesk</h1>
       <p>把模型、MCP、Skills 和消息渠道连接成一个可长期运行的桌面智能体。让它整理文件、连接飞书微信、执行开发任务，并把结果送回你手边。</p>
       <div class="home-actions">
-        <a class="home-button home-button--primary" href="/docs/quickstart/cli/">快速开始</a>
+        <a class="home-button home-button--primary" href="/docs/quickstart/cli/" data-astro-prefetch="load">快速开始</a>
       </div>
     </div>
     <div class="home-product-visual" aria-label="OpenDesk 产品界面预览">
       <div class="home-window">
-        <img src="/assets/images/quickstart/firsttime_gui.png" alt="OpenDesk 桌面界面" />
+        <picture>
+          <source srcset="/assets/images/quickstart/firsttime_gui_home.webp" type="image/webp" />
+          <img
+            src="/assets/images/quickstart/firsttime_gui.png"
+            alt="OpenDesk 桌面界面"
+            width="1280"
+            height="754"
+            decoding="async"
+            fetchpriority="high"
+          />
+        </picture>
       </div>
     </div>
   </div>
