@@ -9,12 +9,6 @@ interface Props {
 
 const { variant = 'default' } = Astro.props;
 const navItems = site.nav;
-const eagerPrefetchHrefs = new Set(['/docs/quickstart/cli/', '/gallery/']);
-const getDesktopPrefetchMode = (href: string, external?: boolean) => {
-  if (external) return undefined;
-  return eagerPrefetchHrefs.has(href) ? 'load' : 'hover';
-};
-const getMobilePrefetchMode = (external?: boolean) => (external ? undefined : 'tap');
 ---
 
 <site-header-menu transition:persist="site-header">
@@ -43,7 +37,6 @@ const getMobilePrefetchMode = (external?: boolean) => (external ? undefined : 't
                   rel={item.external ? 'noreferrer' : undefined}
                   data-nav-link
                   data-nav-external={item.external ? 'true' : undefined}
-                  data-astro-prefetch={getDesktopPrefetchMode(item.href, item.external)}
                 >
                   {item.label}
                 </a>
@@ -78,7 +71,6 @@ const getMobilePrefetchMode = (external?: boolean) => (external ? undefined : 't
                   rel={item.external ? 'noreferrer' : undefined}
                   data-nav-link
                   data-nav-external={item.external ? 'true' : undefined}
-                  data-astro-prefetch={getMobilePrefetchMode(item.external)}
                 >
                   {item.label}
                 </a>
