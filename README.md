@@ -2,7 +2,7 @@
 
 The official site and documentation for the [OpenDesk](https://gitcode.com/IntelliOS/OpenDesk) project.
 
-This site is built with Astro, Starlight, and MDX. It publishes static files from `dist/`, so it can be deployed by GitHub Pages or any static hosting platform.
+This site is built with Astro, Starlight, and MDX. It publishes static files from `dist/` through GitHub Actions and GitHub Pages.
 
 ## Requirements
 
@@ -37,11 +37,8 @@ corepack pnpm preview
 
 ## Deployment
 
-GitHub Actions builds and deploys the site on pushes to `main` or `master`. The workflow:
+GitHub Actions builds and deploys the site on pushes to `main` or `master`.
 
-1. installs Node and pnpm through Corepack;
-2. runs `pnpm install --frozen-lockfile`;
-3. runs `pnpm build`;
-4. uploads `dist/` to GitHub Pages.
+The production site is published at `https://opendesk.bitclub.ai`. GitHub Pages should be configured with `Build and deployment -> Source: GitHub Actions`.
 
-The custom domain is declared in `public/CNAME`, and `public/.nojekyll` disables GitHub Pages' Jekyll processing for the published artifact.
+More operational details are in [docs/site-operations.md](docs/site-operations.md).

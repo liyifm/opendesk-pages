@@ -53,8 +53,6 @@ export default defineConfig({
             { label: '准备开发环境', slug: 'docs/contribute/prepare' },
             { label: 'Opendesk Cli 开发上手', slug: 'docs/contribute/cli' },
             { label: 'Opendesk Desktop 开发上手', slug: 'docs/contribute/desktop' },
-            { label: '官网技术栈迁移方案', slug: 'docs/contribute/astro-starlight-mdx-migration' },
-            { label: 'Astro 迁移 Phase 0 盘点', slug: 'docs/contribute/astro-migration-phase-0-inventory' },
           ],
         },
       ],

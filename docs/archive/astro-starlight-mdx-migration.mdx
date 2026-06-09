@@ -3,6 +3,8 @@ title: "Astro + Starlight + MDX 官网重构方案"
 description: "OpenDesk 官网重构方案"
 ---
 
+> Archived: this migration plan is retained for project history only and is not part of the published website.
+
 ## 状态
 
 | 项目 | 状态 |
@@ -10,7 +12,7 @@ description: "OpenDesk 官网重构方案"
 | 方案阶段 | Phase 0 Completed |
 | 设计基线 | 已有首页 HTML 设计稿：`design-drafts/homepage-v1.html` |
 | 技术栈决策 | 倾向采用 Astro + Starlight + MDX |
-| 迁移准备 | Completed：[Phase 0 盘点](/docs/contribute/astro-migration-phase-0-inventory) |
+| 迁移准备 | Completed：[Phase 0 盘点](./astro-migration-phase-0-inventory.mdx) |
 | 基础工程 | Completed：Astro/Starlight/MDX 工程已初始化 |
 | 首页组件化 | Completed：首版首页已迁入 Astro 组件 |
 | 代码迁移 | Phase 5 Completed：文档、Release Notes、场景页和渠道页已迁入 Astro，旧 Jekyll 入口已清理 |
@@ -212,7 +214,7 @@ Node version: 22.16.0，跟随项目 .nvmrc 或 Cloudflare Pages 配置
 
 ### Phase 0：迁移准备
 
-状态：Completed，详见 [Astro 迁移 Phase 0 盘点](/docs/contribute/astro-migration-phase-0-inventory)
+状态：Completed，详见 [Astro 迁移 Phase 0 盘点](./astro-migration-phase-0-inventory.mdx)
 
 - 确认最终部署目标：Cloudflare Pages 或 GitHub Pages；
 - 定义关键页面最小集合：`_data/navigation.yml` 中所有内部链接，以及所有带 `permalink` 的页面；

@@ -83,6 +83,10 @@ img {
   max-width: 760px;
 }
 
+.about-page {
+  max-width: 90%;
+}
+
 .content-page h1 {
   margin-top: 0;
   font-size: 40px;
