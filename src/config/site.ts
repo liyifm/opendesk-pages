@@ -10,8 +10,8 @@ export const site = {
     { label: '关于我们', href: '/about/' },
   ],
   footerLinks: [
-    { label: 'GitCode', href: 'https://gitcode.com/openharmony-robot/OpenDesk' },
-    { label: 'OpenHarmony', href: 'https://gitcode.com/openharmony-robot/OpenDesk' },
+    { label: 'GitCode', href: 'https://gitcode.com/IntelliOS/OpenDesk' },
+    { label: 'OpenHarmony', href: 'https://gitcode.com/IntelliOS/OpenDesk' },
   ],
   copyright: '© 2026 The OpenDesk Team, All Right Reserved.',
 };

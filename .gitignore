@@ -1,12 +1,5 @@
 .DS_Store
 .claude
-.bundle
-Gemfile.lock
-_site
-.sass-cache
-.jekyll-cache
-.jekyll-metadata
-vendor
 node_modules
 dist
 .astro

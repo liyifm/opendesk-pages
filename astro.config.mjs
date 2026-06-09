@@ -5,7 +5,7 @@ import { defineConfig } from 'astro/config';
 
 export default defineConfig({
   site: 'https://opendesk.bitclub.ai',
-  // Production deploys at the domain root, so public assets intentionally use root-absolute URLs.
+  // Production deploys at the domain root, so public page assets intentionally use root-absolute URLs.
   trailingSlash: 'ignore',
   integrations: [
     starlight({
@@ -13,7 +13,7 @@ export default defineConfig({
       description: 'Personal AI operator for desktop workflows.',
       favicon: '/favicon.ico',
       logo: {
-        src: '/assets/images/cli-logo.png',
+        src: './src/assets/images/cli-logo.png',
         alt: 'OpenDesk',
       },
       pagefind: true,
@@ -55,7 +55,7 @@ export default defineConfig({
         {
           icon: 'gitlab',
           label: 'GitCode',
-          href: 'https://gitcode.com/openharmony-robot/OpenDesk',
+          href: 'https://gitcode.com/IntelliOS/OpenDesk',
         },
       ],
     }),

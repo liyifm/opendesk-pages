@@ -11,7 +11,7 @@ category: "nightly-release"
 - 支持输入 `!` 进入内嵌 Shell 模式，在此模式下可以快速执行 Shell 命令而不必经过大模型，同时可以通过 cd 等命令来快速切换工作空间。Shell 模式下支持按 Tab 对路径等进行自动补全;
 - 支持与 claude code 类似的 /btw 功能，在不影响当前任务的情况下进行简单的快速问答;
 
-![shell-mode](/assets/images/manual/shell-mode.gif)
+<img src="/assets/images/manual/shell-mode.gif" alt="shell-mode" />
 
 ## 优化与 Bug 修复
 

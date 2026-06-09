@@ -13,9 +13,9 @@ description: "OpenDesk 官网重构方案"
 | 迁移准备 | Completed：[Phase 0 盘点](/docs/contribute/astro-migration-phase-0-inventory) |
 | 基础工程 | Completed：Astro/Starlight/MDX 工程已初始化 |
 | 首页组件化 | Completed：首版首页已迁入 Astro 组件 |
-| 代码迁移 | Phase 4 Completed：文档、Release Notes、场景页和渠道页已迁入 Astro |
-| 自动部署 | Not Started |
-| 外部审核 | Completed：Phase 2 已完成 Claude + DeepSeek 收口审核，无遗留 P0/P1 |
+| 代码迁移 | Phase 5 Completed：文档、Release Notes、场景页和渠道页已迁入 Astro，旧 Jekyll 入口已清理 |
+| 自动部署 | Completed：GitHub Pages Actions 构建 `dist/` 并发布 |
+| 外部审核 | Completed：各阶段已完成 Claude + DeepSeek 收口审核，无遗留 P0/P1 |
 
 本文档用于指导 OpenDesk 官网从当前 Jekyll 站点迁移到 Astro + Starlight + MDX。当前 Jekyll 站点只作为迁移期的线上内容和回退基线；Astro 版本完成并验证后，应删除 Jekyll/Ruby 构建入口，不长期维护双构建系统。
 
@@ -64,7 +64,7 @@ description: "OpenDesk 官网重构方案"
 | 文档系统 | Starlight | 负责文档侧边栏、目录、搜索、代码块和文档布局 |
 | 内容格式 | Markdown + MDX | 普通内容保持 Markdown，复杂教程和交互块使用 MDX |
 | 交互组件 | Astro Islands | 首页动画、Tabs、安装命令、渠道切换等局部交互按需加载 |
-| 部署 | Cloudflare Pages 优先，GitHub Pages 备选 | 当前域名已走 Cloudflare；Astro 也可用 GitHub Pages Action 部署 |
+| 部署 | GitHub Pages Actions | 推送源码后由 GitHub Actions 构建 Astro，并将 `dist/` 发布到 Pages |
 
 参考资料：
 
@@ -185,15 +185,21 @@ opendesk-pages/
 
 ## 自动部署方案
 
-### Cloudflare Pages 优先
+### GitHub Pages
 
-适用原因：
+当前仓库采用 GitHub Actions 发布 Astro 静态产物。流程如下：
 
-- 当前公开域名 `opendesk.bitclub.ai` 已经由 Cloudflare 响应；
-- Astro 静态输出目录为 `dist/`，适合 Cloudflare Pages；
-- GitHub 推送可直接触发 Cloudflare Pages 构建。
+- push 到 `main` 或 `master` 后触发 `.github/workflows/deploy.yml`；
+- 使用 `.nvmrc` 指定 Node 22.16.0；
+- 通过 Corepack 启用 pnpm；
+- 执行 `pnpm install --frozen-lockfile` 和 `pnpm build`；
+- 将 `dist/` 作为 Pages artifact 发布。
 
-建议配置：
+仓库内 `public/.nojekyll` 会随构建产物进入 `dist/`，避免 GitHub Pages 对静态产物执行 Jekyll 处理。`public/CNAME` 声明生产域名 `opendesk.bitclub.ai`。
+
+### Cloudflare Pages 备选
+
+如果后续决定切回 Cloudflare Pages，也可以沿用同一套 Astro 构建命令：
 
 ```text
 Install command: corepack enable && pnpm install --frozen-lockfile
@@ -201,12 +207,6 @@ Build command: pnpm build
 Build output: dist
 Node version: 22.16.0，跟随项目 .nvmrc 或 Cloudflare Pages 配置
 ```
-
-`pnpm-workspace.yaml` 需要显式允许 `esbuild` 和 `sharp` 的构建脚本，避免 pnpm 默认阻止依赖 native build 后影响 Astro 构建。
-
-### GitHub Pages 备选
-
-如需要完全由 GitHub Actions 发布，可使用 Astro 官方 GitHub Pages Action。该方案适合保留 `liyifm/opendesk-pages` 作为源码仓库并由 Actions 产出静态页面。
 
 ## 分阶段计划
 
@@ -327,25 +327,30 @@ Node version: 22.16.0，跟随项目 .nvmrc 或 Cloudflare Pages 配置
 
 ### Phase 5：自动部署与切流
 
-状态：Todo
+状态：Completed
 
-- 配置 Cloudflare Pages 或 GitHub Actions；
-- 设置预览环境；
-- Cloudflare Pages 方案下使用分支预览或 `*.pages.dev` 预览环境；
-- 配置生产域名；
-- 在切流前保留 Jekyll 版本作为回退分支或 tag；
-- 删除 Jekyll 主线入口：`Gemfile`、`_config.yml`、`_data/`、`_includes/`、`_posts/`、旧 `pages/`、根 `index.md`、Jekyll `assets` 中已迁移的重复资源，以及 Ruby 构建产物配置；
-- 确认仓库主线只执行 Astro 构建，不再执行 Jekyll 构建；
-- 切流后观察 404、缓存和静态资源路径。
+- 已配置 GitHub Actions 自动部署；
+- 已使用 `public/CNAME` 配置生产域名；
+- 已添加 `public/.nojekyll` 禁用 GitHub Pages 的 Jekyll 处理；
+- 已删除 Jekyll 主线入口：`Gemfile`、`_config.yml`、`_data/`、`_includes/`、`_posts/`、旧 `pages/`、根 `index.md`、Jekyll `assets` 中已迁移的重复资源，以及 Ruby 构建产物配置；
+- 已确认仓库主线只执行 Astro 构建，不再执行 Jekyll 构建；
+- 切流后需继续观察 404、缓存和静态资源路径。
 
 验收标准：
 
 - push 后自动构建；
 - 生产域名可访问；
 - 主要 URL 没有意外 404；
-- 已演练回退：Cloudflare Pages 回滚到上一个部署，或 GitHub Pages 切回旧发布分支；
-- Jekyll/Ruby 构建入口已从主线移除，旧版本仅存在于 tag/分支中；
+- Jekyll/Ruby 构建入口已从主线移除，旧版本仅存在于历史提交、tag 或发布分支中；
 - 可在 30 分钟内回退到旧版本。
+
+执行记录：
+
+- 新增 `.github/workflows/deploy.yml`，push 到 `main` 或 `master` 时构建并发布 `dist/`；
+- 新增 `public/CNAME` 和 `public/.nojekyll`；
+- README 已改为 Astro/Starlight/MDX 的本地开发、构建和部署说明；
+- `/about/` 已从迁移占位页更新为正式项目介绍；
+- 删除旧 Jekyll/Ruby 文件后，主线构建入口只剩 `pnpm build`。
 
 ## 风险与对策
 
@@ -369,17 +374,18 @@ Node version: 22.16.0，跟随项目 .nvmrc 或 Cloudflare Pages 配置
 | --- | --- | --- |
 | 2026-06-09 | 推荐从 Jekyll + Minimal Mistakes 迁移到 Astro + Starlight + MDX | Accepted |
 | 2026-06-09 | 首页视觉以 `design-drafts/homepage-v1.html` 为首版模板 | Accepted |
-| 2026-06-09 | 自动部署优先考虑 Cloudflare Pages，GitHub Pages 作为备选 | Preferred |
+| 2026-06-09 | 自动部署优先考虑 Cloudflare Pages，GitHub Pages 作为备选 | Superseded：Phase 5 改为 GitHub Pages Actions |
 | 2026-06-09 | Claude + DeepSeek 审核指出路径映射、双构建、Liquid/MDX、URL 兼容风险；本文档已吸收 P0/P1 建议 | Completed |
 | 2026-06-09 | Phase 1 使用 `src/content/docs/docs/**` 保留 `/docs/**` 路由，包管理器采用 pnpm，Node 固定为 22.16.0 | Completed |
 | 2026-06-09 | 明确双构建只作为迁移期防护；Astro 验证和切流后，主线删除 Jekyll/Ruby 构建入口 | Accepted |
 | 2026-06-09 | Phase 2 首页使用 Astro 组件落地，桌面保留整页滚动，窄屏降级为自然流式布局 | Completed |
 | 2026-06-09 | Phase 3 迁入文档中心正文和 19 篇 Release Notes，旧空白页面保留明确建设状态 | Completed |
 | 2026-06-09 | Phase 4 迁入 gallery、usecases、Feishu、Weixin 页面，并统一视频和图片展示容器 | Completed |
+| 2026-06-09 | Phase 5 采用 GitHub Pages Actions 发布 Astro `dist/`，并删除 Jekyll/Ruby 主线入口 | Completed |
 
 ## 下一步
 
-1. 进入 Phase 5 自动部署与切流；
-2. 配置生产构建命令和预览环境；
-3. 删除 Jekyll/Ruby 主线入口，保留旧版本 tag 或分支作为回退；
-4. Phase 5 审核通过后再提交。
+1. 合并后确认 GitHub Pages workflow 首次运行成功；
+2. 访问生产域名检查首页、文档、更新日志、使用场景和渠道教程；
+3. 观察 404、缓存和静态资源路径；
+4. 如需回退，切回合并前提交、tag 或发布分支。

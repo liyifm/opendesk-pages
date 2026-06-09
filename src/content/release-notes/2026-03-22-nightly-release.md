@@ -12,7 +12,7 @@ category: "nightly-release"
 - 增加了 grep 和 glob 工具，现在可以对代码仓库进行更复杂的文件检索了;
 - 支持在输入框中输入 `@` 后进行文件路径的自动补全;
 
-    ![auto-completion](/assets/images/manual/input-file-completion.gif)
+    <img src="/assets/images/manual/input-file-completion.gif" alt="auto-completion" />
 
 - 子任务管理方面，
     - 支持通过工具向子任务追加消息，方便对复杂的子任务进行复用;

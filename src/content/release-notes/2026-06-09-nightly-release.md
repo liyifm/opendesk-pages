@@ -1,10 +1,7 @@
 ---
-layout: single
-toc: true
-title:  2026.6.9 日构建更新
-date:   2026-06-09 09:00:00 +0800
-classes: no-sidebar
-categories: nightly-release
+title: "2026.6.09 日构建更新"
+date: "2026-06-09T09:00:00+08:00"
+category: "nightly-release"
 ---
 
 # 2026.6.9 日构建更新内容
@@ -22,7 +19,6 @@ categories: nightly-release
 - 修复工具调用参数为空可能导致400错误的问题;
 - 修复 Skill 无法用自然语言安装的问题，支持直接在对话过程中让 agent 查询主流 skill 市场并安装所需要的 skill;
 - 修复删除 Skill 时小概率出现的由于路径命名冲突而无法删除的问题;
-
 
 ## 下载
 

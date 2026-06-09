@@ -1,36 +1,47 @@
 # OpenDesk Pages
 
-The official document pages for the [OpenDesk](https://gitcode.com/openharmony-robot/OpenDesk) project. This project is powered by [Jekyll](https://jekyllrb.com/) and using the [minimal-mistakes](https://github.com/mmistakes/minimal-mistakes) theme.
+The official site and documentation for the [OpenDesk](https://gitcode.com/IntelliOS/OpenDesk) project.
 
-## 1. Installing the Dependencies
+This site is built with Astro, Starlight, and MDX. It publishes static files from `dist/`, so it can be deployed by GitHub Pages or any static hosting platform.
 
-### On Windows Platform
+## Requirements
 
-1. Download and install ruby from [RubyInstaller](https://rubyinstaller.org/downloads/):
-   - download the **with devkit** version;
-   - during the installation process, make sure that *Add rube executables to your PATH* and *MSYS2 development toolchain* are selected and installed (otherwise some native libraries might not work properly);
-2. Restart your terminal (to guarantee the PATH environment variables have taken effect);
-3. Using bash, powershell or simply cmd, jumping to this directory and run:
+- Node.js 22.16.0 or newer
+- pnpm 11.5.2, managed through Corepack
 
-   ```
-   bundle install
-   ```
-   and wait until everything is properly configured.
+The repository includes `.nvmrc` and `packageManager` metadata for consistent local installs.
 
-### On Other Platforms
-
-Since you guys are working on a *professional* platform, we will not waste the time teaching you how to do this, haha ;)
-
-## 2. Starting The Server
-
-The default serving port of jekyll is 4000, however this is by default disallowed on latest Windows. So manually specify a port instaed. For, example:
+## Local Development
 
 ```bash
-bundle exec jekyll serve --port 8081
+corepack enable
+corepack pnpm install
+corepack pnpm dev --host 127.0.0.1 --port 8093
 ```
 
-Or using the following command to enable live reload:
+Open `http://127.0.0.1:8093/` after the dev server starts.
+
+## Build
 
 ```bash
-bundle exec jekyll serve --port 8081 --livereload
+corepack pnpm build
 ```
+
+The generated site is written to `dist/`.
+
+To preview the production build locally:
+
+```bash
+corepack pnpm preview
+```
+
+## Deployment
+
+GitHub Actions builds and deploys the site on pushes to `main` or `master`. The workflow:
+
+1. installs Node and pnpm through Corepack;
+2. runs `pnpm install --frozen-lockfile`;
+3. runs `pnpm build`;
+4. uploads `dist/` to GitHub Pages.
+
+The custom domain is declared in `public/CNAME`, and `public/.nojekyll` disables GitHub Pages' Jekyll processing for the published artifact.
