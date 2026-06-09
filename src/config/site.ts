@@ -4,7 +4,7 @@ export const site = {
   repoUrl: 'https://gitcode.com/IntelliOS/OpenDesk',
   nav: [
     { label: '首页', href: '/' },
-    { label: '快速开始', href: '/docs/quickstart/cli/' },
+    { label: '使用文档', href: '/docs/quickstart/cli/', activePath: '/docs/' },
     { label: '使用场景', href: '/gallery/' },
     { label: '更新日志', href: '/news/' },
     { label: '技能广场', href: 'https://matrix.openharmony.cn/#/skillSquare', external: true },

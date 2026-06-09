@@ -37,6 +37,7 @@ const navItems = site.nav;
                   rel={item.external ? 'noreferrer' : undefined}
                   data-nav-link
                   data-nav-external={item.external ? 'true' : undefined}
+                  data-nav-active={item.activePath}
                 >
                   {item.label}
                 </a>
@@ -71,6 +72,7 @@ const navItems = site.nav;
                   rel={item.external ? 'noreferrer' : undefined}
                   data-nav-link
                   data-nav-external={item.external ? 'true' : undefined}
+                  data-nav-active={item.activePath}
                 >
                   {item.label}
                 </a>
@@ -133,7 +135,8 @@ const navItems = site.nav;
         const currentPath = normalizePath(window.location.href);
         this.querySelectorAll('[data-nav-link]').forEach((link) => {
           const item = link.closest('.site-nav__item, .site-mobile-tabs__item');
-          const targetPath = link.dataset.navExternal === 'true' ? null : normalizePath(link.href);
+          const activeTarget = link.dataset.navActive || link.href;
+          const targetPath = link.dataset.navExternal === 'true' ? null : normalizePath(activeTarget);
           const isActive = Boolean(
             currentPath &&
               targetPath &&
