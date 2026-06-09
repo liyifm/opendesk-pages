@@ -30,8 +30,14 @@ const navItems = site.nav;
         <nav class="site-nav" aria-label="Main navigation">
           {
             navItems.map((item) => (
-              <div class:list={['site-nav__item', item.items && 'site-nav__item--has-menu']}>
-                <a href={item.href} target={item.external ? '_blank' : undefined} rel={item.external ? 'noreferrer' : undefined}>
+              <div class:list={['site-nav__item', item.external && 'site-nav__item--external', item.items && 'site-nav__item--has-menu']}>
+                <a
+                  href={item.href}
+                  target={item.external ? '_blank' : undefined}
+                  rel={item.external ? 'noreferrer' : undefined}
+                  data-nav-link
+                  data-nav-external={item.external ? 'true' : undefined}
+                >
                   {item.label}
                 </a>
                 {
@@ -46,9 +52,11 @@ const navItems = site.nav;
               </div>
             ))
           }
+          <div class="site-nav__item site-nav__item--external">
+            <a href={site.repoUrl} target="_blank" rel="noreferrer" data-nav-link data-nav-external="true">代码仓</a>
+          </div>
         </nav>
         <div class="site-actions">
-          <a class="site-repo-button" href={site.repoUrl} target="_blank" rel="noreferrer">代码仓</a>
           <ThemeToggle />
         </div>
       </div>
@@ -56,8 +64,14 @@ const navItems = site.nav;
         <nav class="site-mobile-tabs" aria-label="Mobile navigation">
           {
             navItems.map((item) => (
-              <div class:list={['site-mobile-tabs__item', item.items && 'site-mobile-tabs__item--group']}>
-                <a href={item.href} target={item.external ? '_blank' : undefined} rel={item.external ? 'noreferrer' : undefined}>
+              <div class:list={['site-mobile-tabs__item', item.external && 'site-mobile-tabs__item--external', item.items && 'site-mobile-tabs__item--group']}>
+                <a
+                  href={item.href}
+                  target={item.external ? '_blank' : undefined}
+                  rel={item.external ? 'noreferrer' : undefined}
+                  data-nav-link
+                  data-nav-external={item.external ? 'true' : undefined}
+                >
                   {item.label}
                 </a>
                 {
@@ -72,9 +86,11 @@ const navItems = site.nav;
               </div>
             ))
           }
+          <div class="site-mobile-tabs__item site-mobile-tabs__item--external">
+            <a href={site.repoUrl} target="_blank" rel="noreferrer" data-nav-link data-nav-external="true">代码仓</a>
+          </div>
         </nav>
         <div class="site-mobile-menu__actions">
-          <a class="site-repo-button" href={site.repoUrl} target="_blank" rel="noreferrer">代码仓</a>
           <ThemeToggle />
         </div>
       </div>
@@ -107,11 +123,43 @@ const navItems = site.nav;
       const syncVariant = () => {
         header?.classList.toggle('site-header--landing', window.location.pathname === '/');
       };
+      const normalizePath = (value) => {
+        const url = new URL(value, window.location.origin);
+        if (url.origin !== window.location.origin) return null;
+        if (url.pathname === '/') return '/';
+        return url.pathname.replace(/\/+$/, '');
+      };
+      const syncActiveLinks = () => {
+        const currentPath = normalizePath(window.location.href);
+        this.querySelectorAll('[data-nav-link]').forEach((link) => {
+          const item = link.closest('.site-nav__item, .site-mobile-tabs__item');
+          const targetPath = link.dataset.navExternal === 'true' ? null : normalizePath(link.href);
+          const isActive = Boolean(
+            currentPath &&
+              targetPath &&
+              (targetPath === '/'
+                ? currentPath === '/'
+                : currentPath === targetPath || currentPath.startsWith(`${targetPath}/`)),
+          );
+
+          item?.classList.toggle('site-nav__item--active', isActive);
+          item?.classList.toggle('site-mobile-tabs__item--active', isActive);
+          if (isActive) {
+            link.setAttribute('aria-current', 'page');
+          } else {
+            link.removeAttribute('aria-current');
+          }
+        });
+      };
       const syncVariantAfterSwap = () => {
-        window.requestAnimationFrame(syncVariant);
+        window.requestAnimationFrame(() => {
+          syncVariant();
+          syncActiveLinks();
+        });
       };
 
       syncVariant();
+      syncActiveLinks();
       button.addEventListener('click', () => {
         menu.hidden ? open() : close();
       }, { signal: controller.signal });

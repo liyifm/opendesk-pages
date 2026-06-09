@@ -90,7 +90,7 @@ img {
 }
 
 .content-page :where(p, li) {
-  color: rgba(16, 19, 20, 0.74);
+  color: var(--muted);
   line-height: 1.78;
 }
 
@@ -114,7 +114,7 @@ img {
 
 .release-year {
   padding: 26px 0;
-  border-top: 1px solid rgba(16, 19, 20, 0.1);
+  border-top: 1px solid var(--line);
 }
 
 .release-year h2 {
@@ -136,7 +136,7 @@ img {
   justify-content: space-between;
   gap: 18px;
   padding: 14px 0;
-  border-bottom: 1px solid rgba(16, 19, 20, 0.08);
+  border-bottom: 1px solid var(--line);
 }
 
 .release-list a {
@@ -157,9 +157,9 @@ img {
 .release-badge,
 .release-kicker span {
   flex: 0 0 auto;
-  border: 1px solid rgba(16, 19, 20, 0.12);
+  border: 1px solid var(--line);
   border-radius: 999px;
-  color: rgba(16, 19, 20, 0.68);
+  color: var(--muted);
   padding: 4px 10px;
   font-size: 12px;
   font-weight: 700;
@@ -197,9 +197,9 @@ img {
   display: grid;
   gap: 14px;
   overflow: hidden;
-  border: 1px solid rgba(16, 19, 20, 0.1);
+  border: 1px solid var(--line);
   border-radius: 8px;
-  background: #fff;
+  background: var(--surface);
   color: var(--ink);
   text-decoration: none;
   transition:
@@ -276,8 +276,8 @@ img {
 }
 
 .site-footer {
-  border-top: 1px solid rgba(16, 19, 20, 0.08);
-  background: #fffdf8;
+  border-top: 1px solid var(--line);
+  background: var(--surface);
 }
 
 .site-footer__inner {
@@ -303,6 +303,7 @@ img {
 
 .home-hero {
   position: relative;
+  overflow: hidden;
   min-height: 100svh;
   height: 100svh;
   display: grid;
@@ -310,20 +311,39 @@ img {
   padding: 72px 34px 0;
   scroll-snap-align: start;
   scroll-snap-stop: always;
-  background:
-    linear-gradient(90deg, rgba(246, 244, 238, 0.98) 0%, rgba(246, 244, 238, 0.9) 36%, rgba(246, 244, 238, 0.32) 68%, rgba(246, 244, 238, 0.08) 100%),
-    url("/assets/images/common/banner.jpg") center / cover no-repeat;
+  background: var(--paper);
 }
 
+.home-hero::before,
 .home-hero::after {
   content: "";
   position: absolute;
+  pointer-events: none;
+}
+
+.home-hero::before {
+  inset: 0;
+  background: url("/assets/images/common/banner.jpg") center / cover no-repeat;
+}
+
+.home-hero::after {
+  top: 0;
   right: 0;
   bottom: 0;
   left: 0;
-  height: 34%;
-  background: linear-gradient(0deg, var(--paper), rgba(246, 244, 238, 0));
-  pointer-events: none;
+  background:
+    linear-gradient(90deg, rgba(246, 244, 238, 0.98) 0%, rgba(246, 244, 238, 0.9) 36%, rgba(246, 244, 238, 0.32) 68%, rgba(246, 244, 238, 0.08) 100%),
+    linear-gradient(0deg, var(--paper), rgba(246, 244, 238, 0) 34%);
+}
+
+:root[data-theme="dark"] .home-hero::before {
+  filter: brightness(0.42) saturate(0.72) contrast(1.08);
+}
+
+:root[data-theme="dark"] .home-hero::after {
+  background:
+    linear-gradient(90deg, rgba(21, 24, 25, 0.99) 0%, rgba(21, 24, 25, 0.92) 42%, rgba(21, 24, 25, 0.66) 72%, rgba(21, 24, 25, 0.42) 100%),
+    linear-gradient(0deg, var(--paper), rgba(21, 24, 25, 0) 34%);
 }
 
 .home-hero__inner {
@@ -373,7 +393,7 @@ img {
 .home-hero__copy p {
   margin: clamp(16px, 2.4svh, 28px) 0 0;
   max-width: 520px;
-  color: #33393b;
+  color: var(--muted);
   font-size: clamp(17px, 1.45vw, 20px);
   line-height: 1.52;
 }
@@ -399,8 +419,19 @@ img {
   text-decoration: none;
 }
 
+:root[data-theme="dark"] .home-button {
+  background: rgba(247, 243, 234, 0.08);
+  color: var(--ink);
+}
+
 .home-button--primary {
   color: #fff;
+  background: var(--accent);
+  border-color: var(--accent);
+}
+
+:root[data-theme="dark"] .home-button--primary {
+  color: #101314;
   background: var(--accent);
   border-color: var(--accent);
 }
@@ -423,6 +454,12 @@ img {
   border: 1px solid rgba(255, 255, 255, 0.65);
   background: #f8f6ef;
   box-shadow: var(--shadow);
+}
+
+:root[data-theme="dark"] .home-window,
+:root[data-theme="dark"] .home-final__visual {
+  border-color: rgba(247, 243, 234, 0.14);
+  background: #202425;
 }
 
 .home-window {
@@ -617,6 +654,10 @@ img {
   border-radius: 999px;
   background: rgba(29, 127, 103, 0.12);
   transform: rotate(-18deg);
+}
+
+:root[data-theme="dark"] .home-phone-panel::before {
+  background: rgba(72, 185, 150, 0.14);
 }
 
 .home-phone-shot {

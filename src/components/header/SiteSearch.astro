@@ -38,8 +38,22 @@ const isDev = import.meta.env.DEV;
         openButton.setAttribute('aria-keyshortcuts', 'Meta+K');
       }
 
+      const positionDialog = () => {
+        Object.assign(dialog.style, {
+          position: 'fixed',
+          inset: 'auto',
+          top: '50%',
+          left: '50%',
+          right: 'auto',
+          bottom: 'auto',
+          margin: '0',
+          transform: 'translate(-50%, -50%)',
+        });
+      };
+
       const open = async () => {
         dialog.showModal();
+        positionDialog();
         document.body.toggleAttribute('data-search-modal-open', true);
         await this.mountSearch();
         dialog.querySelector('input')?.focus();
