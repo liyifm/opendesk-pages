@@ -1,34 +1,48 @@
-<button type="button" class="site-theme-toggle" data-theme-toggle aria-label="切换主题" aria-pressed="false">
-  <span aria-hidden="true"></span>
-  <span class="site-theme-toggle__label">主题</span>
-</button>
+<site-theme-toggle>
+  <button type="button" class="site-theme-toggle" data-theme-toggle aria-label="切换到深色主题" aria-pressed="false">
+    <span aria-hidden="true"></span>
+    <span class="site-theme-toggle__label">主题</span>
+  </button>
+</site-theme-toggle>
 
-<script is:inline>
-  (() => {
-    const storageKey = 'starlight-theme';
-    const getStoredTheme = () => localStorage.getItem(storageKey) || 'light';
-    const applyTheme = (theme) => {
-      const nextTheme = theme === 'dark' ? 'dark' : 'light';
-      document.documentElement.dataset.theme = nextTheme;
-      localStorage.setItem(storageKey, nextTheme);
-      document.querySelectorAll('[data-theme-toggle]').forEach((button) => {
-        button.dataset.theme = nextTheme;
-        button.setAttribute('aria-label', nextTheme === 'dark' ? '切换到浅色主题' : '切换到深色主题');
-        button.setAttribute('aria-pressed', nextTheme === 'dark' ? 'true' : 'false');
-      });
-    };
+<script>
+  class SiteThemeToggle extends HTMLElement {
+    connectedCallback() {
+      this.abortController?.abort();
+      const controller = new AbortController();
+      this.abortController = controller;
 
-    applyTheme(getStoredTheme());
+      const button = this.querySelector('[data-theme-toggle]');
+      if (!button) return;
 
-    window.addEventListener('astro:page-load', () => {
-      applyTheme(getStoredTheme());
-      document.querySelectorAll('[data-theme-toggle]').forEach((button) => {
-        if (button.dataset.themeBound === 'true') return;
-        button.dataset.themeBound = 'true';
-        button.addEventListener('click', () => {
-          applyTheme(document.documentElement.dataset.theme === 'dark' ? 'light' : 'dark');
+      const storageKey = 'starlight-theme';
+      const preferredTheme = () => (window.matchMedia('(prefers-color-scheme: light)').matches ? 'light' : 'dark');
+      const storedTheme = () => localStorage.getItem(storageKey) || preferredTheme();
+      const applyTheme = (theme) => {
+        const nextTheme = theme === 'dark' ? 'dark' : 'light';
+        document.documentElement.dataset.theme = nextTheme;
+        localStorage.setItem(storageKey, nextTheme);
+        window.StarlightThemeProvider?.updatePickers?.(nextTheme);
+        document.querySelectorAll('[data-theme-toggle]').forEach((item) => {
+          item.dataset.theme = nextTheme;
+          item.setAttribute('aria-label', nextTheme === 'dark' ? '切换到浅色主题' : '切换到深色主题');
+          item.setAttribute('aria-pressed', nextTheme === 'dark' ? 'true' : 'false');
         });
-      });
-    });
-  })();
+      };
+
+      applyTheme(storedTheme());
+      button.addEventListener('click', () => {
+        applyTheme(document.documentElement.dataset.theme === 'dark' ? 'light' : 'dark');
+      }, { signal: controller.signal });
+      window.addEventListener('astro:page-load', () => applyTheme(storedTheme()), { signal: controller.signal });
+    }
+
+    disconnectedCallback() {
+      this.abortController?.abort();
+    }
+  }
+
+  if (!customElements.get('site-theme-toggle')) {
+    customElements.define('site-theme-toggle', SiteThemeToggle);
+  }
 </script>

@@ -18,19 +18,18 @@ const isDev = import.meta.env.DEV;
 
 <script>
   class SiteSearchBox extends HTMLElement {
-    private initialized = false;
-    private abortController?: AbortController;
+    initialized = false;
 
     connectedCallback() {
       this.abortController?.abort();
       const controller = new AbortController();
       this.abortController = controller;
 
-      const openButton = this.querySelector<HTMLButtonElement>('[data-open-search]');
-      const closeButton = this.querySelector<HTMLButtonElement>('[data-close-search]');
-      const dialog = this.querySelector<HTMLDialogElement>('dialog');
-      const panel = this.querySelector<HTMLElement>('.site-search__panel');
-      const shortcut = this.querySelector<HTMLElement>('.site-search__shortcut');
+      const openButton = this.querySelector('[data-open-search]');
+      const closeButton = this.querySelector('[data-close-search]');
+      const dialog = this.querySelector('dialog');
+      const panel = this.querySelector('.site-search__panel');
+      const shortcut = this.querySelector('.site-search__shortcut');
 
       if (!openButton || !closeButton || !dialog || !panel) return;
 
@@ -43,7 +42,7 @@ const isDev = import.meta.env.DEV;
         dialog.showModal();
         document.body.toggleAttribute('data-search-modal-open', true);
         await this.mountSearch();
-        dialog.querySelector<HTMLInputElement>('input')?.focus();
+        dialog.querySelector('input')?.focus();
       };
 
       const close = () => dialog.close();
@@ -54,7 +53,7 @@ const isDev = import.meta.env.DEV;
         document.body.toggleAttribute('data-search-modal-open', false);
       }, { signal: controller.signal });
       dialog.addEventListener('click', (event) => {
-        if (!panel.contains(event.target as Node)) close();
+        if (!panel.contains(event.target)) close();
       }, { signal: controller.signal });
       window.addEventListener('keydown', (event) => {
         if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === 'k') {
@@ -69,7 +68,7 @@ const isDev = import.meta.env.DEV;
     }
 
     async mountSearch() {
-      const mount = this.querySelector<HTMLElement>('[data-search-mount]');
+      const mount = this.querySelector('[data-search-mount]');
       if (!mount || this.initialized) return;
 
       if (this.dataset.dev === 'true') {
@@ -92,7 +91,7 @@ const isDev = import.meta.env.DEV;
     loadPagefind() {
       if (window.PagefindUI) return Promise.resolve();
 
-      return new Promise<void>((resolve, reject) => {
+      return new Promise((resolve, reject) => {
         const existingLink = document.querySelector('link[data-pagefind-ui]');
         if (!existingLink) {
           const link = document.createElement('link');
@@ -102,7 +101,7 @@ const isDev = import.meta.env.DEV;
           document.head.append(link);
         }
 
-        const existingScript = document.querySelector<HTMLScriptElement>('script[data-pagefind-ui]');
+        const existingScript = document.querySelector('script[data-pagefind-ui]');
         if (existingScript) {
           existingScript.addEventListener('load', () => resolve(), { once: true });
           existingScript.addEventListener('error', reject, { once: true });

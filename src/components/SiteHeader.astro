@@ -84,16 +84,15 @@ const navItems = site.nav;
 
 <script>
   class SiteHeaderMenu extends HTMLElement {
-    private abortController?: AbortController;
-
     connectedCallback() {
       this.abortController?.abort();
       const controller = new AbortController();
       this.abortController = controller;
 
-      const button = this.querySelector<HTMLButtonElement>('[data-menu-toggle]');
-      const menu = this.querySelector<HTMLElement>('[data-mobile-menu]');
+      const button = this.querySelector('[data-menu-toggle]');
+      const menu = this.querySelector('[data-mobile-menu]');
       if (!button || !menu) return;
+      const header = this.querySelector('.site-header');
 
       const close = () => {
         menu.hidden = true;
@@ -105,7 +104,14 @@ const navItems = site.nav;
         button.setAttribute('aria-expanded', 'true');
         button.setAttribute('aria-label', '关闭导航菜单');
       };
+      const syncVariant = () => {
+        header?.classList.toggle('site-header--landing', window.location.pathname === '/');
+      };
+      const syncVariantAfterSwap = () => {
+        window.requestAnimationFrame(syncVariant);
+      };
 
+      syncVariant();
       button.addEventListener('click', () => {
         menu.hidden ? open() : close();
       }, { signal: controller.signal });
@@ -115,7 +121,9 @@ const navItems = site.nav;
       window.addEventListener('keydown', (event) => {
         if (event.key === 'Escape') close();
       }, { signal: controller.signal });
-      window.addEventListener('astro:before-swap', close, { signal: controller.signal });
+      document.addEventListener('astro:before-swap', close, { signal: controller.signal });
+      document.addEventListener('astro:after-swap', syncVariantAfterSwap, { signal: controller.signal });
+      document.addEventListener('astro:page-load', syncVariantAfterSwap, { signal: controller.signal });
     }
 
     disconnectedCallback() {

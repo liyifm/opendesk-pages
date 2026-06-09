@@ -1,124 +1,148 @@
 ---
 ---
 
+<home-pager-controller></home-pager-controller>
+
 <script>
-  (() => {
-    const pages = Array.from(document.querySelectorAll('.snap-page'));
-    const prefersReducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)');
-    const desktopQuery = window.matchMedia('(min-width: 1101px)');
-    let activeIndex = 0;
-    let isLocked = false;
-    let wheelDelta = 0;
-    let lastWheelAt = 0;
-    let cooldownUntil = 0;
-    let touchStartY = null;
+  class HomePagerController extends HTMLElement {
+    connectedCallback() {
+      this.abortController?.abort();
+      window.clearTimeout(this.releaseLockTimer);
 
-    const clamp = (value, min, max) => Math.max(min, Math.min(max, value));
+      const controller = new AbortController();
+      this.abortController = controller;
+      const pages = Array.from(document.querySelectorAll('.snap-page'));
+      const prefersReducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)');
+      const desktopQuery = window.matchMedia('(min-width: 1101px)');
+      let activeIndex = 0;
+      let isLocked = false;
+      let wheelDelta = 0;
+      let lastWheelAt = 0;
+      let cooldownUntil = 0;
+      let touchStartY = null;
 
-    const closestPageIndex = () => {
-      const viewportAnchor = window.scrollY + window.innerHeight * 0.42;
-      let closest = 0;
-      let closestDistance = Infinity;
+      const clamp = (value, min, max) => Math.max(min, Math.min(max, value));
 
-      pages.forEach((page, index) => {
-        const pageAnchor = page.offsetTop + page.offsetHeight * 0.42;
-        const distance = Math.abs(pageAnchor - viewportAnchor);
-        if (distance < closestDistance) {
-          closest = index;
-          closestDistance = distance;
-        }
-      });
+      const closestPageIndex = () => {
+        const viewportAnchor = window.scrollY + window.innerHeight * 0.42;
+        let closest = 0;
+        let closestDistance = Infinity;
 
-      return closest;
-    };
+        pages.forEach((page, index) => {
+          const pageAnchor = page.offsetTop + page.offsetHeight * 0.42;
+          const distance = Math.abs(pageAnchor - viewportAnchor);
+          if (distance < closestDistance) {
+            closest = index;
+            closestDistance = distance;
+          }
+        });
 
-    const shouldUsePager = () => desktopQuery.matches && pages.length > 1;
+        return closest;
+      };
 
-    const goToPage = (index) => {
-      const nextIndex = clamp(index, 0, pages.length - 1);
-      if (nextIndex === activeIndex && Math.abs(window.scrollY - pages[nextIndex].offsetTop) < 8) return;
+      const shouldUsePager = () => desktopQuery.matches && pages.length > 1 && this.isConnected;
 
-      activeIndex = nextIndex;
-      isLocked = true;
-      wheelDelta = 0;
+      const goToPage = (index) => {
+        const nextIndex = clamp(index, 0, pages.length - 1);
+        if (nextIndex === activeIndex && Math.abs(window.scrollY - pages[nextIndex].offsetTop) < 8) return;
 
-      pages[nextIndex].scrollIntoView({
-        behavior: prefersReducedMotion.matches ? 'auto' : 'smooth',
-        block: 'start',
-      });
-
-      window.setTimeout(
-        () => {
-          isLocked = false;
-          wheelDelta = 0;
-          activeIndex = closestPageIndex();
-          cooldownUntil = Date.now() + 260;
-        },
-        prefersReducedMotion.matches ? 160 : 860,
-      );
-    };
-
-    const onWheel = (event) => {
-      if (!shouldUsePager()) return;
-      event.preventDefault();
-      const now = Date.now();
-      const gapSinceLastWheel = now - lastWheelAt;
-      lastWheelAt = now;
-
-      if (isLocked || now < cooldownUntil) {
+        activeIndex = nextIndex;
+        isLocked = true;
         wheelDelta = 0;
-        return;
-      }
 
-      if (gapSinceLastWheel > 180) wheelDelta = 0;
-      wheelDelta += event.deltaY;
-      if (Math.abs(wheelDelta) < 54) return;
+        pages[nextIndex].scrollIntoView({
+          behavior: prefersReducedMotion.matches ? 'auto' : 'smooth',
+          block: 'start',
+        });
 
-      activeIndex = closestPageIndex();
-      goToPage(activeIndex + (wheelDelta > 0 ? 1 : -1));
-    };
+        this.releaseLockTimer = window.setTimeout(
+          () => {
+            if (!this.isConnected) return;
+            isLocked = false;
+            wheelDelta = 0;
+            activeIndex = closestPageIndex();
+            cooldownUntil = Date.now() + 260;
+          },
+          prefersReducedMotion.matches ? 160 : 860,
+        );
+      };
 
-    const onKeyDown = (event) => {
-      if (!shouldUsePager() || isLocked) return;
+      const onWheel = (event) => {
+        if (!shouldUsePager()) return;
+        event.preventDefault();
+        const now = Date.now();
+        const gapSinceLastWheel = now - lastWheelAt;
+        lastWheelAt = now;
 
-      const nextKeys = ['ArrowDown', 'PageDown', 'Space'];
-      const prevKeys = ['ArrowUp', 'PageUp'];
-      if (![...nextKeys, ...prevKeys, 'Home', 'End'].includes(event.code)) return;
+        if (isLocked || now < cooldownUntil) {
+          wheelDelta = 0;
+          return;
+        }
 
-      event.preventDefault();
-      activeIndex = closestPageIndex();
+        if (gapSinceLastWheel > 180) wheelDelta = 0;
+        wheelDelta += event.deltaY;
+        if (Math.abs(wheelDelta) < 54) return;
 
-      if (nextKeys.includes(event.code)) goToPage(activeIndex + 1);
-      if (prevKeys.includes(event.code)) goToPage(activeIndex - 1);
-      if (event.code === 'Home') goToPage(0);
-      if (event.code === 'End') goToPage(pages.length - 1);
-    };
+        activeIndex = closestPageIndex();
+        goToPage(activeIndex + (wheelDelta > 0 ? 1 : -1));
+      };
 
-    const onTouchStart = (event) => {
-      if (!shouldUsePager()) return;
-      touchStartY = event.touches[0]?.clientY ?? null;
-    };
+      const onKeyDown = (event) => {
+        if (!shouldUsePager() || isLocked) return;
 
-    const onTouchEnd = (event) => {
-      if (!shouldUsePager() || touchStartY === null || isLocked) return;
-      const endY = event.changedTouches[0]?.clientY ?? touchStartY;
-      const diff = touchStartY - endY;
-      touchStartY = null;
-      if (Math.abs(diff) < 48) return;
+        const nextKeys = ['ArrowDown', 'PageDown', 'Space'];
+        const prevKeys = ['ArrowUp', 'PageUp'];
+        if (![...nextKeys, ...prevKeys, 'Home', 'End'].includes(event.code)) return;
 
-      activeIndex = closestPageIndex();
-      goToPage(activeIndex + (diff > 0 ? 1 : -1));
-    };
+        event.preventDefault();
+        activeIndex = closestPageIndex();
 
-    const syncActiveIndex = () => {
-      if (!isLocked) activeIndex = closestPageIndex();
-    };
+        if (nextKeys.includes(event.code)) goToPage(activeIndex + 1);
+        if (prevKeys.includes(event.code)) goToPage(activeIndex - 1);
+        if (event.code === 'Home') goToPage(0);
+        if (event.code === 'End') goToPage(pages.length - 1);
+      };
 
-    window.addEventListener('wheel', onWheel, { passive: false });
-    window.addEventListener('keydown', onKeyDown);
-    window.addEventListener('touchstart', onTouchStart, { passive: true });
-    window.addEventListener('touchend', onTouchEnd, { passive: true });
-    window.addEventListener('resize', syncActiveIndex);
-    window.addEventListener('load', syncActiveIndex);
-  })();
+      const onTouchStart = (event) => {
+        if (!shouldUsePager()) return;
+        touchStartY = event.touches[0]?.clientY ?? null;
+      };
+
+      const onTouchEnd = (event) => {
+        if (!shouldUsePager() || touchStartY === null || isLocked) return;
+        const endY = event.changedTouches[0]?.clientY ?? touchStartY;
+        const diff = touchStartY - endY;
+        touchStartY = null;
+        if (Math.abs(diff) < 48) return;
+
+        activeIndex = closestPageIndex();
+        goToPage(activeIndex + (diff > 0 ? 1 : -1));
+      };
+
+      const syncActiveIndex = () => {
+        if (!isLocked) activeIndex = closestPageIndex();
+      };
+
+      window.addEventListener('wheel', onWheel, { passive: false, signal: controller.signal });
+      window.addEventListener('keydown', onKeyDown, { signal: controller.signal });
+      window.addEventListener('touchstart', onTouchStart, { passive: true, signal: controller.signal });
+      window.addEventListener('touchend', onTouchEnd, { passive: true, signal: controller.signal });
+      window.addEventListener('resize', syncActiveIndex, { signal: controller.signal });
+      window.addEventListener('load', syncActiveIndex, { signal: controller.signal });
+      document.addEventListener('astro:before-swap', () => this.disconnect(), { signal: controller.signal });
+    }
+
+    disconnectedCallback() {
+      this.disconnect();
+    }
+
+    disconnect() {
+      this.abortController?.abort();
+      window.clearTimeout(this.releaseLockTimer);
+    }
+  }
+
+  if (!customElements.get('home-pager-controller')) {
+    customElements.define('home-pager-controller', HomePagerController);
+  }
 </script>
