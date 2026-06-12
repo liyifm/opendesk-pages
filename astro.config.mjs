@@ -31,8 +31,8 @@ export default defineConfig({
         {
           label: '快速开始',
           items: [
-            { label: 'Opendesk Cli', slug: 'docs/quickstart/cli' },
-            { label: 'Opendesk Desktop (桌面版)', slug: 'docs/quickstart/desktop' },
+            { label: 'OpenDesk Cli', slug: 'docs/quickstart/cli' },
+            { label: 'OpenDesk Desktop (桌面版)', slug: 'docs/quickstart/desktop' },
           ],
         },
         {
@@ -42,8 +42,19 @@ export default defineConfig({
         {
           label: '完整使用手册',
           items: [
-            { label: 'Opendesk Cli', slug: 'docs/manual/cli' },
-            { label: 'Opendesk Desktop (桌面版)', slug: 'docs/desktop' },
+            { label: 'OpenDesk Cli', slug: 'docs/manual/cli' },
+            {
+              label: 'OpenDesk Desktop (桌面版)',
+              items: [
+                { label: 'Desktop 使用手册', slug: 'docs/manual/desktop' },
+                { label: '快速上手', slug: 'docs/manual/desktop/quickstart' },
+                { label: '功能指南', slug: 'docs/manual/desktop/tools' },
+                { label: '技能系统', slug: 'docs/manual/desktop/skills' },
+                { label: '使用案例', slug: 'docs/manual/desktop/use-cases' },
+                { label: '最佳实践', slug: 'docs/manual/desktop/best-practices' },
+                { label: '常见问题', slug: 'docs/manual/desktop/faq' },
+              ],
+            },
           ],
         },
         {
@@ -51,8 +62,8 @@ export default defineConfig({
           items: [
             { label: '架构介绍', slug: 'docs/contribute/architecture' },
             { label: '准备开发环境', slug: 'docs/contribute/prepare' },
-            { label: 'Opendesk Cli 开发上手', slug: 'docs/contribute/cli' },
-            { label: 'Opendesk Desktop 开发上手', slug: 'docs/contribute/desktop' },
+            { label: 'OpenDesk Cli 开发上手', slug: 'docs/contribute/cli' },
+            { label: 'OpenDesk Desktop 开发上手', slug: 'docs/contribute/desktop' },
           ],
         },
       ],
