@@ -1,0 +1,106 @@
+---
+import CollapsibleTocList from './CollapsibleTocList.astro';
+
+const { toc } = Astro.locals.starlightRoute;
+---
+
+{
+  toc && (
+    <opendesk-toc data-min-h={toc.minHeadingLevel} data-max-h={toc.maxHeadingLevel}>
+      <nav aria-labelledby="starlight__on-this-page">
+        <h2 id="starlight__on-this-page">{Astro.locals.t('tableOfContents.onThisPage')}</h2>
+        <CollapsibleTocList toc={toc.items} />
+      </nav>
+    </opendesk-toc>
+  )
+}
+
+<script>
+  class OpenDeskToc extends HTMLElement {
+    private current?: HTMLAnchorElement;
+    private observer?: IntersectionObserver;
+    private resizeTimer?: number;
+
+    connectedCallback() {
+      window.requestIdleCallback?.(() => this.init()) ?? window.setTimeout(() => this.init(), 1);
+    }
+
+    disconnectedCallback() {
+      this.observer?.disconnect();
+      if (this.resizeTimer) window.clearTimeout(this.resizeTimer);
+    }
+
+    private init() {
+      const links = Array.from(this.querySelectorAll<HTMLAnchorElement>('a[href^="#"]'));
+      if (links.length === 0) return;
+
+      const minH = Number.parseInt(this.dataset.minH || '2', 10);
+      const maxH = Number.parseInt(this.dataset.maxH || '3', 10);
+      const headingNames = Array.from({ length: 1 + maxH - minH }, (_, index) => `h${minH + index}`);
+      const headingSelector = `h1#_top,:where(${headingNames.join(',')})[id]`;
+      const headings = Array.from(document.querySelectorAll<HTMLElement>(`main ${headingSelector}`));
+
+      const markCurrentBranch = (element: Element | null) => {
+        let parent = element?.parentElement;
+        while (parent && parent !== this) {
+          if (parent instanceof HTMLDetailsElement) {
+            parent.setAttribute('data-current-branch', 'true');
+          }
+          parent = parent.parentElement;
+        }
+      };
+
+      const setCurrent = (heading: HTMLElement) => {
+        const hash = `#${encodeURIComponent(heading.id)}`;
+        const next = links.find((link) => link.hash === hash);
+        const branch = Array.from(this.querySelectorAll<HTMLDetailsElement>('details[data-slug]')).find(
+          (details) => details.dataset.slug === heading.id
+        );
+        if (!next && !branch) return;
+        if (next && next === this.current) return;
+
+        this.current?.removeAttribute('aria-current');
+        this.querySelectorAll('details[data-current-branch]').forEach((details) => {
+          details.removeAttribute('data-current-branch');
+        });
+
+        if (next) {
+          next.setAttribute('aria-current', 'true');
+          markCurrentBranch(next);
+          this.current = next;
+        } else if (branch) {
+          branch.setAttribute('data-current-branch', 'true');
+          markCurrentBranch(branch);
+          this.current = undefined;
+        }
+      };
+
+      const observe = () => {
+        this.observer?.disconnect();
+        const navHeight = document.querySelector('header')?.getBoundingClientRect().height || 0;
+        const top = navHeight + 32;
+
+        this.observer = new IntersectionObserver(
+          (entries) => {
+            const visible = entries.find((entry) => entry.isIntersecting);
+            if (visible?.target instanceof HTMLElement) setCurrent(visible.target);
+          },
+          { rootMargin: `-${top}px 0% ${top + 53 - document.documentElement.clientHeight}px` }
+        );
+
+        headings.forEach((heading) => this.observer?.observe(heading));
+      };
+
+      observe();
+      window.addEventListener('resize', () => {
+        this.observer?.disconnect();
+        if (this.resizeTimer) window.clearTimeout(this.resizeTimer);
+        this.resizeTimer = window.setTimeout(observe, 200);
+      });
+    }
+  }
+
+  if (!customElements.get('opendesk-toc')) {
+    customElements.define('opendesk-toc', OpenDeskToc);
+  }
+</script>
