@@ -26,6 +26,7 @@ export default defineConfig({
       components: {
         Head: './src/components/starlight/Head.astro',
         Header: './src/components/starlight/Header.astro',
+        TableOfContents: './src/components/starlight/TableOfContents.astro',
       },
       sidebar: [
         {
