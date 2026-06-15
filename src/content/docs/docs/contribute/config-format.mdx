@@ -1,0 +1,568 @@
+---
+title: "OpenDesk 配置文件格式"
+description: "setting.json、模型服务商、应用配置和 server 兼容配置格式说明"
+---
+
+OpenDesk 当前的持久化配置文件是 JSON 文件，核心文件名为 `setting.json`。配置由运行时的 Zod Schema 校验和补齐默认值，主要定义在 OpenDesk 主仓库的 `src/main/utils/setting.ts`，应用级配置由各应用的 `getConfigSchema()` 挂载到 `applications` 字段下。
+
+本文说明的是当前代码真实读取、写入和校验的格式，不是未来规划格式。
+
+## 配置目录
+
+OpenDesk 会先解析应用数据目录，然后在该目录下读写 `setting.json`。
+
+| 场景 | 默认目录 |
+| --- | --- |
+| 使用 `--config-directory <path>` | `<path>` |
+| OpenHarmony 且存在 `USER_DATA_PATH` | `$USER_DATA_PATH` |
+| Windows 且存在 `APPDATA` | `%APPDATA%/opendesk` |
+| 类 Unix 且存在 `HOME` | `$HOME/.opendesk` |
+| Electron 可用时 | `app.getPath("userData")` |
+| 其他兜底 | 当前工作目录下的 `.opendesk` |
+
+同一应用数据目录下还会按需创建这些子目录：
+
+| 路径 | 用途 |
+| --- | --- |
+| `setting.json` | 主配置文件 |
+| `logs/app.log` | 日志 |
+| `tasks/` | 任务和会话状态 |
+| `artifacts/` | 任务产物 |
+| `artifacts/<taskId>/tool-results/` | 工具调用结果 |
+| `artifacts/<taskId>/session-memory/` | 会话记忆 |
+| `workspace/` | 类 Unix 的临时工作空间 |
+
+Windows 的临时工作空间默认是 `$USERPROFILE/opendesk`；类 Unix 默认是 `<appDirectory>/workspace`。
+
+## 读写规则
+
+`setting.json` 必须是合法 JSON。空文件、JSON 解析失败或 Schema 校验失败时，OpenDesk 会记录加载错误并回退到默认配置。
+
+保存配置时会使用 4 空格缩进重新写入整个 JSON。建议通过 `/config`、`quickpass` 或 server API 修改配置，手工编辑时需要保证字段类型正确。
+
+配置加载时会做少量兼容处理：
+
+| 旧格式 | 当前处理 |
+| --- | --- |
+| 顶层 `display` | 自动迁移为 `gui_config` |
+| `reason_display: "on"` | 迁移为 `"full"` |
+| `reason_display: "off"` | 迁移为 `"partial"` |
+| provider 的 `provider_type` 为空 | 按 `"openai"` 处理 |
+
+顶层未知字段不应依赖保留。应用级配置是否允许额外字段取决于对应应用的 Schema，例如 `channelmgr` 当前是宽松对象。
+
+## 顶层结构
+
+一个完整的 `setting.json` 顶层结构如下：
+
+```json
+{
+    "locale": "auto",
+    "default_model": "",
+    "default_intent_parsing_model": "",
+    "default_embedding_model": "",
+    "default_reranker_model": "",
+    "default_vision_model": "",
+    "default_workspace": "",
+    "reason_display": "full",
+    "providers": [],
+    "models": [],
+    "gui_config": {},
+    "cli_config": {},
+    "environ": {},
+    "applications": {}
+}
+```
+
+### 基础字段
+
+| 字段 | 类型 | 默认值 | 说明 |
+| --- | --- | --- | --- |
+| `locale` | `"auto"`、`"zh-CN"`、`"en-US"` | `"auto"` | 界面语言。`auto` 会根据系统语言选择中文或英文。 |
+| `default_model` | string | `""` | 默认对话模型别名，必须指向 `models[].alias`。 |
+| `default_intent_parsing_model` | string | `""` | 意图解析模型别名。 |
+| `default_embedding_model` | string | `""` | 向量嵌入模型别名。 |
+| `default_reranker_model` | string | `""` | 检索重排序模型别名。 |
+| `default_vision_model` | string | `""` | 图片记忆提取等视觉场景模型别名。 |
+| `default_workspace` | string | `""` | 默认工作空间。为空或目录无效时使用临时工作空间。 |
+| `reason_display` | `"full"`、`"partial"` | `"full"` | 思考内容显示模式。`full` 显示完整 Markdown，`partial` 只显示末尾部分内容。 |
+| `environ` | object | `{}` | 全局 Shell 环境变量，所有 shell 命令执行时共享。 |
+| `applications` | object | `{}` | 应用级配置，按应用 bundleName 分区。 |
+
+启动参数 `--language <lang>` 只影响本次运行，不写入 `locale`。
+
+## 模型服务商 providers
+
+`providers` 是模型服务商列表。每一项结构如下：
+
+```json
+{
+    "name": "openai",
+    "provider_type": "openai",
+    "base_url": "https://api.openai.com/v1",
+    "api_key": "sk-...",
+    "no_proxy": false,
+    "enabled": true
+}
+```
+
+| 字段 | 类型 | 默认值 | 说明 |
+| --- | --- | --- | --- |
+| `name` | string | `"openrouter"` | 本地 provider 名称，被 `models[].provider_name` 引用。 |
+| `provider_type` | `"openai"`、`"anthropic"` | `"openai"` | 协议类型。空值或缺省按 OpenAI 兼容格式处理。 |
+| `base_url` | string | `"https://openrouter.ai/api/v1"` | 模型服务 API 地址。 |
+| `api_key` | string | `""` | API Key。 |
+| `no_proxy` | boolean | `false` | 是否禁用代理。 |
+| `enabled` | boolean | 未设置 | 是否在启用该 provider。未设置或 `true` 表示启用，`false` 表示禁用。 |
+
+当前 TUI 内置 provider 模板包括 OpenAI、OpenRouter、Cerebras、硅基流动、DeepSeek、OpenCode Go、智谱、Kimi、MiniMax、阿里云百炼、百度千帆、火山引擎、Ollama、LM Studio 等。模板只用于创建配置，实际运行只读取上表字段。
+
+## 模型 models
+
+`models` 是本地模型别名列表。每个模型通过 `provider_name` 引用一个 provider。
+
+```json
+{
+    "alias": "gpt4o",
+    "provider_name": "openai",
+    "model_name": "gpt-4o",
+    "reasoning_effort": "",
+    "context_length": 128000,
+    "custom_headers": {
+        "X-Custom-Header": "value"
+    }
+}
+```
+
+| 字段 | 类型 | 默认值 | 说明 |
+| --- | --- | --- | --- |
+| `alias` | string | `"model_alias"` | 本地模型别名。CLI、TUI 和默认模型字段都使用这个名字。 |
+| `provider_name` | string | `"openrouter"` | 服务商名称，对应 `providers[].name`。 |
+| `model_name` | string | `"google/gemini-2.5-flash"` | 服务商侧模型名称。 |
+| `reasoning_effort` | `""`、`"none"`、`"low"`、`"medium"`、`"high"` | `""` | 模型默认推理深度。空字符串表示使用模型默认值。 |
+| `context_length` | non-negative integer | 未设置 | 上下文长度。大于 0 时覆盖系统估算；0 或缺省表示自动估算。 |
+| `custom_headers` | object | 未设置 | 调模型接口时附加的 HTTP 请求头。 |
+
+加载配置后，OpenDesk 会校验所有 `default_*_model` 字段。如果默认模型指向不存在的 `alias`，会自动清空该默认模型字段并保存。
+
+## GUI 配置
+
+`gui_config` 保存桌面版相关设置。
+
+```json
+{
+    "theme_preference": "system",
+    "scale_factor": 1,
+    "font_preset": "default",
+    "ctrl_enter_send": false,
+    "recent_workspaces": []
+}
+```
+
+| 字段 | 类型 | 默认值 | 说明 |
+| --- | --- | --- | --- |
+| `theme_preference` | `"system"`、`"light"`、`"dark"` | `"system"` | 主题偏好。 |
+| `scale_factor` | number | `1` | GUI 缩放系数，范围 0.5 到 2.0。 |
+| `font_preset` | `"default"`、`"lxgwwenkai"` | `"default"` | 字体预设。 |
+| `ctrl_enter_send` | boolean | `false` | 是否使用 Ctrl+Enter 发送消息。 |
+| `recent_workspaces` | string[] | `[]` | 最近使用的工作空间，运行时最多保留 20 个。 |
+
+## CLI 配置
+
+`cli_config.shortcuts` 保存终端快捷键。
+
+```json
+{
+    "shortcuts": {
+        "switch_mode": "ctrl+k",
+        "switch_model": "f2",
+        "clear_input": "ctrl+c",
+        "endline": "ctrl+j",
+        "show_help": "ctrl+h",
+        "list_tasks": "ctrl+l"
+    }
+}
+```
+
+| 字段 | 默认值 | 说明 |
+| --- | --- | --- |
+| `switch_mode` | `ctrl+k` | 切换 Agent 模式。 |
+| `switch_model` | `f2` | 切换模型。 |
+| `clear_input` | `ctrl+c` | 清空输入。 |
+| `endline` | `ctrl+j` | 在输入框中换行。 |
+| `show_help` | `ctrl+h` | 打开帮助。 |
+| `list_tasks` | `ctrl+l` | 显示任务列表。 |
+
+快捷键配置页面不允许保存单个普通按键作为快捷键，推荐使用 `ctrl+`、`alt+`、`shift+` 等组合键。
+
+## 权限配置 permission
+
+`permission` 是 opencode 兼容权限配置，用于在权限引擎初始化时生成 OpenDesk 的规则。
+
+值可以是一个全局动作：
+
+```json
+{
+    "permission": {
+        "read": "allow",
+        "edit": "ask",
+        "bash": "deny"
+    }
+}
+```
+
+也可以按路径或资源模式配置：
+
+```json
+{
+    "permission": {
+        "read": {
+            "docs/**": "allow",
+            "secrets/**": "deny"
+        },
+        "edit": {
+            "src/**": "ask"
+        },
+        "webfetch": {
+            "https://example.com/**": "allow"
+        }
+    }
+}
+```
+
+动作值只能是：
+
+| 值 | 含义 |
+| --- | --- |
+| `allow` | 允许 |
+| `ask` | 询问用户 |
+| `deny` | 拒绝 |
+
+当前支持的权限名映射如下：
+
+| 权限名 | OpenDesk 资源规则 |
+| --- | --- |
+| `read`、`glob`、`grep` | 文件读取 |
+| `edit`、`write` | 文件写入 |
+| `bash` | 命令执行。当前只接受 `*` 或 `**` 全局模式；非全局模式会被忽略。 |
+| `webfetch`、`websearch` | 网络访问 |
+| `skill` | Skill 访问 |
+
+文件模式会先展开 `~`，再相对当前 workspace 解析。`*` 和 `**` 都表示全局匹配。
+
+## applications 应用级配置
+
+`applications` 下的 key 是应用 bundleName。每个应用只读取自己的分区。
+
+```json
+{
+    "applications": {
+        "filemgr": {},
+        "search": {},
+        "mcpmgr": {},
+        "skillmgr": {}
+    }
+}
+```
+
+### filemgr
+
+文件管理应用配置：
+
+```json
+{
+    "enabled": true,
+    "entries": [
+        {
+            "root": "/home/user/Documents",
+            "include_patterns": [
+                "**/*.{txt,md}",
+                "**/*.{pdf,docx,pptx,xlsx,csv}",
+                "**/*.{json,yaml,yml,xml,html,css,js}"
+            ],
+            "exclude_patterns": [
+                "**/node_modules/**",
+                "**/.git/**"
+            ]
+        }
+    ]
+}
+```
+
+| 字段 | 类型 | 默认值 | 说明 |
+| --- | --- | --- | --- |
+| `enabled` | boolean | `false` | 是否启用 AI 文件系统。 |
+| `entries` | array | `[]` | 文件扫描入口列表。 |
+| `entries[].root` | string | 用户 home | 扫描根目录。 |
+| `entries[].include_patterns` | string[] | 文本、Office、JSON/Web 常见文件 | 包含模式。 |
+| `entries[].exclude_patterns` | string[] | `node_modules`、`.git`、IDE 缓存等 | 排除模式。 |
+
+macOS 会额外排除 `~/Library/**` 和 `.DS_Store`；Windows 会额外排除用户 `AppData`、`C:/Windows/**` 和 `C:/Temp/**`。
+
+### search
+
+融合搜索应用配置：
+
+```json
+{
+    "channels": {
+        "tavily": { "api_key": "" },
+        "brave": { "api_key": "" },
+        "bocha": { "api_key": "" },
+        "exa": { "api_key": "" },
+        "bing": { "lang": "zh" }
+    },
+    "defaultWebSearch": "bing",
+    "defaultAcademicSearch": "arxiv",
+    "webSearchEnabled": true,
+    "academicSearchEnabled": true
+}
+```
+
+| 字段 | 类型 | 默认值 | 说明 |
+| --- | --- | --- | --- |
+| `channels.tavily.api_key` | string | `""` | Tavily API Key。 |
+| `channels.brave.api_key` | string | `""` | Brave API Key。 |
+| `channels.bocha.api_key` | string | `""` | 博查 API Key。 |
+| `channels.exa.api_key` | string | `""` | Exa API Key。 |
+| `channels.bing.lang` | `"zh"`、`"en"` | `"zh"` | Bing 搜索模式。 |
+| `defaultWebSearch` | enum | `"bing"` | 可选 `tavily`、`bing`、`duckduckgo`、`brave`、`bocha`、`exa`、`baidu`。 |
+| `defaultAcademicSearch` | `"arxiv"`、`"dblp"` | `"arxiv"` | 默认学术搜索引擎。 |
+| `webSearchEnabled` | boolean | `true` | 是否启用网页搜索工具。 |
+| `academicSearchEnabled` | boolean | `true` | 是否启用学术搜索工具。 |
+
+### mcpmgr
+
+MCP 管理应用配置：
+
+```json
+{
+    "servers": [
+        {
+            "id": "mcp_filesystem",
+            "name": "filesystem",
+            "transport": "stdio",
+            "enabled": true,
+            "command": "npx",
+            "args": ["-y", "@modelcontextprotocol/server-filesystem", "."],
+            "cwd": "",
+            "env": {},
+            "headers": {}
+        }
+    ]
+}
+```
+
+| 字段 | 类型 | 默认值 | 说明 |
+| --- | --- | --- | --- |
+| `servers[].id` | string | `""` | 服务唯一标识符。 |
+| `servers[].name` | string | `""` | 显示名称，也用于 server API 中的 MCP 名称匹配。 |
+| `servers[].transport` | `"stdio"`、`"sse"`、`"streamableHttp"` | `"stdio"` | 传输协议。 |
+| `servers[].enabled` | boolean | `true` | 是否启用。 |
+| `servers[].command` | string | 未设置 | `stdio` 命令。 |
+| `servers[].args` | string[] | `[]` | `stdio` 参数。 |
+| `servers[].cwd` | string | 未设置 | `stdio` 工作目录。 |
+| `servers[].url` | string | 未设置 | `sse` 或 `streamableHttp` URL。 |
+| `servers[].env` | object | `{}` | `stdio` 环境变量。 |
+| `servers[].headers` | object | `{}` | HTTP 请求头。 |
+
+`servers[].id` 在通过 MCP 管理工具新增、安装或导入 server 时由 OpenDesk 自动生成，当前格式是：
+
+```text
+mcp_${Date.now()}_${Math.random().toString(36).slice(2, 8)}
+```
+
+也就是 `mcp_` 前缀、毫秒时间戳、下划线，以及 6 位左右的 base36 随机后缀，例如 `mcp_1765200000000_ab12cd`。这个 id 不是从 `name`、`command` 或 `url` 派生的稳定哈希；同一个 MCP 配置删除后重新添加，会得到新的 id。
+
+手工编辑 `setting.json` 时也可以填写自己的 `id`，但需要在 `servers` 列表内保持唯一。OpenDesk 的更新、删除、启停和 worker 连接操作都按 `id` 定位 server；server 兼容接口中部分路径也允许用 `id` 查找。
+
+### skillmgr
+
+Skill 管理应用配置：
+
+```json
+{
+    "enabled": true,
+    "external_paths": ["/path/to/skills"],
+    "skillsmp_api_key": ""
+}
+```
+
+| 字段 | 类型 | 默认值 | 说明 |
+| --- | --- | --- | --- |
+| `enabled` | boolean | `false` | 是否启用技能。 |
+| `external_paths` | string[] | 未设置 | 额外 Skill 扫描目录。可指向单个 skill 根目录，也可指向包含多个 skill 的目录。 |
+| `skillsmp_api_key` | string | 未设置 | SkillsMP API Key。 |
+
+`external_paths` 会递归扫描目录下所有包含 `SKILL.md` 的 skill 目录，并按真实目录去重。扫描到的 skill 会参与 Agent/server 模式的 skill 列表；GUI 技能中心会在存在外部 skill 时显示“外部技能”标签，只做展示，不提供启用、禁用或删除操作，详情中会显示外部路径。
+
+### channelmgr
+
+消息插件管理应用的配置是宽松对象，按插件 ID 保存各插件自己的参数。
+
+```json
+{
+    "feishu": {
+        "enabled": true
+    }
+}
+```
+
+具体字段由已安装的消息插件决定。
+
+### browser
+
+嵌入式浏览器配置：
+
+```json
+{
+    "defaultHomepage": "about:blank",
+    "userAgent": ""
+}
+```
+
+### mailbox
+
+邮箱应用配置：
+
+```json
+{
+    "currentProfileId": "work",
+    "profiles": [
+        {
+            "name": "work",
+            "username": "user@example.com",
+            "email": "user@example.com",
+            "password": "",
+            "inbox": {
+                "protocol": "imap",
+                "imap": { "host": "imap.example.com", "tls": true, "port": 993 }
+            },
+            "outbox": {
+                "smtp": { "account": "user@example.com", "host": "smtp.example.com", "tls": true, "port": 587 }
+            }
+        }
+    ]
+}
+```
+
+`inbox.protocol` 可选 `pop3` 或 `imap`。POP3 默认端口 995，IMAP 默认端口 993，SMTP 默认端口 587。
+
+### 其他应用配置
+
+| 应用 | 配置 |
+| --- | --- |
+| `calendar` | `{ "dataSources": { "outlook": { "enabled": false } } }` |
+| `devicemgr` | `{ "enabled": true, "port": 18789, "autoApproveLocal": true }` |
+| `knowledgebase` | `{ "zhipu": { "api_key": "", "enabled": false } }` |
+
+## 最小可用示例
+
+下面示例配置了一个 OpenAI 兼容 provider、一个模型别名，并把它设为默认对话模型。
+
+```json
+{
+    "locale": "auto",
+    "default_model": "gpt4o",
+    "default_intent_parsing_model": "",
+    "default_embedding_model": "",
+    "default_reranker_model": "",
+    "default_vision_model": "",
+    "default_workspace": "",
+    "reason_display": "full",
+    "providers": [
+        {
+            "name": "openai",
+            "provider_type": "openai",
+            "base_url": "https://api.openai.com/v1",
+            "api_key": "sk-...",
+            "no_proxy": false
+        }
+    ],
+    "models": [
+        {
+            "alias": "gpt4o",
+            "provider_name": "openai",
+            "model_name": "gpt-4o",
+            "reasoning_effort": "",
+            "context_length": 128000
+        }
+    ],
+    "gui_config": {
+        "theme_preference": "system",
+        "scale_factor": 1,
+        "font_preset": "default",
+        "ctrl_enter_send": false,
+        "recent_workspaces": []
+    },
+    "cli_config": {
+        "shortcuts": {
+            "switch_mode": "ctrl+k",
+            "switch_model": "f2",
+            "clear_input": "ctrl+c",
+            "endline": "ctrl+j",
+            "show_help": "ctrl+h",
+            "list_tasks": "ctrl+l"
+        }
+    },
+    "environ": {},
+    "applications": {}
+}
+```
+
+## quickpass 导入导出
+
+OpenDesk 支持把配置导出为快捷口令。
+
+TUI 命令：
+
+```bash
+/quickpass config base
+/quickpass config all
+```
+
+CLI 子命令：
+
+```bash
+opendesk quickpass export --base
+opendesk quickpass export --all
+opendesk quickpass import '[[Opendesk ...]]'
+```
+
+`base` 导出不包含 `applications` 字段；导入时会保留当前已有应用配置。`all` 导出包含完整配置。
+
+快捷口令格式为：
+
+```text
+[[Opendesk <名称> -- <payloadBase64><checksum>]]
+```
+
+其中 checksum 是对 payload base64 做 SHA-256 后取前 6 字节再 base64 编码得到的 8 字符校验串。导入时校验失败会拒绝写入。
+
+## 与 opencode server 兼容配置的关系
+
+OpenDesk server 模式的 `/config` 和 `/global/config` 会把内部 `setting.json` 转成 opencode 兼容格式：
+
+```json
+{
+    "model": "openai/gpt4o",
+    "provider": {
+        "openai": {
+            "api": "openai",
+            "options": {
+                "apiKey": "sk-...",
+                "baseURL": "https://api.openai.com/v1",
+                "noProxy": false
+            }
+        }
+    },
+    "permission": {}
+}
+```
+
+PATCH `/config` 或 `/global/config` 时，同时支持两类 payload：
+
+1. opencode 风格的 `{ "model": "...", "provider": { ... } }`。
+2. OpenDesk 原生字段，例如 `{ "default_model": "...", "applications": { ... } }`。
+
+发送空对象 `{}`，或 `{ "config": {} }`，会触发从磁盘重新加载 `setting.json`，并刷新技能和当前任务上下文。
