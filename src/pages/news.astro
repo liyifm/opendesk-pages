@@ -6,11 +6,18 @@ const notes = (await getCollection('releaseNotes')).sort(
   (a, b) => b.data.date.getTime() - a.data.date.getTime(),
 );
 
-const notesByYear = notes.reduce<Map<string, typeof notes>>((groups, note) => {
-  const year = String(note.data.date.getFullYear());
-  groups.set(year, [...(groups.get(year) ?? []), note]);
-  return groups;
-}, new Map());
+const stableNotes = notes.filter((n) => n.data.category === 'stable-release');
+const nightlyNotes = notes.filter((n) => n.data.category === 'nightly-release');
+
+const groupByYear = (items: typeof notes) =>
+  items.reduce<Map<string, typeof notes>>((groups, note) => {
+    const year = String(note.data.date.getFullYear());
+    groups.set(year, [...(groups.get(year) ?? []), note]);
+    return groups;
+  }, new Map());
+
+const stableByYear = groupByYear(stableNotes);
+const nightlyByYear = groupByYear(nightlyNotes);
 
 const formatDate = new Intl.DateTimeFormat('zh-CN', {
   year: 'numeric',
@@ -18,36 +25,56 @@ const formatDate = new Intl.DateTimeFormat('zh-CN', {
   day: '2-digit',
 });
 
-const categoryLabels: Record<string, string> = {
-  'nightly-release': 'Nightly',
-  'stable-release': 'Stable',
-};
-
 const notePath = (id: string) => `/news/${id.replace(/\.mdx?$/, '')}/`;
 ---
 
-<SiteLayout frontmatter={{ title: 'Release Notes', description: 'OpenDesk Release Notes' }}>
-  <section class="content-page release-page">
-    <h1>Release Notes</h1>
-    <p>OpenDesk 的稳定版和 Nightly 构建更新记录。</p>
+<SiteLayout frontmatter={{ title: '更新日志', description: 'OpenDesk 更新日志' }}>
+  <section class="content-page release-page release-page--split">
+    <h1>更新日志</h1>
+    <p>OpenDesk 的稳定版和每日构建更新记录。</p>
 
-    {
-      Array.from(notesByYear.entries()).map(([year, yearNotes]) => (
-        <section class="release-year" aria-labelledby={`release-year-${year}`}>
-          <h2 id={`release-year-${year}`}>{year}</h2>
-          <ol class="release-list">
-            {yearNotes.map((note) => (
-              <li>
-                <a href={notePath(note.id)}>
-                  <time datetime={note.data.date.toISOString()}>{formatDate.format(note.data.date)}</time>
-                  <span>{note.data.title}</span>
-                </a>
-                <span class="release-badge">{categoryLabels[note.data.category] ?? note.data.category}</span>
-              </li>
-            ))}
-          </ol>
-        </section>
-      ))
-    }
+    <div class="release-columns">
+      <div class="release-column">
+        <h2 class="release-column__title">稳定版</h2>
+        {
+          Array.from(stableByYear.entries()).map(([year, yearNotes]) => (
+            <section class="release-year" aria-labelledby={`stable-year-${year}`}>
+              <h3 id={`stable-year-${year}`}>{year}</h3>
+              <ol class="release-list">
+                {yearNotes.map((note) => (
+                  <li>
+                    <a href={notePath(note.id)}>
+                      <time datetime={note.data.date.toISOString()}>{formatDate.format(note.data.date)}</time>
+                      <span>{note.data.title}</span>
+                    </a>
+                  </li>
+                ))}
+              </ol>
+            </section>
+          ))
+        }
+      </div>
+
+      <div class="release-column">
+        <h2 class="release-column__title">每日构建</h2>
+        {
+          Array.from(nightlyByYear.entries()).map(([year, yearNotes]) => (
+            <section class="release-year" aria-labelledby={`nightly-year-${year}`}>
+              <h3 id={`nightly-year-${year}`}>{year}</h3>
+              <ol class="release-list">
+                {yearNotes.map((note) => (
+                  <li>
+                    <a href={notePath(note.id)}>
+                      <time datetime={note.data.date.toISOString()}>{formatDate.format(note.data.date)}</time>
+                      <span>{note.data.title}</span>
+                    </a>
+                  </li>
+                ))}
+              </ol>
+            </section>
+          ))
+        }
+      </div>
+    </div>
   </section>
 </SiteLayout>

@@ -21,12 +21,12 @@ const formatDate = new Intl.DateTimeFormat('zh-CN', {
 });
 
 const categoryLabels: Record<string, string> = {
-  'nightly-release': 'Nightly',
-  'stable-release': 'Stable',
+  'nightly-release': '每日构建',
+  'stable-release': '稳定版',
 };
 ---
 
-<SiteLayout frontmatter={{ title: note.data.title, description: `${note.data.title} | OpenDesk Release Notes` }}>
+<SiteLayout frontmatter={{ title: note.data.title, description: `${note.data.title} | OpenDesk 更新日志` }}>
   <article class="content-page release-article">
     <p class="release-kicker">
       <time datetime={note.data.date.toISOString()}>{formatDate.format(note.data.date)}</time>

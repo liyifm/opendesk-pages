@@ -42,6 +42,33 @@
   --sl-color-black: #151819;
 }
 
+/* Constrain page width to match nav container */
+.page {
+  width: min(1440px, calc(100% - 40px));
+  margin-left: auto;
+  margin-right: auto;
+}
+
+/* Align left sidebar to nav container left edge */
+@media (min-width: 50rem) {
+  .sidebar-pane {
+    left: max(20px, calc(50vw - 720px));
+  }
+}
+
+/* Slightly smaller body text */
+:root {
+  --sl-text-base: 0.95rem;
+}
+
+/* More spacing between sidebar nav items */
+.sidebar-pane ul.top-level > li + li {
+  margin-top: 0.65rem;
+}
+.sidebar-pane a {
+  padding-block: 0.35em;
+}
+
 body,
 .page,
 .main-pane,
@@ -53,14 +80,53 @@ body,
 
 .content-panel {
   border-top-color: var(--sl-color-hairline-light);
+  padding: 15px;
+}
+
+.sl-heading-wrapper {
+  margin-top: 15px;
 }
 
 .sl-container {
   color: var(--sl-color-text);
+  font-size: 14px;
+}
+
+.sl-container h1 {
+  font-size: 32px;
+}
+
+.sl-container h2 {
+  font-size: 28px;
+}
+
+.sl-container h3 {
+  font-size: 24px;
+}
+
+.sl-container h4 {
+  font-size: 20px;
+}
+
+.sl-container h5 {
+  font-size: 18px;
+}
+
+.sl-container h6 {
+  font-size: 16px;
+}
+
+.sidebar-content {
+  padding-left: 10px;
 }
 
 .sidebar-pane {
   border-inline-end-color: var(--sl-color-hairline);
+}
+
+.right-sidebar {
+  position: sticky;
+  padding: 10px;
 }
 
 .right-sidebar-panel {

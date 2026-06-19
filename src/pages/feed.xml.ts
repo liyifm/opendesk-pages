@@ -7,8 +7,8 @@ export async function GET(context: { site: URL }) {
   );
 
   return rss({
-    title: 'OpenDesk Release Notes',
-    description: 'OpenDesk stable and nightly release notes.',
+    title: 'OpenDesk 更新日志',
+    description: 'OpenDesk 稳定版和每日构建更新记录。',
     site: context.site,
     items: notes.map((note) => {
       const slug = note.id.replace(/\.mdx?$/, '');
