@@ -7,7 +7,6 @@ export const site = {
     { label: '使用文档', href: '/docs/quickstart/cli/', activePath: '/docs/' },
     { label: '场景概览', href: '/gallery/' },
     { label: '更新日志', href: '/news/' },
-    { label: '技能广场', href: 'https://matrix.openharmony.cn/#/skillSquare', external: true },
     { label: '关于我们', href: '/about/' },
   ],
   footerLinks: [

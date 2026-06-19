@@ -34,7 +34,13 @@ export default defineConfig({
           items: [
             { label: 'OpenDesk Cli', slug: 'docs/quickstart/cli' },
             { label: 'OpenDesk 桌面版', slug: 'docs/quickstart/desktop' },
+            { label: '在 VS Code 中使用 OpenDesk', slug: 'docs/quickstart/vscode' },
           ],
+        },
+        {
+          'label': '常用功能',
+          'items': [
+          ]
         },
         {
           label: '进阶场景',
@@ -66,7 +72,14 @@ export default defineConfig({
             { label: 'OpenDesk Cli 开发上手', slug: 'docs/contribute/cli' },
             { label: 'OpenDesk Desktop 开发上手', slug: 'docs/contribute/desktop' },
             { label: '配置文件格式', slug: 'docs/contribute/config-format' },
-            { label: 'OpenCode Server API', slug: 'docs/contribute/opencode-server-api' },
+            {
+              label: '集成到其他平台',
+              items: [
+                { label: 'Node 协议', slug: 'docs/contribute/opencode-server-api' },
+                { label: 'ACP 协议', slug: 'docs/contribute/opencode-server-api' },
+                { label: 'OpenCode 协议', slug: 'docs/contribute/opencode-server-api' }
+              ],
+            },
           ],
         },
       ],

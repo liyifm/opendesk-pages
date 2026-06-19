@@ -1,0 +1,143 @@
+---
+title: "在 VS Code 中通过 ACP 连接 OpenDesk"
+description: "通过 Agent Client Protocol (ACP) 将 OpenDesk 接入 VS Code，在编辑器中直接使用 OpenDesk 的 AI 能力"
+---
+
+import { Tabs, TabItem } from '@astrojs/starlight/components';
+
+OpenDesk 实现了 [Agent Client Protocol (ACP)](https://agentclientprotocol.org/)，这是一个类似 LSP 的开放协议，用于标准化代码编辑器与 AI Agent 之间的通信。通过 ACP，你可以在 VS Code 中直接调用 OpenDesk 的全部能力——包括文件读写、终端执行、MCP 工具、技能系统等。
+
+## 前置条件
+
+1. **完成OpenDesk安装**: 在开始之前，请确保你已经参考 [OpenDesk Cli 快速开始](/docs/quickstart/cli/) 中的说明安装好 OpenDesk Cli 并确保可执行文件的路径已经被添加到 `PATH`中去;
+    - 通常你可以直接进入终端(如果在Windows上，则可以是命令提示符/Powershell/Bash 等)直接输入 `opendesk --version`, 如果是不低于`0.3.0`的稳定版，或者不低于`0.2.0-nightly-20260619`的日构建版，则其 ACP 功能是可用的;
+2. **完成模型配置**: 首次使用前需要配置至少一个大模型服务商。运行 `opendesk`，进入 OpenDesk Cli 后输入 `/config` 按提示配置模型, 并确认模型可用性;
+    - 当前主流的 ACP 客户端中支持切换模型，但不支持配置模型列表，因此当你需要增加新模型的时候总是要先进入 OpenDesk Cli 来完成配置， 例如:
+
+![模型配置界面](/assets/images/quickstart/vscode/model-config.png)
+
+## 验证 ACP 服务可用
+
+在终端中运行以下命令，验证 ACP 服务可以正常启动：
+
+```shell
+opendesk serve --mode acp
+```
+
+如果配置正确，命令会启动一个 ACP stdio 服务并等待输入（不会输出多余内容）。按 `Ctrl+C` 退出即可。
+
+:::tip[工作原理]
+`opendesk serve --mode acp` 会以 headless 模式启动 OpenDesk，并通过 **stdin/stdout** 进行 JSON-RPC 通信。VS Code 作为 ACP Client 启动该进程，通过标准输入输出与 OpenDesk Agent 交互。
+:::
+
+## 安装 ACP 客户端插件
+
+VS Code 本身不内置 ACP 支持，需要安装第三方 ACP 客户端插件。以下两个插件均可使用，任选其一：
+
+| 插件 | 特点 | 安装 |
+|------|------|------|
+| **ACP Client** | 轻量专注，开箱即用，预置多个常见 Agent | [安装链接](https://marketplace.visualstudio.com/items?itemName=formulahendry.acp-client) |
+| **Multicoder** | 功能丰富，支持并行多会话、文件变更 Diff 视图、编辑时间线等 | [安装链接](https://marketplace.visualstudio.com/items?itemName=multicoder.multicoder) |
+
+你可以在 VS Code 扩展面板中搜索 `acp-client` 或 `multicoder` 进行安装，也可以点击上方链接在 Marketplace 页面点击 **Install**。
+
+## 将 OpenDesk 添加为 ACP Agent
+
+安装插件后，需要在插件中添加 OpenDesk 的 Agent 配置。根据你安装的插件，选择对应的配置方式：
+
+<Tabs>
+  <TabItem label="ACP Client">
+
+打开 VS Code 的 `settings.json`（`Ctrl+Shift+P` → **Preferences: Open User Settings (JSON)**），添加以下配置。
+
+```jsonc
+{
+  // ... 你的其他设置
+  "acp.agents": {
+    // ... 预置的其他 Agent
+    "OpenDesk": {
+      "command": "opendesk",
+      "args": ["serve", "--mode", "acp"]
+    }
+  }
+}
+```
+
+或者在左侧点击打开 ACP Client 的插件面板 (也可直接输入 Ctrl + Shift + A)，单击 Add Agent 后根据提示输入上述内容。
+
+![ACP Client 配置界面](/assets/images/quickstart/vscode/acpclient-config.png)
+
+配置完成后，点击侧栏的 **ACP** 图标打开面板，点击 Connect to Agent 后选择 **OpenDesk** 即可连接。
+
+  </TabItem>
+  <TabItem label="Multicoder ACP">
+
+MultiCoder ACP 最新版本的配置不在 VSCode 中管理，而是在它自己的配置目录下。在配置 MultiCoder ACP时，你要先在左侧找到 MultiCoder 的插件面板，点击 `New Session` 然后按下图的位置找到 Agent Settings：
+![MultiCoder ACP 配置界面](/assets/images/quickstart/vscode/multicoder-config.png)
+
+```jsonc
+{
+  "agentServers": {
+    // ... 你配置的其他 ACP Agents ...
+    "OpenDesk": {
+      "type": "custom",
+      "command": "opendesk",
+      "args": [
+        "serve", "--mode", "acp"
+      ]
+    }
+  }
+}
+```
+
+配置完成后，按下 Ctrl + Shift + P, 输入 Reload Window 重启 VS Code 窗口，就可以在 MultiCoder 的界面中看到 OpenDesk 了。
+
+  </TabItem>
+</Tabs>
+
+:::note[关于 command 路径]
+如果你的 `opendesk` 命令不在系统 PATH 中，需要使用完整路径。例如：
+
+- **Windows**: `"command": "C:\\Users\\<你的用户名>\\AppData\\Roaming\\npm\\opendesk.cmd"`
+- **macOS/Linux**: `"command": "/usr/local/bin/opendesk"`
+
+你可以通过 `which opendesk`（Linux/macOS）或 `where opendesk`（Windows）来查找实际路径。
+:::
+
+## 开始使用
+
+连接成功后，你可以在 ACP 插件的聊天面板中与 OpenDesk 对话：
+
+1. 在聊天输入框中描述你的需求
+2. OpenDesk 会自动读取当前工作区上下文，执行文件编辑、终端命令等操作
+3. 所有工具调用和权限请求都会在 VS Code 中展示，你可以逐一审批
+
+![对话效果](/assets/images/quickstart/vscode/acpclient-demo.gif)
+
+通过 ACP 连接后，OpenDesk 的以下能力可以在 VS Code 中直接使用：
+
+| 能力 | 说明 |
+|------|------|
+| **文件读写** | 读取、创建、编辑项目中的文件 |
+| **终端命令** | 在当前工作区执行 shell 命令 |
+| **MCP 工具** | 使用你在 OpenDesk 中配置的所有 MCP Server |
+| **技能系统** | 调用 OpenDesk 的 Skills 完成复杂任务 |
+| **多模型切换** | 在会话中切换不同的 AI 模型 |
+
+## 常见问题
+
+### ACP 连接失败
+
+如果 VS Code 无法连接 OpenDesk，请检查：
+
+1. **ACP 客户端插件是否已安装**——确认已安装 ACP Client 或 Multicoder 插件
+2. **opendesk-cli 是否已安装且可用**——在终端运行 `opendesk --version` 确认
+3. **模型是否已配置**——ACP 模式需要至少一个可用的模型配置。如果还没有配置，先运行一次 `opendesk` 桌面版完成初始配置
+4. **command 路径是否正确**——确认 `settings.json` 中的 `command` 指向正确的可执行文件路径
+
+### 权限请求弹窗
+
+OpenDesk 在执行文件修改或终端命令前会发送权限请求。在 VS Code 中你可以选择：
+
+- **仅允许本次** (Allow once)——只允许当前这一次操作
+- **始终允许** (Always allow)——对该类操作不再重复询问

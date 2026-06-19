@@ -93,23 +93,23 @@ body,
 }
 
 .sl-container h1 {
-  font-size: 32px;
-}
-
-.sl-container h2 {
   font-size: 28px;
 }
 
-.sl-container h3 {
+.sl-container h2 {
   font-size: 24px;
 }
 
-.sl-container h4 {
+.sl-container h3 {
   font-size: 20px;
 }
 
-.sl-container h5 {
+.sl-container h4 {
   font-size: 18px;
+}
+
+.sl-container h5 {
+  font-size: 16px;
 }
 
 .sl-container h6 {
