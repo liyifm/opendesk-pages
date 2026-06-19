@@ -4,7 +4,10 @@ const isDev = import.meta.env.DEV;
 
 <site-search-box class="site-search" data-dev={isDev ? 'true' : undefined}>
   <button type="button" class="site-search__button" data-open-search aria-label="搜索文档" aria-keyshortcuts="Control+K">
-    <span class="site-search__icon" aria-hidden="true"></span>
+    <svg class="site-search__icon" aria-hidden="true" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round">
+      <circle cx="11" cy="11" r="7"/>
+      <path d="M21 21l-4.35-4.35"/>
+    </svg>
     <span class="site-search__label">搜索文档</span>
     <kbd class="site-search__shortcut">Ctrl K</kbd>
   </button>

@@ -220,21 +220,7 @@ site-header-menu {
 }
 
 .site-search__icon {
-  position: relative;
-  width: 13px;
-  height: 13px;
-  border: 2px solid currentColor;
-  border-radius: 999px;
   flex: 0 0 auto;
-}
-
-.site-search__icon::after {
-  content: "";
-  position: absolute;
-  width: 6px;
-  height: 2px;
-  background: currentColor;
-  transform: translate(8px, 9px) rotate(45deg);
 }
 
 .site-search__label {
