@@ -22,7 +22,7 @@ const { toc, depth = 0 } = Astro.props;
         <li class="opendesk-toc-item">
           {
             heading.children.length > 0 ? (
-              <details class="opendesk-toc-branch" data-slug={heading.slug}>
+              <details class="opendesk-toc-branch" data-slug={heading.slug} open={depth === 0}>
                 <summary>
                   <span class="opendesk-toc-caret" aria-hidden="true"></span>
                   <span class="opendesk-toc-branch-label">{heading.text}</span>

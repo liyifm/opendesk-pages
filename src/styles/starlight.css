@@ -137,6 +137,18 @@ opendesk-toc {
   display: block;
 }
 
+opendesk-toc h2 {
+  display: flex;
+  align-items: center;
+  gap: 0.4em;
+  margin: 0 0 0.5rem;
+}
+
+.opendesk-toc-icon {
+  flex: 0 0 auto;
+  opacity: 0.72;
+}
+
 opendesk-toc ul {
   list-style: none;
   margin: 0;
@@ -235,4 +247,42 @@ opendesk-toc .opendesk-toc-caret::before {
 
 opendesk-toc details[open] > summary .opendesk-toc-caret::before {
   transform: rotate(90deg);
+}
+
+img,
+video {
+  border-radius: 15px;
+  border: 1px solid var(--sl-color-hairline);
+  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.05);
+}
+
+.site-brand img {
+  border-radius: 0;
+  border: 0;
+  box-shadow: none;
+}
+
+/* 代码块卡片化 */
+.expressive-code .frame {
+  border-radius: 15px;
+  border: 1px solid var(--sl-color-hairline);
+  overflow: hidden;
+  --ec-codeBg: #f4f4f6;
+  --ec-codeFg: var(--sl-color-gray-2);
+  --ec-brdWd: 1px;
+}
+
+.expressive-code .frame.is-terminal .header {
+  border: 0;
+}
+
+:root[data-theme="dark"] .expressive-code .frame {
+  --ec-codeBg: initial;
+  --ec-codeFg: initial;
+}
+
+.expressive-code .frame pre {
+  border-radius: 0;
+  margin: 0;
+  border: 0;
 }

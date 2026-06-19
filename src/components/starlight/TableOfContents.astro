@@ -2,14 +2,21 @@
 import CollapsibleTocList from './CollapsibleTocList.astro';
 
 const { toc } = Astro.locals.starlightRoute;
+const items = toc?.items.filter((item) => item.slug !== '_top') ?? [];
 ---
 
 {
-  toc && (
+  toc && items.length > 0 && (
     <opendesk-toc data-min-h={toc.minHeadingLevel} data-max-h={toc.maxHeadingLevel}>
       <nav aria-labelledby="starlight__on-this-page">
-        <h2 id="starlight__on-this-page">{Astro.locals.t('tableOfContents.onThisPage')}</h2>
-        <CollapsibleTocList toc={toc.items} />
+        <h2 id="starlight__on-this-page">
+          <svg class="opendesk-toc-icon" aria-hidden="true" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <circle cx="12" cy="12" r="10"/>
+            <polygon points="16.24 7.76 14.12 14.12 7.76 16.24 9.88 9.88 16.24 7.76"/>
+          </svg>
+          在此页面
+        </h2>
+        <CollapsibleTocList toc={items} />
       </nav>
     </opendesk-toc>
   )
