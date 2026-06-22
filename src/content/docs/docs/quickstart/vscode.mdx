@@ -96,12 +96,15 @@ MultiCoder ACP 最新版本的配置不在 VSCode 中管理，而是在它自己
 </Tabs>
 
 :::note[关于 command 路径]
-如果你的 `opendesk` 命令不在系统 PATH 中，需要使用完整路径。例如：
+你需要确保 `opendesk` 命令存在于 PATH 中，这样VS Code才能访问到它。具体来说，你可以打开 VS Code 的内置终端，输入 `opendesk`，能正常打开 Opendesk 即可。
+如果无法打开 Opendesk, 通常来说是因为你没有将 npm 的 bin 目录配置到 PATH 中。这时你可以将 `$(npm prefix -g)/bin` 加入 PATH 路径。例如在 bash 中，
+你可以在 `$HOME/.bashrc`中加入下面的片段:
 
-- **Windows**: `"command": "C:\\Users\\<你的用户名>\\AppData\\Roaming\\npm\\opendesk.cmd"`
-- **macOS/Linux**: `"command": "/usr/local/bin/opendesk"`
+```
+export PATH=$(npm prefix -g)/bin:$PATH
+```
 
-你可以通过 `which opendesk`（Linux/macOS）或 `where opendesk`（Windows）来查找实际路径。
+其他 shell 或平台请自行用适合的方式配置环境变量。
 :::
 
 ## 开始使用
