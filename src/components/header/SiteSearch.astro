@@ -78,6 +78,9 @@ const isDev = import.meta.env.DEV;
           dialog.open ? close() : open();
         }
       }, { signal: controller.signal });
+
+      // 页面跳转时自动关闭搜索框
+      document.addEventListener('astro:before-swap', close, { signal: controller.signal });
     }
 
     disconnectedCallback() {
