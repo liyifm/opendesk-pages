@@ -40,11 +40,19 @@ export default defineConfig({
         {
           'label': '常用功能',
           'items': [
+            { label: '初始化配置', slug: 'docs/introduction/config' },
+            { label: '与智能体对话', slug: 'docs/introduction/chat' },
+            { label: '使用工作空间', slug: 'docs/introduction/workspace' },
+            { label: '配置搜索引擎', slug: 'docs/introduction/search' },
+            { label: '使用技能 (Skills)', slug: 'docs/introduction/skill' },
+            { label: '使用MCP服务器', slug: 'docs/introduction/mcp' },
+            { label: '浏览器自动化', slug: 'docs/introduction/browser' },
+            { label: '执行长程任务', slug: 'docs/introduction/long-horizon' },
           ]
         },
         {
           label: '进阶场景',
-          items: [{ label: '插件使用', slug: 'docs/plugins' }],
+          items: [{ label: '技能分析与优化', slug: 'docs/advanced/skill-analysis' }],
         },
         {
           label: '完整使用手册',

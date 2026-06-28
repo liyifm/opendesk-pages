@@ -286,3 +286,8 @@ video {
   margin: 0;
   border: 0;
 }
+
+/* 缩小 link-title 字体 */
+.link-title {
+  font-size: var(--sl-text-xl);
+}
