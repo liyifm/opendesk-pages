@@ -41,7 +41,7 @@ export default defineConfig({
           'label': '常用功能',
           'items': [
             { label: '初始化配置', slug: 'docs/introduction/config' },
-            { label: '与智能体对话', slug: 'docs/introduction/chat' },
+            { label: '发起第一个任务', slug: 'docs/introduction/chat' },
             { label: '使用工作空间', slug: 'docs/introduction/workspace' },
             { label: '配置搜索引擎', slug: 'docs/introduction/search' },
             { label: '连接到微信/飞书', slug: 'docs/introduction/im' },
@@ -82,6 +82,7 @@ export default defineConfig({
           label: '开发者指南',
           items: [
             { label: '架构介绍', slug: 'docs/contribute/architecture' },
+            { label: '如何参与贡献', slug: 'docs/contribute/howto' },
             { label: '准备开发环境', slug: 'docs/contribute/prepare' },
             { label: 'OpenDesk Cli 开发上手', slug: 'docs/contribute/cli' },
             { label: 'OpenDesk Desktop 开发上手', slug: 'docs/contribute/desktop' },
