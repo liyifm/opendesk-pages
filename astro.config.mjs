@@ -44,6 +44,7 @@ export default defineConfig({
             { label: '发起第一个任务', slug: 'docs/introduction/chat' },
             { label: '使用工作空间', slug: 'docs/introduction/workspace' },
             { label: '配置搜索引擎', slug: 'docs/introduction/search' },
+            { label: '调整安全模式', slug: 'docs/introduction/mode' },
             { label: '连接到微信/飞书', slug: 'docs/introduction/im' },
             { label: '使用技能 (Skills)', slug: 'docs/introduction/skill' },
             { label: '使用MCP服务器', slug: 'docs/introduction/mcp' },
@@ -55,7 +56,8 @@ export default defineConfig({
         {
           label: '进阶场景',
           items: [
-            { label: '优化显示效果', slug: 'docs/advanced/display' },
+            { label: '编码场景优化', slug: 'docs/advanced/coding' },
+            { label: '调整显示效果', slug: 'docs/advanced/display' },
             { label: '技能分析与测试', slug: 'docs/advanced/skill-analysis' },
             { label: '导入导出系统配置', slug: 'docs/advanced/config-export' },
           ]
