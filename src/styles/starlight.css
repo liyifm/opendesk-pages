@@ -291,3 +291,45 @@ video {
 .link-title {
   font-size: var(--sl-text-xl);
 }
+
+/* 图片灯箱 */
+.image-lightbox-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 9999;
+  background: rgba(0, 0, 0, 0.85);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  opacity: 0;
+  transition: opacity 0.2s ease;
+  cursor: zoom-out;
+}
+
+.image-lightbox-overlay.active {
+  opacity: 1;
+}
+
+.image-lightbox-overlay img {
+  max-width: 90vw;
+  max-height: 90vh;
+  object-fit: contain;
+  border-radius: 8px;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+  cursor: default;
+  border: none;
+}
+
+.image-lightbox-overlay img:hover {
+  transform: scale(1);
+}
+
+/* 文档内图片添加放大光标提示 */
+.sl-markdown-content img {
+  cursor: zoom-in;
+  transition: opacity 0.15s ease;
+}
+
+.sl-markdown-content img:hover {
+  opacity: 0.85;
+}

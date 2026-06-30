@@ -5,3 +5,61 @@ import { ClientRouter } from 'astro:transitions';
 
 <DefaultHead {...Astro.props} />
 <ClientRouter />
+
+<script is:inline>
+(function() {
+  function initImageLightbox() {
+    // 移除已有的 overlay
+    const existing = document.getElementById('image-lightbox-overlay');
+    if (existing) existing.remove();
+
+    // 为所有文档内图片添加点击事件
+    document.querySelectorAll('.sl-markdown-content img').forEach(img => {
+      if (img.dataset.lightbox === 'true') return;
+      img.dataset.lightbox = 'true';
+      img.addEventListener('click', (e) => {
+        e.stopPropagation();
+        showLightbox(img.src);
+      });
+    });
+  }
+
+  function showLightbox(src) {
+    const overlay = document.createElement('div');
+    overlay.id = 'image-lightbox-overlay';
+    overlay.className = 'image-lightbox-overlay';
+    overlay.innerHTML = '<img src="' + src + '" alt="预览大图" />';
+    document.body.appendChild(overlay);
+
+    // 触发显示动画
+    requestAnimationFrame(() => overlay.classList.add('active'));
+
+    // 点击 overlay 区域关闭（点击图片本身不关闭）
+    overlay.addEventListener('click', (e) => {
+      if (e.target === overlay) hideLightbox(overlay);
+    });
+
+    // 按 ESC 关闭
+    const escHandler = (e) => {
+      if (e.key === 'Escape') {
+        hideLightbox(overlay);
+        document.removeEventListener('keydown', escHandler);
+      }
+    };
+    document.addEventListener('keydown', escHandler);
+  }
+
+  function hideLightbox(overlay) {
+    overlay.classList.remove('active');
+    overlay.addEventListener('transitionend', () => overlay.remove(), { once: true });
+    // 防止 transitionend 不触发的兜底
+    setTimeout(() => { if (overlay.parentNode) overlay.remove(); }, 300);
+  }
+
+  // 初始加载
+  document.addEventListener('DOMContentLoaded', initImageLightbox);
+
+  // SPA 页面切换后重新绑定
+  document.addEventListener('astro:after-swap', initImageLightbox);
+})();
+</script>
