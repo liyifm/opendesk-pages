@@ -3,6 +3,136 @@ title: "配置搜索引擎"
 description: ""
 ---
 
-*正在施工中……*
+智能体依赖于搜索引擎获取外部信息，而信息获取的质量奖直接影响到智能体的输出质量。这些信息包含：
 
-![配置向导](/assets/images/introduction/search/engines.png)
+- 具有时效性的新闻，股价，天气等信息;
+- 技术资料细节，在大模型自身训练数据中未包含，或者权重较低并没有记住的;
+- ……
+
+OpenDesk 内置了丰富的搜索引擎集成能力，支持网页搜索和学术搜索，可以根据任务需求实时联网检索信息，为你提供最新、最准确的答案。
+
+## 搜索引擎概览
+
+OpenDesk 支持多种搜索工具，智能体通过调用这些工具来获取信息。
+
+![搜索引擎示例](/assets/images/introduction/search/example.png)
+
+### WebFetch 网页获取工具
+
+智能体随时可以使用 WebFetch 工具获取指定网页的内容。该功能整合了直接读取，Readibility，调用第三方 Jina Reader 等多种策略，获取对大模型而言易于理解的网页结果。
+
+当前 WebFetch 工具是常驻的，不支持手动关闭该工具。
+
+### WebSearch 通用搜索引擎工具
+
+智能体可以调用通用搜索引擎来获取信息，在桌面端或者 Cli 界面中，你可以通过设置选项来切换使用的搜索引擎或关闭此功能。为了确保搜索结果不让智能体感到困惑，我们当前只允许同时使用一种搜索引擎。
+
+当前我们已经支持的搜索引擎列表包括：
+
+- **Bing** 免费，通过拼接 http 请求并获取网页内容的形式搜索，支持切换中国区和全球两种搜索模式，是默认启用的免费搜索引擎；
+- **DuckDuckGo** 免费，通过拼接 http 请求并获取网页内容的形式搜索，在中国地区存在网络不稳定，可能无法访问的问题，但搜索的信息质量较高；
+- **百度** 免费，通过拼接 http 请求并获取网页内容的形式发起搜索，仅支持中文搜索模式;
+- [**博查**](https://open.bochaai.com/) 收费国产搜索服务, 但个人用户每月有一定量的免费配额;
+- [**Exa.ai**](https://exa.ai/) 收费海外搜索服务, 但个人用户每月有一定量的免费配额，在中国地区网络访问稳定，较推荐;
+- [**Tavily**](https://www.tavily.com/) 收费海外搜索服务, 但个人用户每月有一定量的免费配额，在中国地区存在网络不稳定的问题;
+- [**Brave**](https://search.brave.com/) 收费海外搜索服务, 但个人用户每月有一定量的免费配额，在中国地区存在网络不稳定的问题;
+
+### AcademicSearch 学术搜索工具
+
+为了方便学术用户使用 OpenDesk 进行科研，或者技术玩家们获取新的技术信息，我们也提供了常用的学术搜索引擎接入。当前包括 ArXiv 预印本搜索和 DBLP 两种学术搜索服务。
+
+如果你不需要学术搜索工具，可以在设置菜单中关闭该选项。
+
+## 在桌面端中配置搜索引擎
+
+### 通过自然语言配置（推荐）
+
+在桌面端中，最便捷的配置方式是直接用自然语言告诉 OpenDesk 你的需求：
+
+- "配置一下 Tavily 搜索"
+- "看一下我现在有哪些搜索引擎能用"
+- "除了 Bing 其他的都禁用掉吧"
+
+OpenDesk 会自动调用搜索配置技能帮你完成设置。
+
+### 通过设置界面配置
+
+你也可以通过设置界面手动管理搜索引擎。进入设置页面，找到「搜索引擎配置」入口。
+
+![搜索引擎配置](/assets/images/introduction/search/engines.png)
+
+在这里你可以：
+
+- 添加搜索引擎的 API Key
+- 切换默认使用的搜索引擎（网页搜索和学术搜索可分别设置）
+- 启用或关闭特定的搜索工具
+
+### 配置付费搜索引擎
+
+以配置 Tavily Search 为例：
+
+1. 前往 [Tavily 官网](https://tavily.com/) 注册账号并获取 API Key
+2. 在 OpenDesk 设置中找到 Tavily 搜索引擎配置
+3. 填入你的 API Key 并保存
+
+其他付费搜索引擎的配置流程类似，都需要先到对应的服务商处注册并获取 API Key。
+
+## 在 CLI 中配置搜索引擎
+
+### 通过自然语言配置
+
+与桌面端一致，CLI 中最推荐的方式也是直接用自然语言对话完成配置：
+
+```
+配置一下 Exa 搜索
+```
+
+```
+看一下我现在有哪些搜索引擎能用？
+```
+
+```
+除了 Bing 其他的都禁用掉吧
+```
+
+![CLI 自然语言配置搜索](/assets/images/introduction/search/cli_natural.png)
+
+### 通过 /config 命令配置
+
+你也可以通过斜杠命令进入配置界面：
+
+1. 输入 `/config` 打开设置界面
+2. 选择「搜索工具配置」
+3. 添加、修改或删除搜索引擎
+
+![CLI 搜索配置](/assets/images/introduction/search/cli_config.png)
+
+### 通过配置文件直接修改
+
+对于需要批量配置或自动化部署的场景，可以直接编辑配置文件 `~/.opendesk/setting.json` 中的 `applications.search` 字段：
+
+```json
+{
+  "applications": {
+    "search": {
+      "channels": {
+        "tavily": { "api_key": "your-api-key-here" },
+        "brave": { "api_key": "your-api-key-here" },
+        "bocha": { "api_key": "your-api-key-here" },
+        "exa": { "api_key": "your-api-key-here" },
+        "bing": { "lang": "zh" }
+      },
+      "defaultWebSearch": "bing",
+      "defaultAcademicSearch": "arxiv",
+      "webSearchEnabled": true,
+      "academicSearchEnabled": true
+    }
+  }
+}
+```
+
+需要注意，这里面搜索渠道的 api_key 是选配的，按你自己的需求填写，不需要每个都放进去。
+
+:::tip[网页搜索 vs 学术搜索]
+OpenDesk 将搜索引擎分为两类：网页搜索和学术搜索。它们可以分别配置默认引擎和启用状态。当你询问技术新闻、产品价格等信息时，系统会使用网页搜索；当你需要查找论文、学术资料时，系统会切换到学术搜索。
+:::
