@@ -1,5 +1,5 @@
 ---
-title: "2026.5.5 日构建更新"
+title: "多 Agent 框架、Plan Mode 与任务自动化"
 date: "2026-05-05T09:00:00+08:00"
 category: "nightly-release"
 ---

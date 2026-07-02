@@ -1,5 +1,5 @@
 ---
-title: "2026.3.23 日构建更新"
+title: "微信扫码接入与插件热更新"
 date: "2026-03-23T09:00:00+08:00"
 category: "nightly-release"
 ---

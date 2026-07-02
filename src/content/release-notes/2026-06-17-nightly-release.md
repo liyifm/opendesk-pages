@@ -1,5 +1,5 @@
 ---
-title: "2026.6.17 日构建更新"
+title: "MCP Registry、记忆与智能文件系统"
 date: "2026-06-17T09:00:00+08:00"
 category: "nightly-release"
 ---

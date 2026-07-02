@@ -1,5 +1,5 @@
 ---
-title: "2026.5.19 日构建更新"
+title: "Magic Pointer、内置笔记与浏览器应用"
 date: "2026-05-19T09:00:00+08:00"
 category: "nightly-release"
 ---

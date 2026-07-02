@@ -1,5 +1,5 @@
 ---
-title: "正式版本更新 0.2.0"
+title: "OpenDesk 0.2.0：文件检索、终端工具与渠道接入"
 date: "2026-04-07T09:00:00+08:00"
 category: "stable-release"
 version: "0.2.0"

@@ -1,5 +1,5 @@
 ---
-title: "2026.6.09 日构建更新"
+title: "节点执行、独立窗口与深色模式"
 date: "2026-06-09T09:00:00+08:00"
 category: "nightly-release"
 ---

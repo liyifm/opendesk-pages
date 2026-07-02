@@ -402,10 +402,10 @@ img {
   --download-stable-deep: #0a5b4e;
   --download-stable-soft: #e8f6f0;
   --download-stable-line: rgba(20, 134, 109, 0.22);
-  --download-nightly: #2cae82;
-  --download-nightly-deep: #167052;
-  --download-nightly-soft: #e4f7ee;
-  --download-nightly-line: rgba(44, 174, 130, 0.24);
+  --download-nightly: var(--download-stable);
+  --download-nightly-deep: var(--download-stable-deep);
+  --download-nightly-soft: var(--download-stable-soft);
+  --download-nightly-line: var(--download-stable-line);
 }
 
 .download-page__header {
@@ -812,10 +812,10 @@ img {
   --download-stable-deep: #9fe2d0;
   --download-stable-soft: rgba(99, 209, 180, 0.14);
   --download-stable-line: rgba(99, 209, 180, 0.26);
-  --download-nightly: #7ee0b5;
-  --download-nightly-deep: #b8efd8;
-  --download-nightly-soft: rgba(126, 224, 181, 0.14);
-  --download-nightly-line: rgba(126, 224, 181, 0.26);
+  --download-nightly: var(--download-stable);
+  --download-nightly-deep: var(--download-stable-deep);
+  --download-nightly-soft: var(--download-stable-soft);
+  --download-nightly-line: var(--download-stable-line);
 }
 
 :root[data-theme="dark"] .download-card {

@@ -1,5 +1,5 @@
 ---
-title: "2026.3.24 日构建更新"
+title: "内嵌 Shell 模式与快速问答"
 date: "2026-03-24T09:00:00+08:00"
 category: "nightly-release"
 ---

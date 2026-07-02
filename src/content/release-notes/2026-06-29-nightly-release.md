@@ -1,5 +1,5 @@
 ---
-title: "2026.6.29 日构建更新"
+title: "MCP 环境变量、文件拖入与 Overlay 优化"
 date: "2026-06-29T09:00:00+08:00"
 category: "nightly-release"
 version: "0.2.0-nightly-20260629"
