@@ -2,6 +2,16 @@
 title: "2026.6.29 日构建更新"
 date: "2026-06-29T09:00:00+08:00"
 category: "nightly-release"
+version: "0.2.0-nightly-20260629"
+downloads:
+  cli: "npm i -g @bitclub.ai/opendesk-cli@0.2.0-nightly-20260629"
+  windows:
+    url: "https://download.bitclub.ai/build/nightly/win/opendesk-win-x86-0.2.0-nightly-20260629.msi"
+    label: "Windows x86 安装包"
+  harmonyos:
+    url: "https://download.bitclub.ai/build/nightly/ohos/opendesk-ohos-0.2.0-nightly-20260629.hap"
+    label: "HarmonyOS 安装包"
+summary: "MCP Server 独立环境变量管理、更多文件拖入格式支持、Overlay 外观重构等多项改进。"
 ---
 
 # 2026.6.29 日构建更新内容

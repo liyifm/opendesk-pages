@@ -1,0 +1,105 @@
+---
+interface DownloadAsset {
+  url: string;
+  label: string;
+}
+
+interface DownloadItem {
+  title: string;
+  version: string;
+  date: Date;
+  category: string;
+  summary: string;
+  cli?: string;
+  windows?: DownloadAsset;
+  harmonyos?: DownloadAsset;
+  noteUrl: string;
+}
+
+interface Props {
+  item?: DownloadItem;
+  variant: 'stable' | 'nightly';
+}
+
+const { item, variant } = Astro.props;
+const isNightly = variant === 'nightly';
+
+const formatDate = new Intl.DateTimeFormat('zh-CN', {
+  year: 'numeric',
+  month: 'long',
+  day: 'numeric',
+});
+
+const fileHint = (url: string, fallbackExt: string, detail: string) => {
+  const ext = url.split('?')[0]?.match(/\.[a-z0-9]+$/i)?.[0] ?? fallbackExt;
+  return `${ext} · ${detail}`;
+};
+---
+
+{
+  item ? (
+    <article class:list={['download-card', isNightly && 'download-card--nightly']}>
+      <header class="download-card__header">
+        <div>
+          <h2 class="download-card__version">OpenDesk {item.version}</h2>
+          <p class="download-card__date">{formatDate.format(item.date)}发布</p>
+        </div>
+        <span class:list={['download-card__badge', isNightly ? 'download-card__badge--nightly' : 'download-card__badge--stable']}>
+          {isNightly ? '每日构建' : '稳定版'}
+        </span>
+      </header>
+
+      <p class="download-card__summary">{item.summary}</p>
+
+      {item.cli && (
+        <div class="download-cli">
+          <div>
+            <span class="download-cli__label">Cli 命令行工具</span>
+            <code class="download-cli__command"><span class="download-cli__prompt">$</span> {item.cli}</code>
+          </div>
+          <button
+            class:list={['download-cli__copy', isNightly && 'download-cli__copy--nightly']}
+            type="button"
+            data-copy-text={item.cli}
+          >
+            复制
+          </button>
+        </div>
+      )}
+
+      {(item.windows || item.harmonyos) && (
+        <div class="download-buttons">
+          {item.windows && (
+            <a
+              class:list={['download-btn', isNightly ? 'download-btn--nightly-primary' : 'download-btn--primary']}
+              href={item.windows.url}
+              download
+            >
+              <span>{item.windows.label}</span>
+              <span class="download-btn__sub">{fileHint(item.windows.url, '.msi', '下载安装')}</span>
+            </a>
+          )}
+          {item.harmonyos && (
+            <a class="download-btn download-btn--secondary" href={item.harmonyos.url} download>
+              <span>{item.harmonyos.label}</span>
+              <span class="download-btn__sub">{fileHint(item.harmonyos.url, '.hap', '需手动签名')}</span>
+            </a>
+          )}
+        </div>
+      )}
+
+      <footer class="download-card__links">
+        <a class={isNightly ? 'download-card__link--nightly' : undefined} href={item.noteUrl}>查看版本说明 →</a>
+        <a class="download-card__history" href="/news/">历史版本</a>
+      </footer>
+    </article>
+  ) : (
+    <article class="download-card">
+      <h2 class="download-card__version">暂无可用版本</h2>
+      <p class="download-card__summary">当前分类还没有可下载的版本。</p>
+      <footer class="download-card__links">
+        <a href="/news/">查看历史版本</a>
+      </footer>
+    </article>
+  )
+}

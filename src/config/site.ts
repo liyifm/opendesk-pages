@@ -6,7 +6,8 @@ export const site = {
     { label: '首页', href: '/' },
     { label: '使用文档', href: '/docs/quickstart/cli/', activePath: '/docs/' },
     { label: '场景概览', href: '/gallery/' },
-    { label: '更新日志', href: '/news/' },
+    { label: '下载', href: '/download/', activePath: '/download/' },
+    { label: '更新日志', href: '/news/', activePath: '/news/' },
     { label: '关于我们', href: '/about/' },
   ],
   footerLinks: [
