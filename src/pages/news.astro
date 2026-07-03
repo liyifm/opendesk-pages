@@ -38,7 +38,12 @@ const getPackageDownloads = (note: (typeof notes)[number]) => {
   return downloads;
 };
 
-const normalizeCliCommand = (command: string | undefined) => command?.replaceAll('"', '').trim();
+const normalizeCliCommand = (command: string | undefined) =>
+  command
+    ?.replaceAll('"', '')
+    .replace(/\s+/g, ' ')
+    .trim()
+    .replace(/^npm\s+i\s+(-g|--global)\s+/i, 'npm install $1 ');
 
 const getCliCommand = (note: (typeof notes)[number]) =>
   normalizeCliCommand(
@@ -67,7 +72,6 @@ const releaseItems = notes.map((note) => ({
         <h1>更新日志</h1>
         <p>查看 OpenDesk 所有版本的更新记录</p>
       </div>
-      <a class="release-download-link" href="/download/">前往下载页</a>
     </div>
 
     <div class="release-filters" aria-label="更新类型筛选">
@@ -88,8 +92,6 @@ const releaseItems = notes.map((note) => ({
     <ol class="release-list release-list--timeline">
       {
         releaseItems.map(({ note, noteUrl, cliCommand, downloads }) => {
-          const downloadLinks = downloads.length > 0 ? downloads : cliCommand ? [] : [{ label: '前往下载页', url: '/download/' }];
-
           return (
           <li data-release-category={note.data.category}>
             <article class="release-item">
@@ -106,15 +108,26 @@ const releaseItems = notes.map((note) => ({
               {
                 cliCommand && (
                   <div class="release-cli-row">
-                    <code class="release-cli-command"><span>Cli</span><span class="release-cli-command__text">{cliCommand}</span></code>
+                    <code class="release-cli-command">
+                      <span class="release-cli-command__label">CLI</span>
+                      <span class="release-cli-command__text">{cliCommand}</span>
+                    </code>
+                    <button
+                      class="release-cli-copy"
+                      type="button"
+                      data-copy-text={cliCommand}
+                      aria-label={`复制 ${note.data.title} CLI 安装命令`}
+                    >
+                      复制
+                    </button>
                   </div>
                 )
               }
 
               {
-                downloadLinks.length > 0 && (
+                downloads.length > 0 && (
                   <div class="release-downloads" aria-label={`${note.data.title} 下载链接`}>
-                    {downloadLinks.map((download) => <a href={download.url}>{download.label}</a>)}
+                    {downloads.map((download) => <a href={download.url}>{download.label}</a>)}
                   </div>
                 )
               }
@@ -127,6 +140,23 @@ const releaseItems = notes.map((note) => ({
   </section>
 
   <script>
+    const writeClipboardText = async (text: string) => {
+      if (navigator.clipboard?.writeText) {
+        await navigator.clipboard.writeText(text);
+        return;
+      }
+
+      const textarea = document.createElement('textarea');
+      textarea.value = text;
+      textarea.setAttribute('readonly', '');
+      textarea.style.position = 'fixed';
+      textarea.style.opacity = '0';
+      document.body.append(textarea);
+      textarea.select();
+      document.execCommand('copy');
+      textarea.remove();
+    };
+
     const setupReleaseFilters = () => {
       document.querySelectorAll<HTMLElement>('[data-release-filter-root]').forEach((root) => {
         if (root.dataset.releaseFiltersReady === 'true') return;
@@ -150,6 +180,25 @@ const releaseItems = notes.map((note) => ({
 
         buttons.forEach((button) => {
           button.addEventListener('click', () => applyFilter(button.dataset.releaseFilter ?? 'all'));
+        });
+
+        root.querySelectorAll<HTMLButtonElement>('[data-copy-text]').forEach((button) => {
+          button.addEventListener('click', async () => {
+            const text = button.dataset.copyText;
+            if (!text) return;
+
+            const originalLabel = button.textContent ?? '复制';
+            try {
+              await writeClipboardText(text);
+              button.textContent = '已复制';
+            } catch {
+              button.textContent = '复制失败';
+            }
+
+            window.setTimeout(() => {
+              button.textContent = originalLabel;
+            }, 2000);
+          });
         });
       });
     };

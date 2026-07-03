@@ -88,6 +88,20 @@ const fileHint = (url: string, fallbackExt: string, detail: string) => {
         </div>
       )}
 
+      {item.harmonyos && (
+        <p class="download-signing-note">
+          HarmonyOS 安装提示：下载 <code>.hap</code> 后，需要通过{' '}
+          <a href="https://developer.huawei.com/consumer/cn/deveco-studio/" target="_blank" rel="noreferrer">
+            DevEco Studio
+          </a>{' '}
+          或{' '}
+          <a href="https://github.com/likuai2010/auto-installer/" target="_blank" rel="noreferrer">
+            Auto-installer
+          </a>{' '}
+          手动签名后安装。
+        </p>
+      )}
+
       <footer class="download-card__links">
         <a href={item.noteUrl}>查看版本说明 →</a>
         <a class="download-card__history" href="/news/">历史版本</a>

@@ -130,38 +130,6 @@ img {
   margin: 0;
 }
 
-.release-download-link {
-  flex: 0 0 auto;
-  min-height: 40px;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  gap: 8px;
-  border: 1px solid var(--line);
-  border-radius: 999px;
-  background: var(--surface);
-  color: var(--ink);
-  padding: 0 16px;
-  font-size: 14px;
-  font-weight: 700;
-  text-decoration: none;
-  transition:
-    border-color 180ms ease,
-    color 180ms ease,
-    transform 180ms ease;
-}
-
-.release-download-link::after {
-  content: "→";
-  color: var(--accent);
-}
-
-.release-download-link:hover {
-  border-color: rgba(29, 127, 103, 0.42);
-  color: var(--accent-deep);
-  transform: translateY(-1px);
-}
-
 .release-filters {
   display: flex;
   gap: 0;
@@ -270,6 +238,10 @@ img {
 
 .release-cli-row {
   min-width: 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: stretch;
 }
 
 .release-downloads {
@@ -293,22 +265,24 @@ img {
 }
 
 .release-cli-command {
+  flex: 0 1 auto;
   display: inline-flex;
   align-items: center;
   gap: 8px;
-  max-width: 100%;
-  min-height: 28px;
+  width: fit-content;
+  max-width: min(100%, 620px);
+  min-height: 32px;
   border: 1px solid var(--line);
-  border-radius: 999px;
+  border-radius: 8px;
   background: rgba(16, 19, 20, 0.04);
   color: var(--ink);
-  padding: 0 10px;
+  padding: 6px 10px;
   font: 12px/1.5 "SFMono-Regular", Consolas, monospace;
   overflow-wrap: anywhere;
   white-space: normal;
 }
 
-.release-cli-command span {
+.release-cli-command__label {
   flex: 0 0 auto;
   color: var(--accent-deep);
   font-family: inherit;
@@ -320,6 +294,24 @@ img {
   color: var(--ink);
   font-weight: 500;
   overflow-wrap: anywhere;
+}
+
+.release-cli-copy {
+  flex: 0 0 auto;
+  min-height: 32px;
+  border: 0;
+  border-radius: 8px;
+  background: var(--accent);
+  color: #fff;
+  padding: 0 12px;
+  font-size: 12px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: background 160ms ease;
+}
+
+.release-cli-copy:hover {
+  background: var(--accent-deep);
 }
 
 :root[data-theme="dark"] .release-cli-command {
@@ -755,6 +747,28 @@ img {
   font-size: 12px;
   font-weight: 500;
   opacity: 0.72;
+}
+
+.download-signing-note {
+  margin: 12px 0 0;
+  color: var(--muted);
+  font-size: 13px;
+  line-height: 1.65;
+}
+
+.download-signing-note code {
+  color: var(--ink);
+  font: 12px/1.5 "SFMono-Regular", Consolas, "Liberation Mono", monospace;
+}
+
+.download-signing-note a {
+  color: var(--accent-deep);
+  font-weight: 700;
+  text-decoration: none;
+}
+
+.download-signing-note a:hover {
+  text-decoration: underline;
 }
 
 .download-card__links {
@@ -1856,10 +1870,6 @@ img {
   .release-page__header {
     display: grid;
     gap: 18px;
-  }
-
-  .release-download-link {
-    width: fit-content;
   }
 
   .release-filter {
