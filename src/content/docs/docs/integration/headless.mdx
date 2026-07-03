@@ -1,0 +1,216 @@
+---
+title: "无头模式 (Headless Mode)"
+description: "在无 TUI 交互环境下运行 OpenDesk CLI，适用于 CI/CD、基准测试和自动化脚本场景。"
+---
+
+# 无头模式 (Headless Mode)
+
+OpenDesk CLI 支持 **无头模式 (Headless Mode)**——不启动 TUI 交互界面，直接执行 `-c` 指定的命令并在完成后自动退出。该模式专为 CI/CD 流水线、基准测试 (benchmark) 和自动化脚本等非交互场景设计。
+
+## 基本用法
+
+```bash
+npm run cli -- --headless -c "你的指令"
+```
+
+或使用编译后的二进制：
+
+```bash
+opendesk --headless -c "修复这个项目的内存泄漏问题"
+```
+
+### 必要参数
+
+| 参数 | 说明 |
+|------|------|
+| `--headless` | 启用无头模式 |
+| `-c, --command <command>` | 要执行的指令（必须与 `--headless` 同时使用） |
+
+仅使用 `--headless` 而不提供 `-c` 会导致错误退出。
+
+## 完整命令行参数
+
+无头模式下可与以下参数组合使用：
+
+| 参数 | 说明 | 默认值 |
+|------|------|--------|
+| `--workspace <path>` | 工作区目录 | 当前目录 (`.`) |
+| `--model <alias>` | 指定模型别名 | 配置的默认模型 |
+| `--mode <mode>` | Agent 模式（standard / plan / solo / unlimited） | 配置的默认模式 |
+| `--allow-everything` | 跳过所有权限检查（等效于 `--mode unlimited`） | 否 |
+| `--export-html <path>` | 任务完成后导出 HTML 会话记录 | 无 |
+| `--export-json <path>` | 任务完成后导出 JSON 会话数据 | 无 |
+| `--profile <path>` | 生成性能分析 JSON 文件 | 无 |
+| `--dump-log <path>` | 将所有日志输出到指定文件 | 无 |
+| `--language <lang>` | 界面语言（auto / zh-CN / en-US） | auto |
+| `--config-directory <path>` | 自定义配置目录 | 默认配置目录 |
+
+## 输出格式
+
+无头模式下的输出分为几个阶段：
+
+1. **模式信息**：显示当前使用的 Agent 模式
+2. **用户指令**：回显 `-c` 传入的指令
+3. **助手响应**：流式输出助手的思考 (reasoning)、文本回复和工具调用卡片
+4. **完成摘要**：任务执行时间和 Token 消耗统计
+
+```
+[模式] ⚡ Standard - 平衡安全性和编码能力
+[用户] 分析当前目录的代码结构
+[思考] 让我先查看项目的主要文件结构...
+[助手] 这个项目包含以下主要模块：...
+✓ ReadFile (src/index.ts) - 完成
+✓ GlobFiles (src/**) - 完成，找到 12 个文件
+
+────────────────────────────────────────────────────────────────────────────────
+任务完成
+  执行时间: 15.3s
+  Token 消耗: 4520 (prompt: 3200, completion: 1320)
+────────────────────────────────────────────────────────────────────────────────
+```
+
+输出宽度固定 80 列，使用 `chalk` 着色。当终端不支持颜色时，可通过设置 `NO_COLOR=1` 环境变量禁用 ANSI 颜色码。
+
+## 权限处理
+
+在无头模式下，权限系统行为如下：
+
+- **自动拒绝**：所有需要用户确认 (`ask`) 的权限请求都会被**自动拒绝**并输出日志
+- **自动允许**：匹配 `allow` 规则的操作（如工作区内文件读写）正常执行
+- **显式跳过**：使用 `--allow-everything` 可跳过所有权限检查
+
+```
+[Permission] writeFile工具请求 编辑文件: /Users/liyi/.ssh/config
+[Permission] headless 模式下无法交互确认，已自动拒绝
+```
+
+因此，如果需要 Agent 访问工作空间外的资源（如敏感路径、网络请求等），建议使用 `--allow-everything` 参数：
+
+```bash
+opendesk --headless --allow-everything -c "安装 npm 依赖并运行测试"
+```
+
+## 导出会话
+
+### 导出 JSON
+
+```bash
+opendesk --headless -c "修复 bug" --export-json result.json
+```
+
+导出的 JSON 包含完整的任务数据（消息历史、工具调用、Token 使用量等），可用于：
+- 后续分析 Agent 行为
+- 集成到基准测试框架
+- 会话回放或调试
+
+### 导出 HTML
+
+```bash
+opendesk --headless -c "重构代码" --export-html session.html
+```
+
+生成人类可读的 HTML 格式会话记录，便于分享和存档。
+
+### 同时导出多种格式
+
+```bash
+opendesk --headless -c "分析项目" \
+  --export-json result.json \
+  --export-html session.html \
+  --profile profile.json
+```
+
+## 性能分析
+
+使用 `--profile` 参数生成详细的性能分析数据：
+
+```bash
+opendesk --headless -c "编译项目" --profile profile.json
+```
+
+输出包含各阶段的耗时信息，可用于定位性能瓶颈。
+
+## 使用场景
+
+### 1. CI/CD 集成
+
+在 CI 流水线中自动执行代码审查、修复或生成任务：
+
+```yaml
+# GitHub Actions 示例
+- name: Auto-fix linting issues
+  run: |
+    opendesk --headless --allow-everything \
+      -c "运行 lint 并修复所有可自动修复的问题" \
+      --export-json ci-result.json
+```
+
+### 2. 基准测试 (Benchmark)
+
+OpenDesk 内置的 SWE-bench 和 Terminal-Bench 适配器均使用 headless 模式：
+
+```python
+# SWE-bench 适配器示例 (benchmarks/swe-bench/run.py)
+cmd = [
+    "opendesk",
+    "--headless",
+    "--export-json", str(result_json),
+    "--profile", str(profile_json),
+    "-c", prompt,  # problem_statement + 修复指令
+]
+```
+
+### 3. 容器化环境
+
+在 Docker 容器内以 `TERM=dumb` 运行：
+
+```bash
+docker run --rm \
+  -v $(pwd):/workspace \
+  -v ~/.opendesk:/root/.opendesk \
+  -w /workspace \
+  opendesk-image \
+  opendesk --headless --allow-everything -c "运行测试并修复失败的用例"
+```
+
+> 建议设置环境变量 `TERM=dumb` 和 `NO_COLOR=1` 以避免终端兼容性问题。
+
+### 4. 安全测试
+
+利用 headless 模式执行自动化安全扫描：
+
+```bash
+opendesk --headless -c "你是一个安全专家，检查当前项目的安全漏洞" \
+  --export-json security-report.json
+```
+
+## 注意事项
+
+1. **必须有 `-c`**：`--headless` 不能单独使用，必须搭配 `-c` 提供指令
+2. **权限自动拒绝**：无交互能力意味着所有 `ask` 权限请求都会被拒绝。如果需要 Agent 执行需要权限确认的操作，请使用 `--allow-everything`
+3. **无循环交互**：不支持在任务执行过程中与用户对话。所有交互必须在 `-c` 指令中预先定义
+4. **单次执行**：任务完成后进程自动退出 (exit code 0)
+5. **Worker 终止**：退出前会先终止全局 Worker 并等待所有待保存的状态刷盘
+6. **内部消息不输出**：如 hook reject 等内部产生的用户消息不会打印到 stdout
+
+## 底层实现
+
+无头模式由 `HeadlessRunner` 类实现（位于 `src/main/tui/headless.ts`），核心流程：
+
+```
+CLI 启动
+  → 解析 --headless 参数
+  → 初始化 GlobalState、AgentRegistry、ApplicationRegistry
+  → 创建 HeadlessRunner 实例
+  → ApplicationRegistry.onReady → runner.execute(command)
+    → 创建 TaskState
+    → 注入 HeadlessPermissionPromptProvider（自动拒绝 ask 请求）
+    → 提交用户指令
+    → 流式接收助手响应，按"块"批量输出
+    → 任务完成，输出统计信息
+    → 导出 HTML/JSON（如指定）
+    → 写入 Profile（如指定）
+    → 刷盘并退出
+```
+
+`HeadlessRunner` 采用批量输出策略：不在每个 chunk 回调中直接输出，而是追踪 part 状态变化，在"块"结束时（part 类型或索引变化时）一次性 flush，避免终端输出闪烁和碎片化。

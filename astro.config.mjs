@@ -92,6 +92,7 @@ export default defineConfig({
             {
               label: '集成到其他平台',
               items: [
+                { label: '无头模式', slug: 'docs/integration/headless' },
                 { label: 'Node 协议', slug: 'docs/contribute/node-api' },
                 { label: 'ACP 协议', slug: 'docs/contribute/acp-server-api' },
                 { label: 'OpenCode 协议', slug: 'docs/contribute/opencode-server-api' }
