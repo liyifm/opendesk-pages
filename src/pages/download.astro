@@ -59,6 +59,8 @@ const toDownloadItem = (note?: ReleaseNote) => {
   const windowsUrl = note.data.downloads?.windows?.url ?? findMarkdownLink(note.body, /windows/i);
   const harmonyosUrl =
     note.data.downloads?.harmonyos?.url ?? findMarkdownLink(note.body, /harmony\s*os|harmonyos|鸿蒙/i);
+  const macosUrl =
+    note.data.downloads?.macos?.url ?? findMarkdownLink(note.body, /mac\s*os|macos|darwin|mac\s*\(/i);
 
   return {
     title: note.data.title,
@@ -79,6 +81,12 @@ const toDownloadItem = (note?: ReleaseNote) => {
           label: note.data.downloads?.harmonyos?.label ?? 'HarmonyOS 安装包',
         }
       : undefined,
+    macos: macosUrl
+      ? {
+          url: macosUrl,
+          label: note.data.downloads?.macos?.label ?? 'MacOS 安装包',
+        }
+      : undefined,
     noteUrl: notePath(note.id),
   };
 };
@@ -89,11 +97,14 @@ const latestNightly = toDownloadItem(notes.find((note) => note.data.category ===
 
 <SiteLayout frontmatter={{ title: '下载 OpenDesk', description: '下载 OpenDesk 稳定版和每日构建' }}>
   <section class="content-page download-page">
-    <header class="download-page__header">
-      <h1>下载 OpenDesk</h1>
-      <p>选择适合你的版本，开始使用 AI 驱动的桌面工作流助手</p>
-    </header>
-
-    <DownloadTabs stable={latestStable} nightly={latestNightly} />
+    <div class="download-page__grid">
+      <div class="download-page__content">
+        <DownloadTabs stable={latestStable} nightly={latestNightly} />
+      </div>
+      <header class="download-page__header">
+        <h1>下载 OpenDesk</h1>
+        <p>选择适合你的版本，开始使用 AI 驱动的桌面工作流助手</p>
+      </header>
+    </div>
   </section>
 </SiteLayout>

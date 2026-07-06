@@ -13,6 +13,7 @@ interface DownloadItem {
   cli?: string;
   windows?: DownloadAsset;
   harmonyos?: DownloadAsset;
+  macos?: DownloadAsset;
   noteUrl: string;
 }
 
@@ -67,7 +68,7 @@ const fileHint = (url: string, fallbackExt: string, detail: string) => {
         </div>
       )}
 
-      {(item.windows || item.harmonyos) && (
+      {(item.windows || item.harmonyos || item.macos) && (
         <div class="download-buttons">
           {item.windows && (
             <a
@@ -83,6 +84,12 @@ const fileHint = (url: string, fallbackExt: string, detail: string) => {
             <a class="download-btn download-btn--secondary" href={item.harmonyos.url} download>
               <span>{item.harmonyos.label}</span>
               <span class="download-btn__sub">{fileHint(item.harmonyos.url, '.hap', '需手动签名')}</span>
+            </a>
+          )}
+          {item.macos && (
+            <a class="download-btn download-btn--secondary" href={item.macos.url} download>
+              <span>{item.macos.label}</span>
+              <span class="download-btn__sub">{fileHint(item.macos.url, '.dmg', 'Apple Silicon')}</span>
             </a>
           )}
         </div>
