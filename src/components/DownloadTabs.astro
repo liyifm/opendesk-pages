@@ -22,31 +22,33 @@ interface DownloadItem {
 interface Props {
   stable?: DownloadItem;
   nightly?: DownloadItem;
+  defaultTab?: 'stable' | 'nightly';
 }
 
-const { stable, nightly } = Astro.props;
+const { stable, nightly, defaultTab = 'nightly' } = Astro.props;
+const isNightlyDefault = defaultTab === 'nightly';
 ---
 
 <div class="download-tabs" data-download-tabs>
   <div class="download-tabs__buttons" role="tablist" aria-label="下载版本类型">
     <button
-      class="download-tab active"
+      class={`download-tab ${isNightlyDefault ? '' : 'active'}`}
       type="button"
       id="download-tab-stable"
       data-tab="stable"
       role="tab"
-      aria-selected="true"
+      aria-selected={isNightlyDefault ? 'false' : 'true'}
       aria-controls="download-panel-stable"
     >
       稳定版
     </button>
     <button
-      class="download-tab"
+      class={`download-tab ${isNightlyDefault ? 'active' : ''}`}
       type="button"
       id="download-tab-nightly"
       data-tab="nightly"
       role="tab"
-      aria-selected="false"
+      aria-selected={isNightlyDefault ? 'true' : 'false'}
       aria-controls="download-panel-nightly"
     >
       每日构建
@@ -54,23 +56,24 @@ const { stable, nightly } = Astro.props;
   </div>
 
   <section
-    class="download-panel active"
+    class={`download-panel ${isNightlyDefault ? '' : 'active'}`}
     id="download-panel-stable"
     data-panel="stable"
     role="tabpanel"
     aria-labelledby="download-tab-stable"
+    hidden={isNightlyDefault}
   >
     <DownloadCard item={stable} variant="stable" />
     <p class="download-hint">* 稳定版推荐大多数用户使用，经过完整测试验证</p>
   </section>
 
   <section
-    class="download-panel"
+    class={`download-panel ${isNightlyDefault ? 'active' : ''}`}
     id="download-panel-nightly"
     data-panel="nightly"
     role="tabpanel"
     aria-labelledby="download-tab-nightly"
-    hidden
+    hidden={!isNightlyDefault}
   >
     <DownloadCard item={nightly} variant="nightly" />
     <p class="download-hint">* 每日构建包含最新功能，但可能存在未修复的问题</p>
