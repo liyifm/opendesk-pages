@@ -1,5 +1,5 @@
 ---
-title: "2026.5.22 日构建更新"
+title: "模型切换命令与浏览器 ARIA 快照"
 date: "2026-05-22T09:00:00+08:00"
 category: "nightly-release"
 ---

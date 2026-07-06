@@ -6,19 +6,6 @@ const notes = (await getCollection('releaseNotes')).sort(
   (a, b) => b.data.date.getTime() - a.data.date.getTime(),
 );
 
-const stableNotes = notes.filter((n) => n.data.category === 'stable-release');
-const nightlyNotes = notes.filter((n) => n.data.category === 'nightly-release');
-
-const groupByYear = (items: typeof notes) =>
-  items.reduce<Map<string, typeof notes>>((groups, note) => {
-    const year = String(note.data.date.getFullYear());
-    groups.set(year, [...(groups.get(year) ?? []), note]);
-    return groups;
-  }, new Map());
-
-const stableByYear = groupByYear(stableNotes);
-const nightlyByYear = groupByYear(nightlyNotes);
-
 const formatDate = new Intl.DateTimeFormat('zh-CN', {
   year: 'numeric',
   month: '2-digit',
@@ -26,55 +13,197 @@ const formatDate = new Intl.DateTimeFormat('zh-CN', {
 });
 
 const notePath = (id: string) => `/news/${id.replace(/\.mdx?$/, '')}/`;
+
+const packageHost = 'download.bitclub.ai';
+
+const getPackageDownloads = (note: (typeof notes)[number]) => {
+  const downloads: Array<{ label: string; url: string }> = [];
+  const seenUrls = new Set<string>();
+
+  const addDownload = (label: string | undefined, url: string | undefined) => {
+    if (!label || !url || seenUrls.has(url)) return;
+    seenUrls.add(url);
+    downloads.push({ label, url });
+  };
+
+  addDownload(note.data.downloads?.windows?.label, note.data.downloads?.windows?.url);
+  addDownload(note.data.downloads?.harmonyos?.label, note.data.downloads?.harmonyos?.url);
+
+  for (const match of note.body.matchAll(/\[([^\]]+)\]\((https?:\/\/[^)]+)\)/g)) {
+    const [, label, url] = match;
+    if (!url.includes(packageHost)) continue;
+    addDownload(label.trim(), url);
+  }
+
+  return downloads;
+};
+
+const normalizeCliCommand = (command: string | undefined) =>
+  command
+    ?.replaceAll('"', '')
+    .replace(/\s+/g, ' ')
+    .trim()
+    .replace(/^npm\s+i\s+(-g|--global)\s+/i, 'npm install $1 ');
+
+const getCliCommand = (note: (typeof notes)[number]) =>
+  normalizeCliCommand(
+    note.data.downloads?.cli ??
+      note.body.match(/`([^`]*(?:npm|pnpm|yarn)[^`]*@bitclub\.ai\/opendesk-cli[^`]*)`/)?.[1],
+  );
+
+const filters = [
+  { label: '全部', value: 'all' },
+  { label: '稳定版', value: 'stable-release' },
+  { label: '每日构建', value: 'nightly-release' },
+] as const;
+
+const releaseItems = notes.map((note) => ({
+  note,
+  noteUrl: notePath(note.id),
+  cliCommand: getCliCommand(note),
+  downloads: getPackageDownloads(note),
+}));
 ---
 
 <SiteLayout frontmatter={{ title: '更新日志', description: 'OpenDesk 更新日志' }}>
-  <section class="content-page release-page release-page--split">
-    <h1>更新日志</h1>
-    <p>OpenDesk 的稳定版和每日构建更新记录。</p>
-
-    <div class="release-columns">
-      <div class="release-column">
-        <h2 class="release-column__title">稳定版</h2>
-        {
-          Array.from(stableByYear.entries()).map(([year, yearNotes]) => (
-            <section class="release-year" aria-labelledby={`stable-year-${year}`}>
-              <h3 id={`stable-year-${year}`}>{year}</h3>
-              <ol class="release-list">
-                {yearNotes.map((note) => (
-                  <li>
-                    <a href={notePath(note.id)}>
-                      <time datetime={note.data.date.toISOString()}>{formatDate.format(note.data.date)}</time>
-                      <span>{note.data.title}</span>
-                    </a>
-                  </li>
-                ))}
-              </ol>
-            </section>
-          ))
-        }
-      </div>
-
-      <div class="release-column">
-        <h2 class="release-column__title">每日构建</h2>
-        {
-          Array.from(nightlyByYear.entries()).map(([year, yearNotes]) => (
-            <section class="release-year" aria-labelledby={`nightly-year-${year}`}>
-              <h3 id={`nightly-year-${year}`}>{year}</h3>
-              <ol class="release-list">
-                {yearNotes.map((note) => (
-                  <li>
-                    <a href={notePath(note.id)}>
-                      <time datetime={note.data.date.toISOString()}>{formatDate.format(note.data.date)}</time>
-                      <span>{note.data.title}</span>
-                    </a>
-                  </li>
-                ))}
-              </ol>
-            </section>
-          ))
-        }
+  <section class="content-page release-page" data-release-filter-root>
+    <div class="release-page__header">
+      <div>
+        <h1>更新日志</h1>
+        <p>查看 OpenDesk 所有版本的更新记录</p>
       </div>
     </div>
+
+    <div class="release-filters" aria-label="更新类型筛选">
+      {
+        filters.map((filter) => (
+          <button
+            class:list={['release-filter', filter.value === 'all' && 'is-active']}
+            type="button"
+            data-release-filter={filter.value}
+            aria-pressed={filter.value === 'all' ? 'true' : 'false'}
+          >
+            {filter.label}
+          </button>
+        ))
+      }
+    </div>
+
+    <ol class="release-list release-list--timeline">
+      {
+        releaseItems.map(({ note, noteUrl, cliCommand, downloads }) => {
+          return (
+          <li data-release-category={note.data.category}>
+            <article class="release-item">
+              <div class="release-item__row">
+                <div class="release-item__main">
+                  <a class="release-title-link" href={noteUrl}>
+                    <time datetime={note.data.date.toISOString()}>{formatDate.format(note.data.date)}</time>
+                    <span class="release-item__title">{note.data.title}</span>
+                  </a>
+                </div>
+                <a class="release-note-link" href={noteUrl}>版本说明 →</a>
+              </div>
+
+              {
+                cliCommand && (
+                  <div class="release-cli-row">
+                    <code class="release-cli-command">
+                      <span class="release-cli-command__label">CLI</span>
+                      <span class="release-cli-command__text">{cliCommand}</span>
+                    </code>
+                    <button
+                      class="release-cli-copy"
+                      type="button"
+                      data-copy-text={cliCommand}
+                      aria-label={`复制 ${note.data.title} CLI 安装命令`}
+                    >
+                      复制
+                    </button>
+                  </div>
+                )
+              }
+
+              {
+                downloads.length > 0 && (
+                  <div class="release-downloads" aria-label={`${note.data.title} 下载链接`}>
+                    {downloads.map((download) => <a href={download.url}>{download.label}</a>)}
+                  </div>
+                )
+              }
+            </article>
+          </li>
+          );
+        })
+      }
+    </ol>
   </section>
+
+  <script>
+    const writeClipboardText = async (text: string) => {
+      if (navigator.clipboard?.writeText) {
+        await navigator.clipboard.writeText(text);
+        return;
+      }
+
+      const textarea = document.createElement('textarea');
+      textarea.value = text;
+      textarea.setAttribute('readonly', '');
+      textarea.style.position = 'fixed';
+      textarea.style.opacity = '0';
+      document.body.append(textarea);
+      textarea.select();
+      document.execCommand('copy');
+      textarea.remove();
+    };
+
+    const setupReleaseFilters = () => {
+      document.querySelectorAll<HTMLElement>('[data-release-filter-root]').forEach((root) => {
+        if (root.dataset.releaseFiltersReady === 'true') return;
+        root.dataset.releaseFiltersReady = 'true';
+
+        const buttons = Array.from(root.querySelectorAll<HTMLButtonElement>('[data-release-filter]'));
+        const items = Array.from(root.querySelectorAll<HTMLElement>('[data-release-category]'));
+
+        const applyFilter = (category: string) => {
+          buttons.forEach((button) => {
+            const active = button.dataset.releaseFilter === category;
+            button.classList.toggle('is-active', active);
+            button.setAttribute('aria-pressed', String(active));
+          });
+
+          items.forEach((item) => {
+            const visible = category === 'all' || item.dataset.releaseCategory === category;
+            item.hidden = !visible;
+          });
+        };
+
+        buttons.forEach((button) => {
+          button.addEventListener('click', () => applyFilter(button.dataset.releaseFilter ?? 'all'));
+        });
+
+        root.querySelectorAll<HTMLButtonElement>('[data-copy-text]').forEach((button) => {
+          button.addEventListener('click', async () => {
+            const text = button.dataset.copyText;
+            if (!text) return;
+
+            const originalLabel = button.textContent ?? '复制';
+            try {
+              await writeClipboardText(text);
+              button.textContent = '已复制';
+            } catch {
+              button.textContent = '复制失败';
+            }
+
+            window.setTimeout(() => {
+              button.textContent = originalLabel;
+            }, 2000);
+          });
+        });
+      });
+    };
+
+    setupReleaseFilters();
+    document.addEventListener('astro:page-load', setupReleaseFilters);
+  </script>
 </SiteLayout>

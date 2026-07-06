@@ -1,0 +1,99 @@
+---
+import { getCollection } from 'astro:content';
+import DownloadTabs from '../components/DownloadTabs.astro';
+import SiteLayout from '../layouts/SiteLayout.astro';
+
+const notes = (await getCollection('releaseNotes')).sort(
+  (a, b) => b.data.date.getTime() - a.data.date.getTime(),
+);
+
+type ReleaseNote = (typeof notes)[number];
+
+const notePath = (id: string) => `/news/${id.replace(/\.mdx?$/, '')}/`;
+
+const cleanMarkdownText = (text: string) =>
+  text
+    .replace(/\[([^\]]+)\]\([^)]+\)/g, '$1')
+    .replace(/[`*_]/g, '')
+    .replace(/^-+\s*/, '')
+    .replace(/\s+/g, ' ')
+    .trim();
+
+const inferVersion = (note: ReleaseNote) => {
+  const match = `${note.data.title}\n${note.body}`.match(/\b\d+\.\d+\.\d+(?:-[a-z0-9.-]+)?\b/i);
+  return match?.[0] ?? note.data.title;
+};
+
+const inferSummary = (body: string) => {
+  const lines = body
+    .split('\n')
+    .map((line) => line.trim())
+    .filter((line) => {
+      if (!line) return false;
+      if (line.startsWith('#')) return false;
+      if (line.startsWith('**Cli**') || line.startsWith('**桌面端**')) return false;
+      if (line.startsWith('注:') || line.startsWith('- [')) return false;
+      return true;
+    })
+    .slice(0, 2)
+    .map(cleanMarkdownText)
+    .filter(Boolean);
+
+  return lines.join(' ') || '查看版本说明了解本次更新内容。';
+};
+
+const findMarkdownLink = (body: string, labelPattern: RegExp) => {
+  for (const match of body.matchAll(/\[([^\]]+)\]\((https?:\/\/[^)]+)\)/g)) {
+    if (labelPattern.test(match[1])) return match[2];
+  }
+
+  return undefined;
+};
+
+const inferCliCommand = (body: string) =>
+  body.match(/`([^`]*(?:npm|pnpm|yarn)[^`]*@bitclub\.ai\/opendesk-cli[^`]*)`/)?.[1];
+
+const toDownloadItem = (note?: ReleaseNote) => {
+  if (!note) return undefined;
+
+  const windowsUrl = note.data.downloads?.windows?.url ?? findMarkdownLink(note.body, /windows/i);
+  const harmonyosUrl =
+    note.data.downloads?.harmonyos?.url ?? findMarkdownLink(note.body, /harmony\s*os|harmonyos|鸿蒙/i);
+
+  return {
+    title: note.data.title,
+    version: note.data.version ?? inferVersion(note),
+    date: note.data.date,
+    category: note.data.category,
+    summary: note.data.summary ?? inferSummary(note.body),
+    cli: note.data.downloads?.cli ?? inferCliCommand(note.body),
+    windows: windowsUrl
+      ? {
+          url: windowsUrl,
+          label: note.data.downloads?.windows?.label ?? 'Windows x86 安装包',
+        }
+      : undefined,
+    harmonyos: harmonyosUrl
+      ? {
+          url: harmonyosUrl,
+          label: note.data.downloads?.harmonyos?.label ?? 'HarmonyOS 安装包',
+        }
+      : undefined,
+    noteUrl: notePath(note.id),
+  };
+};
+
+const latestStable = toDownloadItem(notes.find((note) => note.data.category === 'stable-release'));
+const latestNightly = toDownloadItem(notes.find((note) => note.data.category === 'nightly-release'));
+---
+
+<SiteLayout frontmatter={{ title: '下载 OpenDesk', description: '下载 OpenDesk 稳定版和每日构建' }}>
+  <section class="content-page download-page">
+    <header class="download-page__header">
+      <h1>下载 OpenDesk</h1>
+      <p>选择适合你的版本，开始使用 AI 驱动的桌面工作流助手</p>
+    </header>
+
+    <DownloadTabs stable={latestStable} nightly={latestNightly} />
+  </section>
+</SiteLayout>

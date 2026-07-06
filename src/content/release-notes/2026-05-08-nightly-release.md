@@ -1,5 +1,5 @@
 ---
-title: "2026.5.8 日构建更新"
+title: "自动化消息渠道与内嵌浏览器控制"
 date: "2026-05-08T09:00:00+08:00"
 category: "nightly-release"
 ---

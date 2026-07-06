@@ -1,7 +1,17 @@
 ---
-title: "正式版本更新 0.2.0"
+title: "OpenDesk 0.2.0：文件检索、终端工具与渠道接入"
 date: "2026-04-07T09:00:00+08:00"
 category: "stable-release"
+version: "0.2.0"
+downloads:
+  cli: "npm install -g @bitclub.ai/opendesk-cli"
+  windows:
+    url: "https://download.bitclub.ai/build/stable/win/opendesk-win-x86-0.2.0.msi"
+    label: "Windows x86 安装包"
+  harmonyos:
+    url: "https://download.bitclub.ai/build/stable/ohos/opendesk-ohos-0.2.0.hap"
+    label: "HarmonyOS 安装包"
+summary: "支持本地文件检索、终端工具、内嵌 Shell、Skill 管理、微信/飞书扫码接入等核心功能。"
 ---
 
 # OpenDesk 0.2.0 正式版本更新内容

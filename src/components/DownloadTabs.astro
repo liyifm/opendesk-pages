@@ -1,0 +1,144 @@
+---
+import DownloadCard from './DownloadCard.astro';
+
+interface DownloadAsset {
+  url: string;
+  label: string;
+}
+
+interface DownloadItem {
+  title: string;
+  version: string;
+  date: Date;
+  category: string;
+  summary: string;
+  cli?: string;
+  windows?: DownloadAsset;
+  harmonyos?: DownloadAsset;
+  noteUrl: string;
+}
+
+interface Props {
+  stable?: DownloadItem;
+  nightly?: DownloadItem;
+}
+
+const { stable, nightly } = Astro.props;
+---
+
+<div class="download-tabs" data-download-tabs>
+  <div class="download-tabs__buttons" role="tablist" aria-label="下载版本类型">
+    <button
+      class="download-tab active"
+      type="button"
+      id="download-tab-stable"
+      data-tab="stable"
+      role="tab"
+      aria-selected="true"
+      aria-controls="download-panel-stable"
+    >
+      稳定版
+    </button>
+    <button
+      class="download-tab"
+      type="button"
+      id="download-tab-nightly"
+      data-tab="nightly"
+      role="tab"
+      aria-selected="false"
+      aria-controls="download-panel-nightly"
+    >
+      每日构建
+    </button>
+  </div>
+
+  <section
+    class="download-panel active"
+    id="download-panel-stable"
+    data-panel="stable"
+    role="tabpanel"
+    aria-labelledby="download-tab-stable"
+  >
+    <DownloadCard item={stable} variant="stable" />
+    <p class="download-hint">* 稳定版推荐大多数用户使用，经过完整测试验证</p>
+  </section>
+
+  <section
+    class="download-panel"
+    id="download-panel-nightly"
+    data-panel="nightly"
+    role="tabpanel"
+    aria-labelledby="download-tab-nightly"
+    hidden
+  >
+    <DownloadCard item={nightly} variant="nightly" />
+    <p class="download-hint">* 每日构建包含最新功能，但可能存在未修复的问题</p>
+  </section>
+</div>
+
+<script>
+  const writeClipboardText = async (text: string) => {
+    if (navigator.clipboard?.writeText) {
+      await navigator.clipboard.writeText(text);
+      return;
+    }
+
+    const textarea = document.createElement('textarea');
+    textarea.value = text;
+    textarea.setAttribute('readonly', '');
+    textarea.style.position = 'fixed';
+    textarea.style.opacity = '0';
+    document.body.append(textarea);
+    textarea.select();
+    document.execCommand('copy');
+    textarea.remove();
+  };
+
+  const setupDownloadTabs = () => {
+    document.querySelectorAll<HTMLElement>('[data-download-tabs]').forEach((container) => {
+      if (container.dataset.downloadTabsReady === 'true') return;
+      container.dataset.downloadTabsReady = 'true';
+
+      const buttons = Array.from(container.querySelectorAll<HTMLButtonElement>('[data-tab]'));
+      const panels = Array.from(container.querySelectorAll<HTMLElement>('[data-panel]'));
+
+      buttons.forEach((button) => {
+        button.addEventListener('click', () => {
+          const tab = button.dataset.tab;
+          buttons.forEach((item) => {
+            const active = item === button;
+            item.classList.toggle('active', active);
+            item.setAttribute('aria-selected', String(active));
+          });
+          panels.forEach((panel) => {
+            const active = panel.dataset.panel === tab;
+            panel.classList.toggle('active', active);
+            panel.hidden = !active;
+          });
+        });
+      });
+
+      container.querySelectorAll<HTMLButtonElement>('[data-copy-text]').forEach((button) => {
+        button.addEventListener('click', async () => {
+          const text = button.dataset.copyText;
+          if (!text) return;
+
+          const originalLabel = button.textContent ?? '复制';
+          try {
+            await writeClipboardText(text);
+            button.textContent = '已复制';
+          } catch {
+            button.textContent = '复制失败';
+          }
+
+          window.setTimeout(() => {
+            button.textContent = originalLabel;
+          }, 2000);
+        });
+      });
+    });
+  };
+
+  setupDownloadTabs();
+  document.addEventListener('astro:page-load', setupDownloadTabs);
+</script>

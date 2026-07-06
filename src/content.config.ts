@@ -14,6 +14,25 @@ export const collections = {
       title: z.string(),
       date: z.coerce.date(),
       category: z.string(),
+      version: z.string().optional(),
+      downloads: z
+        .object({
+          cli: z.string().optional(),
+          windows: z
+            .object({
+              url: z.string(),
+              label: z.string().default('Windows x86 安装包'),
+            })
+            .optional(),
+          harmonyos: z
+            .object({
+              url: z.string(),
+              label: z.string().default('HarmonyOS 安装包'),
+            })
+            .optional(),
+        })
+        .optional(),
+      summary: z.string().optional(),
     }),
   }),
 };

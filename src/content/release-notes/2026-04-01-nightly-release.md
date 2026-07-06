@@ -1,5 +1,5 @@
 ---
-title: "2026.4.1 日构建更新"
+title: "TerminalBench 2.0 测评适配"
 date: "2026-04-01T09:00:00+08:00"
 category: "nightly-release"
 ---

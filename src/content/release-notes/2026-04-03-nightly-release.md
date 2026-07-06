@@ -1,5 +1,5 @@
 ---
-title: "2026.4.3 日构建更新"
+title: "子任务 Skill 支持与工具渐进暴露"
 date: "2026-04-03T09:00:00+08:00"
 category: "nightly-release"
 ---
