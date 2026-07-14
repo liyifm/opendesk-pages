@@ -42,6 +42,7 @@ export default defineConfig({
           'items': [
             { label: '初始化配置', slug: 'docs/introduction/config' },
             { label: '发起第一个任务', slug: 'docs/introduction/chat' },
+            { label: '管理任务状态', slug: 'docs/introduction/chat2' },
             { label: '使用工作空间', slug: 'docs/introduction/workspace' },
             { label: '配置搜索引擎', slug: 'docs/introduction/search' },
             { label: '调整安全模式', slug: 'docs/introduction/mode' },

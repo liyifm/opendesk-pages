@@ -657,15 +657,6 @@ img {
   overflow-wrap: anywhere;
 }
 
-.download-cli__prompt {
-  color: var(--download-stable);
-  user-select: none;
-}
-
-.download-card--nightly .download-cli__prompt {
-  color: var(--download-nightly);
-}
-
 .download-cli__copy {
   min-height: 34px;
   border: 0;

@@ -64,7 +64,7 @@ const isNightlyDefault = defaultTab === 'nightly';
     hidden={isNightlyDefault}
   >
     <DownloadCard item={stable} variant="stable" />
-    <p class="download-hint">* 稳定版推荐大多数用户使用，经过完整测试验证</p>
+    <p class="download-hint">稳定版推荐大多数用户使用，经过完整测试验证</p>
   </section>
 
   <section
@@ -76,7 +76,7 @@ const isNightlyDefault = defaultTab === 'nightly';
     hidden={!isNightlyDefault}
   >
     <DownloadCard item={nightly} variant="nightly" />
-    <p class="download-hint">* 每日构建包含最新功能，但可能存在未修复的问题</p>
+    <p class="download-hint">每日构建包含最新功能，但可能存在未修复的问题</p>
   </section>
 </div>
 
