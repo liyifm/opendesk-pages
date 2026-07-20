@@ -3,4 +3,180 @@ title: "提升 OpenDesk 在长程任务中的执行能力"
 description: ""
 ---
 
-*正在施工中……*
+# Goal驱动的任务自动评估与持续推进能力
+如果任务需要执行很多步骤、反复检查结果，或者可能持续较长时间，可以为它创建一个 **Goal（跟进目标）**。
+
+创建 Goal 后，OpenDesk 会围绕目标持续推进任务，并在每轮执行结束前自动检查目标是否已达成。你无需在每轮结束后反复发送"继续"——Goal 会自行驱动下一轮，直到目标完成或需要你介入决策。
+
+## 适合使用Goal机制的任务
+适合使用Goal的任务通常有明确的终态验收标准，且大模型可以在工作过程中自行验证这个标准是否达成。大多具有以下特征：
+
+- **成功条件可表达** —— 你可以用一句话写出"什么时候算做完"，例如：
+测试全过 / 文件都按规范命名 / 文档包含全部必需章节 / 队列清空
+- **多轮驱动** —— 任务无法一步完成，需要反复尝试、修正、推进
+- **自验证闭环** —— 大模型在完成工作后，自己能检查结果是否符合条件
+
+例如：
+
+- 把旧 API 调用迁移到新接口，直到所有调用点都能编译且测试通过
+- 把大型文件拆分聚焦模块，直到每个模块都不超过行数或尺寸预算
+- ~/Recruitment/ 下有 15 份简历 PDF，需要找出符合xxx条件的候选人并输出对比表格
+
+## 在桌面端中使用 Goal
+
+### 创建 Goal
+
+如果当前任务需要持续推进直至达成某个目标，可以在输入框下方点击"创建目标"。点击后右侧任务进展区会自动展开，你可以在该区域描述希望 OpenDesk 完成的事情，然后点击"开始跟进"。
+
+![创建goal](/assets/images/introduction/long-horizon/goal/gui_create_goal.png)
+
+
+### 查看执行进度
+
+创建后，右侧"任务进展"区域会显示当前目标和执行状态，你可以在面板中查看以下信息：
+
+- **当前待办**：Goal 自动生成的任务清单，每项显示执行状态（进行中/已完成/已跳过）和累计耗时；
+- **当前目标**：正在跟进的目标文本，以及其修订版本号和尝试次数；
+- **最近评估**：最近一次目标评估的结果和依据（评估发生后才会出现）；
+- **时间线**：Goal 的创建、编辑和完成记录，每条包含时间戳、目标内容和原目标（如有修改）。
+
+![查看goal状态](/assets/images/introduction/long-horizon/goal/gui_track_goal.png)
+
+每轮工作结束前，OpenDesk 会自动评估目标是否达成。对话区和侧边栏会同时显示"正在评估目标达成情况…"提示。
+
+![评估goal](/assets/images/introduction/long-horizon/goal/gui_evaluate_goal.png)
+
+评估完成后，"最近评估"区域会显示详细结果：
+
+- **目标评估结论**：已达成、尚未达成或已阻塞；
+- **证据**：OpenDesk 用于判断目标是否达成的具体证据，例如文件行数统计、构建结果、测试输出等。
+
+若评估结果为"尚未达成"，OpenDesk 会自动推动 Goal 进入下一轮执行。若结果为“已阻塞”，可以通过"证据"来查看阻塞原因，并对 Goal 或当前执行环境进行相应调整。
+
+当目标已达成时，Goal 自动进入"已完成"状态，此时可以通过右侧面板中的“创建目标”按钮新建需要跟进的目标。
+
+![评估goal](/assets/images/introduction/long-horizon/goal/gui_complete_goal.png)
+
+### 在执行中补充信息
+
+当 Goal 正在执行时，可以继续发送纯文本消息。文本消息会默认进入消息队列中，你可以选择立即发送，或继续在队列中等待当前goal执行结束后再发送。
+
+![添加补充信息](/assets/images/introduction/long-horizon/goal/gui_goal_supplement_queue.png)
+
+若选择立即发送，该文本消息会作为当前 Goal 的补充信息，而不是一个独立的新任务。OpenDesk 会在当前工具执行结束后读取补充内容，并结合它继续推进。
+![执行补充信息](/assets/images/introduction/long-horizon/goal/gui_goal_supplement.png)
+
+需要注意的是，Goal 正在执行时，图片和附件不能作为补充信息发送。你可以先用文字补充要求，或者暂停、清除 Goal 后再按普通任务的方式发送附件。
+
+### 修改和控制 Goal
+
+在右侧"任务进展"区域可以执行以下操作：
+
+- **编辑**：修改当前目标。保存后，OpenDesk 会按照新目标继续，并保留已有任务上下文。
+- **暂停**：停止当前 Goal 的执行，但保留目标和已有进度。
+- **恢复**：继续推进已暂停或已阻塞的 Goal（只有暂停或阻塞状态下才会显示）。
+- **清除**：退出 Goal 控制。清除后，OpenDesk 不会再自动继续这个 Goal。
+
+![编辑goal](/assets/images/introduction/long-horizon/goal/edit_goal.png)
+
+编辑时，面板会展开为编辑模式，显示目标描述输入框以及"保存"和"取消"按钮。时间线会同步记录本次编辑，包含新目标和原目标，以便你回溯变更历史。
+
+## 在 CLI 中使用 Goal
+
+### 创建 Goal
+
+在 CLI 输入 `/goal <目标>`：
+
+![cli创建goal](/assets/images/introduction/long-horizon/goal/cli_create_goal.png)
+
+如果当前还没有任务，OpenDesk 会自动创建一个任务并开始执行 Goal。
+
+当前任务已有未结束的 Goal 时，再输入一个不同的 `/goal <目标>`，CLI 会提示是否需要修改当前 Goal。确认后，OpenDesk 会按新的目标继续。
+
+![cli更新goal](/assets/images/introduction/long-horizon/goal/cli_edit_goal.png)
+
+CLI 会显示当前 Goal 和新 Goal 的对比，并提供"修改 Goal"和"取消"两个选项。选择"修改 Goal"后，当前执行将按照新目标继续。
+
+### 查看执行进度
+
+Goal 创建后，CLI 会显示 Goal 面板。面板中包含以下信息：
+
+- **目标**：当前跟进的目标文本；
+- **状态**：Goal 的当前状态（进行中/已完成等）；
+- **执行耗时**：从 Goal 创建到当前的累计时间；
+- **Token 计数**：当前 Goal 执行过程中已消耗的 Token 数量；
+- **最近评估**：最近一次评估结果和依据（如果已经发生过评估）。
+
+![cli查看goal](/assets/images/introduction/long-horizon/goal/cli_new_goal.png)
+
+每轮工作结束前，CLI 会显示评估过程和结果。如果目标尚未达成，OpenDesk 会自动开始下一轮。Goal 完成后，CLI 面板会显示"已完成"状态，以及最近评估的结论和证据。
+
+![cli完成goal](/assets/images/introduction/long-horizon/goal/cli_complete_goal.png)
+
+
+
+### 在执行中补充信息
+
+Goal 正在执行时，直接输入纯文本即可添加补充信息：
+
+![cli补充goal](/assets/images/introduction/long-horizon/goal/cli_supplement_goal.png)
+
+CLI 会提示"Goal 正在执行，你的消息已作为补充信息加入，将在当前工具结束后生效"。补充消息不会进入普通消息等待队列。
+
+同样的，Goal 正在执行时，请不要在补充消息中附加图片或文件。需要发送附件时，可以先暂停或清除 Goal。
+
+### 使用指令管理 Goal
+
+在 CLI 中输入 `/goal help` 可以查看所有 Goal 相关指令：
+
+![cli goal help](/assets/images/introduction/long-horizon/goal/cli_goal_help.png)
+
+可用的指令如下：
+
+- `/goal help`：查看 Goal 指令帮助。
+- `/goal <目标>`：创建 Goal；已有未结束 Goal 时，用于修改目标。
+- `/goal pause`：暂停当前 Goal 并保留进度。
+- `/goal resume`：恢复已暂停或已阻塞的 Goal。
+- `/goal clear`：清除当前 Goal，退出自动持续推进。
+
+你也可以在桌面端输入框中使用与 CLI 相同的 `/goal` 指令。
+
+## Goal 的状态和工作方式
+
+你可能会看到以下状态：
+
+- **进行中**：OpenDesk 正在围绕 Goal 持续推进任务。
+- **已暂停**：Goal 已被手动暂停，可以恢复。
+- **已阻塞**：OpenDesk 暂时无法继续。常见原因包括需要用户输入、权限、凭据或外部状态发生变化。解决问题后可以恢复 Goal。
+- **已完成**：OpenDesk 评估目标已经达成，自动执行结束。
+- **已清除**：Goal 控制已被移除，不会再自动继续。
+
+每轮执行结束前，OpenDesk 会结合当前对话、Todo 进度和文件变更等信息评估 Goal：
+
+1. 如果目标尚未达成，OpenDesk 会根据评估结果继续下一轮；
+2. 如果需要你介入，Goal 会进入"已阻塞"状态；
+3. 如果目标已经达成，Goal 会进入"已完成"状态。
+
+
+## 写出更容易完成的 Goal
+
+一个好的 Goal 应说明最终产物、工作范围和可以检查的完成条件。
+
+不够明确的目标：
+
+```text
+/goal 优化这个项目
+```
+
+更明确的目标：
+
+```text
+/goal 优化首页加载性能，将现有 Lighthouse 性能问题逐项处理，运行项目测试，并总结修改结果
+```
+
+建议：
+
+- 写清最终要交付什么；
+- 说明不能改变的范围或约束；
+- 加入测试、构建、链接检查等可验证条件；
+- 避免"继续优化""尽量做好"等没有明确终点的描述。
