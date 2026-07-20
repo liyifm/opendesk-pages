@@ -1,0 +1,222 @@
+---
+title: "通过 OpenTelemetry 实现智能体业务数据的全链路监测"
+description: "在 OpenDesk GUI 和 CLI 中配置 OpenTelemetry 链路追踪并将数据上报到 Jaeger"
+---
+
+OpenDesk 内置了 [OpenTelemetry](https://opentelemetry.io/) (OTel) 链路追踪支持，用于观测 LLM 请求、工具调用、Hook 回调等关键路径。本文介绍 OpenTelemetry 的基本概念、本地 Jaeger 的安装方式，以及如何在 OpenDesk 的 GUI 和 CLI 两种形态中启用和配置遥测。
+
+## OpenTelemetry 是什么
+
+OpenTelemetry 是 CNCF 旗下的开源可观测性框架，提供一套与厂商无关的 API、SDK 和工具，用于生成、采集和导出遥测数据（Traces、Metrics、Logs）。它的核心价值在于：
+
+- **统一标准**：不绑定任何后端，一套 API 对接 Jaeger、Zipkin、Prometheus、Grafana 等多种后端
+- **链路追踪 (Tracing)**：记录一次请求在不同服务/模块间的完整调用链，每个环节称为一个 Span
+- **自动上下文传播**：Span 之间的父子关系通过 `context` 在异步调用链中自动传递
+
+OpenDesk 使用 OpenTelemetry 的 **Trace Provider + OTLP HTTP Exporter** 方案，将所有 Span 数据通过标准 OTLP 协议上报到你指定的后端。
+
+## 本地安装 Jaeger 来收集和分析 OTel 数据
+
+[Jaeger](https://www.jaeger.io/) 是 Uber 开源并捐赠给 CNCF 的分布式追踪系统，支持 OTLP 协议，是本地开发和调试时最常用的 OpenTelemetry 后端。这篇文档主要通过 Jaeger 来介绍如何将 OpenDesk 的数据接入可观测体系。
+
+:::tip[你也可以接入任何其他符合OTLP协议的可观测服务]
+OpenDesk 的数据上报功能使用 `@opentelemetry/sdk-node` 实现，可以兼容任何符合 OTLP 协议的数据监测和审计服务。如 [Prometheus](https://prometheus.io/docs/guides/opentelemetry/), [Grafana](https://grafana.com/docs/opentelemetry/) 以及各主流云服务商如 [华为云](https://support.huaweicloud.com/intl/zh-cn/bestpractice-apm2/apm_08_0027.html) 和 [阿里云](https://help.aliyun.com/zh/opentelemetry/) 的可观测链路服务。
+:::
+
+### 方式一：通过 Docker 部署 Jaeger 服务
+
+如果你本地已经部署了 Docker 服务，那么直接安装官方提供的 Docker 镜像是最快的运行方式。但如果你不熟悉 Docker 的使用，或者你的网络环境对于 Docker 镜像拉取不友好，那么建议你参考后面的 *方式二*。
+
+```bash
+docker run -d --name jaeger \
+  -p 16686:16686 \
+  -p 4317:4317 \
+  -p 4318:4318 \
+  jaegertracing/all-in-one:latest
+```
+
+启动后访问 Jaeger UI：`http://localhost:16686`
+
+### 方式二：在官网下载预构建的 Jaeger All-in-one 二进制文件
+
+访问 [Jaegertracing.io](https://www.jaegertracing.io/download/) 在下载页面找到最新版本的预构建二进制文件并下载。当前官网提供了 MacOS, Linux, Windows 三个平台的预构建版本。下载完成后直接执行 `./jaeger` 命令即可快速启动，如下所示:
+
+```
+$ ./jaeger
+2026/07/18 22:46:49 application version: git-commit=d321ea3e86c3551e341e4529a5a8631b4e1d8f0a, git-version=v2.8.0, build-date=2025-07-04T16:53:12Z
+2026/07/18 22:46:49 No '--config' flags detected, using default All-in-One configuration with memory storage.
+2026/07/18 22:46:49 To customize All-in-One behavior, pass a proper configuration.
+2026-07-18T22:46:49.542+0800	info	service@v0.129.0/service.go:197	Setting up own telemetry...	{"resource": {"service.instance.id": "93d5a1c1-346f-4b20-981f-307a2506ac5e", "service.name": "jaeger", "service.version": "v2.8.0"}}
+......
+```
+
+### 验证 Jaeger 运行状态
+
+确认容器或进程已启动后，访问 `http://localhost:16686`，应能看到 Jaeger 的查询页面。
+
+![Jaeger UI 首页](/assets/images/opentelemetry/jaegerhome.png)
+
+### Jaeger 的常用服务路径
+
+- 控制台和查询界面: [`http://localhost:16686`](http://localhost:16686)
+- OTLP HTTP traces 端点：`http://localhost:4318/v1/traces` (OpenDesk 使用此端点)
+- OTLP gRPC traces 端点：`http://localhost:4317/v1/traces`
+
+## 在 OpenDesk 中配置 OTel 监测服务
+
+OpenDesk 的遥测配置存储在 `setting.json` 中，路径为 `telemetry.opentelemetry.endpoints`，是一个端点数组。每个端点可独立开关，支持同时向多个后端上报。当前 OpenDesk Cli, 桌面版均支持 OpenTelemetry 的配置。
+
+### 在 OpenDesk 桌面端中配置
+
+在 OpenDesk 桌面端中，通过 **设置 → 遥测设置** 即可配置端点，无需手动编辑 JSON。
+
+**操作步骤：**
+
+1. 打开 OpenDesk 桌面端，在左下角工具栏中点击设置图标，进入 **设置** 界面
+3. 选择 **通用设置**，向下翻页，找到位于底部的 **遥测设置**
+4. 点击 **添加端点**，填写端点 URL（如 `http://localhost:4318/v1/traces`），开启"启用此端点"
+5. 保存后配置即时生效，无需重启应用
+
+![GUI 遥测设置页面](/assets/images/opentelemetry/guiconfig.png)
+
+> 配置变更时，OpenDesk 会热重载 OTel SDK——先刷新所有待发送的 Span，再根据新配置重新初始化 Provider。整个过程无需重启。
+
+### 在 OpenDesk Cli 中配置
+
+启动 OpenDesk Cli 后输出 `/config`进入配置页面。
+
+![TUI 遥测设置页面](/assets/images/opentelemetry/cliconfig.png)
+
+选择 **遥测设置** 页面打开，在遥测设置页面中：
+- 按 `+ 添加端点` 新增 OTLP 端点
+- 选择已有端点可编辑或删除
+- 支持设置端点 URL、协议类型和启用开关
+- 保存后自动热重载
+
+![TUI 遥测设置页面](/assets/images/opentelemetry/cliconfig2.png)
+
+### 直接编辑 setting.json 添加配置
+
+在 OpenDesk 配置目录下编辑 `setting.json`，添加 `telemetry` 字段：
+
+```json
+{
+  "telemetry": {
+    "opentelemetry": {
+      "endpoints": [
+        {
+          "name": "本地 Jaeger",
+          "url": "http://localhost:4318/v1/traces",
+          "protocol": "opentelemetry",
+          "enabled": true
+        }
+      ]
+    }
+  }
+}
+```
+
+CLI 在启动时会调用 `initTelemetry()` 读取配置并初始化 OTel SDK；退出时（`SIGTERM`/`SIGINT`/`beforeExit`）会优雅关闭以刷新所有待发送的 Span。
+
+### Span 层级与覆盖范围
+
+OpenDesk 通过 `withSpan()` 创建 Span，利用 OpenTelemetry 的 `context` 传播机制自动建立父子关系——在 `withSpan()` 回调内部创建的任何 Span 都会成为当前 Span 的子 Span。
+
+#### 应用启动阶段
+
+GUI 和 CLI 的启动流程各自生成一条独立的 Trace，用于观测启动各阶段的耗时：
+
+**GUI 启动**（根 Span: `startup.gui`）
+
+```
+startup.gui
+├── startup.pre_ready.registry
+├── startup.ready.global_state.init
+├── startup.ready.global_state.toolset_provider
+├── startup.ready.global_state.memory_review_hook
+├── startup.ready.global_state.goal_hooks
+├── startup.ready.global_state.harnesses
+├── startup.ready.restore_tasks
+├── startup.ready.browser_session
+├── startup.ready.create_window
+├── startup.ready.skills
+├── startup.ready.ipc_handlers
+└── startup.ready.finalize
+```
+
+**CLI 启动**（根 Span: `startup.cli`）
+
+```
+startup.cli
+├── startup.cli.temp_dir
+├── startup.cli.platform
+├── startup.cli.global_state.init
+├── startup.cli.global_state.builtin_agents
+├── startup.cli.global_state.goal_hooks
+├── startup.cli.global_state.harnesses
+├── startup.cli.registry
+├── startup.cli.terminal_theme
+└── startup.cli.tui_start
+```
+
+#### 对话回合（Task Turn）
+
+一次 Agent 对话回合的完整 Span 层级如下：
+
+```
+task.turn                              # 一个对话回合
+├── hook.before_turn_start             # 回合开始钩子
+├── llm.complete / llm.streamComplete  # LLM 推理（非流式/流式）
+│   ├── llm.http_request               # 底层 HTTP 请求到模型 API
+│   └── llm.metadata_query             # 查询模型上下文长度等元信息
+├── hook.after_completion              # 推理完成钩子
+├── hook.before_tool_call              # 单个工具调用前钩子
+├── tool.execute                       # 工具执行
+│   └── llm.http_request               # 工具内部可能发起 LLM 请求
+├── hook.after_tool_call               # 单个工具调用后钩子
+└── hook.before_finish_turn            # 回合结束前钩子
+```
+
+#### 其他独立 Span
+
+以下操作在回合外独立创建 Span，不与 `task.turn` 关联：
+
+| Span 名称 | 覆盖内容 |
+| --- | --- |
+| `llm.ask` | LLM 一次性对话请求（非流式，通过 `completeText`） |
+| `llm.embed` | 文本向量化（Embedding） |
+| `llm.batchEmbed` | 批量文本向量化 |
+| `llm.rerank` | 重排序（Rerank） |
+| `llm.verify` | 模型连通性验证 |
+| `llm.list_models` | 拉取模型列表 |
+| `task.generate_name` | 自动生成任务标题 |
+
+> `llm.ask` 与 `llm.complete` / `llm.streamComplete` 是不同的调用路径。`llm.ask` 是 `completeText()` 的 Span，用于一次性完成场景；`llm.complete` / `llm.streamComplete` 则是 `complete()` / `streamComplete()` 的 Span，在 `task.turn` 流程中作为子 Span 出现。
+
+### 在 Jaeger 中查看 Trace
+
+配置完成后，启动 OpenDesk 并与 Agent 对话。每次 LLM 请求和工具调用都会产生 Span 并上报到 Jaeger。
+
+1. 打开 `http://localhost:16686`
+2. 在 **Service** 下拉中选择 `opendesk`
+3. 点击 **Find Traces** 查看追踪列表
+4. 点击任意一条 Trace 查看完整的调用链瀑布图
+
+![Jaeger Trace 详情](/assets/images/opentelemetry/hierarchy.png)
+
+### 常见问题
+
+**Q: 配置了端点但 Jaeger 中看不到数据？**
+
+1. 确认 Jaeger 容器/进程正在运行：`docker ps | grep jaeger`
+2. 确认端点 Url 可访问：`curl http://localhost:4318/v1/traces`, 另外需要注意，不要将 16686 端口运行的 Web 服务错误地配置成端点 Url
+3. 检查 OpenDesk 日志中是否有 `[OTel] OpenTelemetry initialized` 输出
+4. 确认端点是否已经启用，你在桌面端/Cli的遥测设置界面中都可以查看
+
+**Q: 能否同时上报到多个后端？**
+
+可以。在 `endpoints` 数组中添加多个端点即可，每个端点创建独立的 `BatchSpanProcessor` + `OTLPTraceExporter`。
+
+**Q: 配置后需要重启吗？**
+
+GUI 和 TUI 中保存配置后会自动触发 `reloadTelemetry()` 热重载，无需重启。但如果你如果手动修改了 `settings.json` 则需要重启 OpenDesk。

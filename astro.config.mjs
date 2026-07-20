@@ -99,6 +99,13 @@ export default defineConfig({
                 { label: 'OpenCode 协议', slug: 'docs/contribute/opencode-server-api' }
               ],
             },
+            {
+              label: '调试与观测',
+              items: [
+                { label: '使用日志系统', slug: 'docs/contribute/logging' },
+                { label: '通过 OTel 进行全链路监测', slug: 'docs/contribute/otel' }
+              ],
+            },
           ],
         },
       ],
