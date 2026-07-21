@@ -51,12 +51,12 @@ export default defineConfig({
             { label: '使用MCP服务器', slug: 'docs/introduction/mcp' },
             { label: '定时任务', slug: 'docs/introduction/cron' },
             { label: '浏览器自动化', slug: 'docs/introduction/browser' },
-            { label: '执行长程任务', slug: 'docs/introduction/long-horizon' },
           ]
         },
         {
           label: '进阶场景',
           items: [
+            { label: '执行长程任务', slug: 'docs/introduction/long-horizon' },
             { label: '编码场景优化', slug: 'docs/advanced/coding' },
             { label: '调整显示效果', slug: 'docs/advanced/display' },
             { label: '技能分析与测试', slug: 'docs/advanced/skill-analysis' },
