@@ -64,6 +64,12 @@ export default defineConfig({
           ]
         },
         {
+          label: '鸿蒙PC专属',
+          items: [
+            { label: '连接到融合开发引擎', slug: 'docs/ohpc/linux' },
+          ]
+        },
+        {
           label: '完整使用手册',
           items: [
             { label: 'OpenDesk Cli', slug: 'docs/manual/cli' },
