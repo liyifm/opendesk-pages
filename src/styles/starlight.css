@@ -49,6 +49,26 @@
   margin-right: auto;
 }
 
+/* Footer: moved to .page by JS, offset to start after left sidebar */
+.opendesk-sl-footer--moved {
+  position: relative;
+  z-index: 6;
+  width: auto;
+}
+
+@media (min-width: 50rem) {
+  html[data-has-sidebar] .opendesk-sl-footer--moved {
+    margin-inline-start: var(--sl-sidebar-width);
+  }
+}
+
+.opendesk-sl-footer--moved .opendesk-sl-footer__inner {
+  width: 100%;
+  padding-inline: var(--sl-content-pad-x);
+  box-sizing: border-box;
+  margin: 0;
+}
+
 /* Align left sidebar to nav container left edge */
 @media (min-width: 50rem) {
   .sidebar-pane {
@@ -256,7 +276,8 @@ video {
   box-shadow: 0 2px 12px rgba(0, 0, 0, 0.05);
 }
 
-.site-brand img {
+.site-brand img,
+.opendesk-sl-footer__logo {
   border-radius: 0;
   border: 0;
   box-shadow: none;

@@ -58,9 +58,24 @@ import { ClientRouter } from 'astro:transitions';
   }
 
   // 初始加载
-  document.addEventListener('DOMContentLoaded', initImageLightbox);
+  document.addEventListener('DOMContentLoaded', function() {
+    initImageLightbox();
+    moveFooter();
+  });
 
   // SPA 页面切换后重新绑定
-  document.addEventListener('astro:after-swap', initImageLightbox);
+  document.addEventListener('astro:after-swap', function() {
+    initImageLightbox();
+    moveFooter();
+  });
+
+  function moveFooter() {
+    var footer = document.querySelector('.opendesk-sl-footer');
+    if (!footer) return;
+    var page = document.querySelector('.page');
+    if (!page || footer.parentElement === page) return;
+    footer.classList.add('opendesk-sl-footer--moved');
+    page.appendChild(footer);
+  }
 })();
 </script>
