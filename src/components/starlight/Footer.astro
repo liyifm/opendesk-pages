@@ -1,0 +1,174 @@
+---
+import { site } from '../../config/site';
+---
+
+<footer class="opendesk-sl-footer">
+  <div class="opendesk-sl-footer__inner">
+    <div class="opendesk-sl-footer__top">
+      <img
+        class="opendesk-sl-footer__logo opendesk-sl-footer__logo--light"
+        src="/assets/images/common/footer-logo.svg"
+        alt="OpenAtom OpenHarmony"
+      />
+      <img
+        class="opendesk-sl-footer__logo opendesk-sl-footer__logo--dark"
+        src="/assets/images/common/footer-logo-dark.svg"
+        alt="OpenAtom OpenHarmony"
+      />
+      <div class="opendesk-sl-footer__social">
+        <a class="opendesk-sl-footer__social-btn" href={site.socialLinks.email} target="_blank" rel="noopener noreferrer" title="邮件">
+          <i class="fa-solid fa-envelope"></i>
+        </a>
+        <button class="opendesk-sl-footer__social-btn" type="button" title="资讯">
+          <i class="fa-solid fa-qrcode"></i>
+        </button>
+        <a class="opendesk-sl-footer__social-btn" href={site.socialLinks.repo} target="_blank" rel="noopener noreferrer" title="GitCode">
+          <i class="fa-brands fa-git-alt"></i>
+        </a>
+        <a class="opendesk-sl-footer__social-btn" href={site.socialLinks.bilibili} target="_blank" rel="noopener noreferrer" title="Bilibili">
+          <i class="fa-brands fa-bilibili"></i>
+        </a>
+      </div>
+    </div>
+    <div class="opendesk-sl-footer__foundation">
+      <p class="opendesk-sl-footer__foundation-desc">{site.foundationDesc}</p>
+      <div class="opendesk-sl-footer__protocol-links">
+        {site.protocolLinks.map((link) => (
+          <a href={link.href} target="_blank" rel="noopener noreferrer">{link.label}</a>
+        ))}
+      </div>
+    </div>
+    <div class="opendesk-sl-footer__bottom">
+      <span>开放原子开源基金会版权所有</span>
+      <span>{site.foundationCopyright}</span>
+    </div>
+  </div>
+</footer>
+
+<style>
+  .opendesk-sl-footer {
+    border-top: 1px solid var(--sl-color-hairline);
+    background: var(--sl-color-gray-6);
+    margin-top: 3rem;
+  }
+
+  .opendesk-sl-footer__inner {
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+    padding: 24px 0;
+    color: var(--sl-color-gray-3);
+    font-size: 14px;
+  }
+
+  .opendesk-sl-footer__top {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 20px;
+  }
+
+  .opendesk-sl-footer__logo {
+    height: 28px;
+    width: auto;
+  }
+
+  .opendesk-sl-footer__logo--dark {
+    display: none;
+  }
+
+  :root[data-theme="dark"] .opendesk-sl-footer__logo--light {
+    display: none;
+  }
+
+  :root[data-theme="dark"] .opendesk-sl-footer__logo--dark {
+    display: block;
+  }
+
+  .opendesk-sl-footer__social {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .opendesk-sl-footer__social-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 36px;
+    height: 36px;
+    border: 1px solid var(--sl-color-hairline);
+    border-radius: 50%;
+    background: transparent;
+    color: var(--sl-color-gray-3);
+    cursor: pointer;
+    text-decoration: none;
+    font-size: 16px;
+    transition:
+      color 160ms ease,
+      border-color 160ms ease;
+  }
+
+  .opendesk-sl-footer__social-btn:hover {
+    color: var(--sl-color-text);
+    border-color: var(--sl-color-accent);
+  }
+
+  .opendesk-sl-footer__foundation {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 20px;
+  }
+
+  .opendesk-sl-footer__foundation-desc {
+    margin: 0;
+    max-width: 560px;
+    line-height: 1.6;
+  }
+
+  .opendesk-sl-footer__protocol-links {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    flex-wrap: wrap;
+  }
+
+  .opendesk-sl-footer__protocol-links a {
+    color: var(--sl-color-gray-3);
+    font-size: 13px;
+    text-decoration: none;
+    transition: color 160ms ease;
+  }
+
+  .opendesk-sl-footer__protocol-links a:hover {
+    color: var(--sl-color-text);
+  }
+
+  .opendesk-sl-footer__bottom {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 20px;
+    padding-top: 14px;
+    border-top: 1px solid var(--sl-color-hairline);
+    font-size: 13px;
+  }
+
+  @media (max-width: 760px) {
+    .opendesk-sl-footer__inner {
+      padding: 22px 0;
+    }
+
+    .opendesk-sl-footer__top,
+    .opendesk-sl-footer__foundation,
+    .opendesk-sl-footer__bottom {
+      flex-direction: column;
+      align-items: flex-start;
+    }
+
+    .opendesk-sl-footer__social {
+      align-items: flex-start;
+    }
+  }
+</style>

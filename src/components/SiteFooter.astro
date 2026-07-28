@@ -4,9 +4,65 @@ import { site } from '../config/site';
 
 <footer class="site-footer">
   <div class="site-footer__inner">
-    <div>{site.copyright}</div>
-    <div class="site-footer__links">
-      {site.footerLinks.map((link) => <a href={link.href}>{link.label}</a>)}
+    <div class="site-footer__top">
+      <img
+        class="site-footer__logo site-footer__logo--light"
+        src="/assets/images/common/footer-logo.svg"
+        alt="OpenAtom OpenHarmony"
+      />
+      <img
+        class="site-footer__logo site-footer__logo--dark"
+        src="/assets/images/common/footer-logo-dark.svg"
+        alt="OpenAtom OpenHarmony"
+      />
+      <div class="site-footer__social">
+        <a
+          class="site-footer__social-btn"
+          href={site.socialLinks.email}
+          target="_blank"
+          rel="noopener noreferrer"
+          title="邮件"
+        >
+          <i class="fa-solid fa-envelope"></i>
+        </a>
+        <button
+          class="site-footer__social-btn"
+          type="button"
+          title="资讯"
+        >
+          <i class="fa-solid fa-qrcode"></i>
+        </button>
+        <a
+          class="site-footer__social-btn"
+          href={site.socialLinks.repo}
+          target="_blank"
+          rel="noopener noreferrer"
+          title="GitCode"
+        >
+          <i class="fa-brands fa-git-alt"></i>
+        </a>
+        <a
+          class="site-footer__social-btn"
+          href={site.socialLinks.bilibili}
+          target="_blank"
+          rel="noopener noreferrer"
+          title="Bilibili"
+        >
+          <i class="fa-brands fa-bilibili"></i>
+        </a>
+      </div>
+    </div>
+    <div class="site-footer__foundation">
+      <p class="site-footer__foundation-desc">{site.foundationDesc}</p>
+      <div class="site-footer__protocol-links">
+        {site.protocolLinks.map((link) => (
+          <a href={link.href} target="_blank" rel="noopener noreferrer">{link.label}</a>
+        ))}
+      </div>
+    </div>
+    <div class="site-footer__bottom">
+      <span>开放原子开源基金会版权所有</span>
+      <span>{site.foundationCopyright}</span>
     </div>
   </div>
 </footer>
