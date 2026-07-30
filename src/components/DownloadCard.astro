@@ -35,6 +35,8 @@ const fileHint = (url: string, fallbackExt: string, detail: string) => {
   const ext = url.split('?')[0]?.match(/\.[a-z0-9]+$/i)?.[0] ?? fallbackExt;
   return `${ext} · ${detail}`;
 };
+
+const isHapFile = (url: string) => /\.hap(\?|$)/i.test(url);
 ---
 
 {
@@ -81,9 +83,9 @@ const fileHint = (url: string, fallbackExt: string, detail: string) => {
             </a>
           )}
           {item.harmonyos && (
-            <a class="download-btn download-btn--secondary" href={item.harmonyos.url} download>
+            <a class="download-btn download-btn--secondary" href={item.harmonyos.url} download={isHapFile(item.harmonyos.url) ? '' : undefined}>
               <span>{item.harmonyos.label}</span>
-              <span class="download-btn__sub">{fileHint(item.harmonyos.url, '.hap', '需手动签名')}</span>
+              <span class="download-btn__sub">{isHapFile(item.harmonyos.url) ? fileHint(item.harmonyos.url, '.hap', '需手动签名') : '从App Gallery应用市场安装'}</span>
             </a>
           )}
           {item.macos && (
@@ -95,7 +97,7 @@ const fileHint = (url: string, fallbackExt: string, detail: string) => {
         </div>
       )}
 
-      {item.harmonyos && (
+      {item.harmonyos && isHapFile(item.harmonyos.url) && (
         <p class="download-signing-note">
           HarmonyOS 安装提示：下载 <code>.hap</code> 后，需要通过{' '}
           <a href="https://developer.huawei.com/consumer/cn/deveco-studio/" target="_blank" rel="noreferrer">

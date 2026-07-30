@@ -30,6 +30,12 @@ export const collections = {
               label: z.string().default('HarmonyOS 安装包'),
             })
             .optional(),
+          macos: z
+            .object({
+              url: z.string(),
+              label: z.string().default('MacOS 安装包'),
+            })
+            .optional(),
         })
         .optional(),
       summary: z.string().optional(),
