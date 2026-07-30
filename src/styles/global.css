@@ -437,6 +437,7 @@ img {
   border-bottom: 1px solid var(--line);
   margin-bottom: 36px;
   overflow-x: auto;
+  overflow-y: hidden;
 }
 
 .download-tab {
