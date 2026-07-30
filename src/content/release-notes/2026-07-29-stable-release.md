@@ -1,10 +1,10 @@
 ---
-title: "OpenDesk 0.3.0：长程任务优化、内嵌浏览器控制、智能文件系统"
+title: "OpenDesk 0.3.1：长程任务优化、内嵌浏览器控制、智能文件系统"
 date: "2026-07-29T09:00:00+08:00"
 category: "stable-release"
-version: "0.3.0"
+version: "0.3.1"
 downloads:
-  cli: "npm install -g \"@bitclub.ai/opendesk-cli@0.3.0\""
+  cli: "npm install -g \"@bitclub.ai/opendesk-cli@0.3.1\""
   windows:
     url: "https://download.bitclub.ai/build/stable/win/opendesk-win-x86-0.3.0-stable.msi"
     label: "Windows x86 安装包"
