@@ -4,7 +4,7 @@ date: "2026-07-14T09:00:00+08:00"
 category: "nightly-release"
 version: "0.2.0-nightly-20260714"
 downloads:
-  cli: "npm i -g @bitclub.ai/opendesk-cli@0.2.0-nightly-20260714"
+  cli: "npm i -g \"@bitclub.ai/opendesk-cli@0.2.0-nightly-20260714\""
   windows:
     url: "https://download.bitclub.ai/build/nightly/win/opendesk-win-x86-0.2.0-nightly-20260714.msi"
     label: "Windows x86 安装包"
@@ -45,7 +45,7 @@ summary: "推理内容气泡展示、工具调用死循环防护、CLI 依赖精
 
 ## 下载
 
-**Cli**: 在终端中运行 `npm i -g @bitclub.ai/opendesk-cli@0.2.0-nightly-20260714` 安装, 或启动 opendesk 后运行 `/upgrade` 命令选择 Nightly 版本来升级。
+**Cli**: 在终端中运行 `npm i -g "@bitclub.ai/opendesk-cli@0.2.0-nightly-20260714"` 安装, 或启动 opendesk 后运行 `/upgrade` 命令选择 Nightly 版本来升级。
 
 **桌面端**:
 - [Windows x86 安装包](https://download.bitclub.ai/build/nightly/win/opendesk-win-x86-0.2.0-nightly-20260714.msi)

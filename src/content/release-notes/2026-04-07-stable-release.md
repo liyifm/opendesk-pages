@@ -4,7 +4,7 @@ date: "2026-04-07T09:00:00+08:00"
 category: "stable-release"
 version: "0.2.0"
 downloads:
-  cli: "npm install -g @bitclub.ai/opendesk-cli"
+  cli: "npm install -g \"@bitclub.ai/opendesk-cli\""
   windows:
     url: "https://download.bitclub.ai/build/stable/win/opendesk-win-x86-0.2.0.msi"
     label: "Windows x86 安装包"

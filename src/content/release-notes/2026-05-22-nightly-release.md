@@ -19,7 +19,7 @@ category: "nightly-release"
 
 ## 下载
 
-**Cli**: `npm i -g "@bitclub.ai/opendesk-cli@nightly`
+**Cli**: `npm i -g "@bitclub.ai/opendesk-cli@nightly"`
 
 **桌面端**:
 - [Windows x86 安装包](https://download.bitclub.ai/build/nightly/win/opendesk-win-x86-0.2.0-nightly-20260522.msi)
