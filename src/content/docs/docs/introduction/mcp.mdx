@@ -1,6 +1,96 @@
 ---
 title: "添加和管理 MCP 服务器"
-description: ""
+description: "如何在 OpenDesk 中安装和管理 MCP 服务器，以及 MCP 工具分层加载的工作原理"
 ---
 
-*正在施工中……*
+MCP（Model Context Protocol）是一种让大模型动态扩展能力的开放协议。通过 MCP，OpenDesk 可以连接到第三方提供的 MCP Server，把它的工具接入到智能体的上下文中，从而让 OpenDesk 在不升级本体的前提下获得源源不断的新能力——例如查询知识库、操作第三方系统、检索特定领域的数据等。
+
+OpenDesk 内置了 MCP 管理器（McpMgr），无论是桌面端还是 Cli，都可以用同一套自然语言方式添加和管理 MCP Server，完全不需要手动去改配置文件。本章节先介绍日常使用方法，再补充说明 MCP 工具分层加载的架构设计，帮助你理解大型 MCP 接入时的行为差异。
+
+## MCP 的连接方式
+
+OpenDesk 支持两种主流的 MCP Server 连接方式：
+
+- **stdio（本地进程）**：MCP Server 以子进程的形式在本地运行，通过标准输入输出与 OpenDesk 通信。这种方式延迟最低，并且支持为每个 Server 独立配置环境变量，适合本地工具集；
+- **SSE / HTTP（远程服务）**：MCP Server 作为远程服务运行，OpenDesk 通过网络连接。适合团队共享的 MCP Server 或部署在远端的私有工具。
+
+无论哪种连接方式，对使用者而言添加流程是一致的——OpenDesk 会自动识别并处理。
+
+## 在桌面端中添加 MCP Server
+
+### 通过自然语言安装
+
+OpenDesk 的设计宗旨是所有复杂配置都由自然语言完成。你只要告诉 OpenDesk 你想要的 MCP Server 即可。如果给了详细的地址，OpenDesk 会自动过去查看它的配置；如果只给一个名字，OpenDesk 会自动从多个来源搜索匹配的 MCP Server。
+
+<img src="/assets/images/quickstart/mcpinstall.gif" alt="一句话安装 MCP Server" />
+
+常见的话术例如：
+
+- `帮我装一个 context7 MCP`
+- `安装 filesystem MCP，地址是 https://...`
+- `从 ModelScope 安装 search-mcp`
+
+### 从 MCP Registry 安装
+
+桌面端接入了 MCP Registry，你可以在桌面端中直接从 **OpenHarmony Matrix** 和 **ModelScope** 这两个源安装 MCP 服务，无需手动寻找 npm 包或仓库。
+
+> 📷 **待补充截图**：桌面端 MCP Registry 安装界面。建议保存到 `/assets/images/introduction/mcp/registry_install.png`，并替换此处为 `![MCP Registry 安装界面](/assets/images/introduction/mcp/registry_install.png)`。
+
+在这里你可以浏览可用的 MCP 列表，查看每个 MCP 的简介和所需参数，点击安装即可一键接入。
+
+### 在设置界面手动管理
+
+除了对话式安装，你也可以通过设置界面手动管理已安装的 MCP Server：进入设置页面，找到「MCP 服务器」入口。
+
+> 📷 **待补充截图**：桌面端 MCP 管理列表。建议保存到 `/assets/images/introduction/mcp/gui_mcp_list.png`，并替换此处为 `![桌面端 MCP 管理列表](/assets/images/introduction/mcp/gui_mcp_list.png)`。
+
+在这里你可以：
+
+- 查看所有已安装 MCP Server 的连接状态和工具数量；
+- 编辑 MCP Server 的启动参数、环境变量；
+- 启用或禁用某个 MCP Server；
+- 删除不再需要的 MCP Server。
+
+:::tip[为本地 MCP 配置环境变量]
+通过 stdio 运行的本地 MCP Server 支持独立的环境变量管理。某些 MCP（例如需要 API Key 或特定路径的工具）必须传入环境变量才能正常工作。在桌面端的 MCP 编辑界面中，你可以单独为每个 Server 配置 `env`，这些变量仅对该 Server 的子进程生效，不会污染系统全局环境。
+:::
+
+## 在 Cli 中管理 MCP Server
+
+### 通过自然语言管理
+
+与桌面端一致，Cli 中最推荐的方式也是直接对话完成管理：
+
+- `帮我看一下现在装了哪些 MCP`
+- `把 filesystem MCP 禁用掉`
+- `安装一个新的 MCP，配置如下……`
+
+OpenDesk 会调用内置的 MCP 管理技能完成增删改查。
+
+## MCP 工具分层加载
+
+当你接入的 MCP Server 越来越多时，会发现一个隐藏问题：所有工具的完整定义（名称、描述、参数）会被**无条件**塞进每一次模型请求中。某些文档型 MCP 的单个工具描述可能长达数万字符，迅速挤占上下文预算，导致推理质量下降、工具调用失败率上升，小型 MCP 的工具反而被大型 Server 拖累。
+
+OpenDesk 通过 **MCP 工具分层加载**特性解决这个问题，让大型 MCP 工具集**按需加载**，避免一次性污染上下文。
+
+### 对使用者的影响
+
+分层加载对你而言是**透明**的，无需任何配置：
+
+- 当所有 MCP 工具的总定义体积较小（在字符预算内）时，工具按原方式直接注册，模型可以像往常一样直接调用，工具名和调用方式**完全不变**；
+- 当存在大型 MCP Server 导致总量超出预算时，OpenDesk 会自动把这些大型 Server 的工具改为**延迟加载**模式——模型在需要时通过检索、加载、调用三个元工具分步访问，从而把上下文预算还给真正的任务内容。
+
+:::tip[什么时候你会感知到分层加载]
+正常对话中你不需要关心它。只有当模型调用某个大型 MCP 工具时，会先多出两步「检索/加载」动作来确定工具及其参数，这是预期行为，目的是节省上下文。
+:::
+
+### 设计方案概览
+
+分层加载完全位于 MCP Client 侧（OpenDesk 的 `McpMgrApplication`），**不要求第三方 MCP Server 实现任何额外协议**，对小型 MCP 用户完全兼容。核心机制：
+
+- **字符预算**：设置 16,000 字符的总大小上限，作为「直接加载」与「延迟加载」的分界；
+- **按 Server 分组延迟**：把工具分为 eager（直接注册）和 deferred（通过网关访问）两部分，同一 Server 的工具始终使用同一种加载模式，避免半加载的中间状态；
+- **三级网关**：延迟工具不直接暴露，而是通过 `mcpSearchTools`（关键词检索，返回精简摘要）、`mcpGetTool`（加载单个工具的完整定义）、`mcpCallTool`（转发实际调用）三个元工具分步访问；
+- **发现层不变**：`McpMgrWorker` 仍然负责发现并刷新工具列表，分层只作用于「工具注入层」。
+
+> 📷 **待补充示意图**：MCP 分层加载整体流程图（含字符预算分组与三级网关调用序列）。建议保存到 `/assets/images/introduction/mcp/tiered_arch.png`，并替换此处为 `![MCP 分层加载整体流程](/assets/images/introduction/mcp/tiered_arch.png)`。可参考方案设计说明书中的「整体架构」「分层加载决策流程」「延迟工具的三步调用序列」三张框图合并重绘。
