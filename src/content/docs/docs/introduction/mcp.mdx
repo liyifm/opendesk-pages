@@ -22,19 +22,11 @@ OpenDesk 支持两种主流的 MCP Server 连接方式：
 
 OpenDesk 的设计宗旨是所有复杂配置都由自然语言完成。你只要告诉 OpenDesk 你想要的 MCP Server 即可。如果给了详细的地址，OpenDesk 会自动过去查看它的配置；如果只给一个名字，OpenDesk 会自动从多个来源搜索匹配的 MCP Server。
 
-<img src="/assets/images/quickstart/mcpinstall.gif" alt="一句话安装 MCP Server" />
-
-常见的话术例如：
-
-- `帮我装一个 context7 MCP`
-- `安装 filesystem MCP，地址是 https://...`
-- `从 ModelScope 安装 search-mcp`
-
 ### 从 MCP Registry 安装
 
 桌面端接入了 MCP Registry，你可以在桌面端中直接从 **OpenHarmony Matrix** 和 **ModelScope** 这两个源安装 MCP 服务，无需手动寻找 npm 包或仓库。
 
-> 📷 **待补充截图**：桌面端 MCP Registry 安装界面。建议保存到 `/assets/images/introduction/mcp/registry_install.png`，并替换此处为 `![MCP Registry 安装界面](/assets/images/introduction/mcp/registry_install.png)`。
+![MCP Registry 安装界面](/assets/images/introduction/mcp/registry_install.png)
 
 在这里你可以浏览可用的 MCP 列表，查看每个 MCP 的简介和所需参数，点击安装即可一键接入。
 
@@ -42,7 +34,7 @@ OpenDesk 的设计宗旨是所有复杂配置都由自然语言完成。你只�
 
 除了对话式安装，你也可以通过设置界面手动管理已安装的 MCP Server：进入设置页面，找到「MCP 服务器」入口。
 
-> 📷 **待补充截图**：桌面端 MCP 管理列表。建议保存到 `/assets/images/introduction/mcp/gui_mcp_list.png`，并替换此处为 `![桌面端 MCP 管理列表](/assets/images/introduction/mcp/gui_mcp_list.png)`。
+![桌面端 MCP 管理列表](/assets/images/introduction/mcp/gui_mcp_list.png)
 
 在这里你可以：
 
@@ -61,9 +53,13 @@ OpenDesk 的设计宗旨是所有复杂配置都由自然语言完成。你只�
 
 与桌面端一致，Cli 中最推荐的方式也是直接对话完成管理：
 
+<img src="/assets/images/quickstart/mcpinstall.gif" alt="一句话安装 MCP Server" />
+
+常见的话术例如：
+
+- `帮我装一个 context7 MCP`
 - `帮我看一下现在装了哪些 MCP`
 - `把 filesystem MCP 禁用掉`
-- `安装一个新的 MCP，配置如下……`
 
 OpenDesk 会调用内置的 MCP 管理技能完成增删改查。
 
@@ -93,4 +89,4 @@ OpenDesk 通过 **MCP 工具分层加载**特性解决这个问题，让大型 M
 - **三级网关**：延迟工具不直接暴露，而是通过 `mcpSearchTools`（关键词检索，返回精简摘要）、`mcpGetTool`（加载单个工具的完整定义）、`mcpCallTool`（转发实际调用）三个元工具分步访问；
 - **发现层不变**：`McpMgrWorker` 仍然负责发现并刷新工具列表，分层只作用于「工具注入层」。
 
-> 📷 **待补充示意图**：MCP 分层加载整体流程图（含字符预算分组与三级网关调用序列）。建议保存到 `/assets/images/introduction/mcp/tiered_arch.png`，并替换此处为 `![MCP 分层加载整体流程](/assets/images/introduction/mcp/tiered_arch.png)`。可参考方案设计说明书中的「整体架构」「分层加载决策流程」「延迟工具的三步调用序列」三张框图合并重绘。
+![MCP 分层加载整体流程](/assets/images/introduction/mcp/tiered_arch.png)
