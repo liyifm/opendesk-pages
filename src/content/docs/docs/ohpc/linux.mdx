@@ -39,7 +39,7 @@ ifconfig | grep "inet "
 
 ```
 # 1. 下载 OpenDesk 的无头 Node 脚本
-wget https://gitcode.com/openharmony-robot/OpenDesk/blob/main/docs/examples/node/node_headless.py
+curl -o node_headless.py https://raw.gitcode.com/openharmony-robot/OpenDesk/raw/main/docs/examples/node/node_headless.py
 python3 node_headless.py --host 172.16.105.1 --port 19010 --shell-autorun install
 ```
 
