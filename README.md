@@ -39,6 +39,6 @@ corepack pnpm preview
 
 GitHub Actions builds and deploys the site on pushes to `main` or `master`.
 
-The production site is published at `https://opendesk.bitclub.ai`. GitHub Pages should be configured with `Build and deployment -> Source: GitHub Actions`.
+The production site is published at `https://opendesk.matrix.openharmony.cn`. GitHub Pages should be configured with `Build and deployment -> Source: GitHub Actions`.
 
 More operational details are in [docs/site-operations.md](docs/site-operations.md).

@@ -97,7 +97,7 @@ Repository settings required on `liyifm/opendesk-pages`:
 - GitHub Actions enabled.
 - GitHub Pages source set to `GitHub Actions`.
 - Workflow permissions allow Pages deployment through `pages: write` and `id-token: write`.
-- Custom domain set to `opendesk.bitclub.ai`, matching `public/CNAME`.
+- Custom domain set to `opendesk.matrix.openharmony.cn`, matching `public/CNAME`.
 
 `public/.nojekyll` is kept so GitHub Pages serves Astro assets exactly as generated.
 
@@ -105,8 +105,8 @@ Repository settings required on `liyifm/opendesk-pages`:
 
 The production branch should keep:
 
-- `site: 'https://opendesk.bitclub.ai'` in `astro.config.mjs`;
-- `public/CNAME` with `opendesk.bitclub.ai`.
+- `site: 'https://opendesk.matrix.openharmony.cn'` in `astro.config.mjs`;
+- `public/CNAME` with `opendesk.matrix.openharmony.cn`.
 
 For temporary personal previews such as `https://zhaohernando-code.github.io/`, use a throwaway deployment branch and change only the preview branch:
 

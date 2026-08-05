@@ -17,6 +17,13 @@ const hideFooter = frontmatter.hideFooter ?? false;
 <html lang="zh-CN">
   <head>
     <meta charset="utf-8" />
+    <script is:inline>
+    (function() {
+      if (location.hostname === 'opendesk.bitclub.ai') {
+        location.replace('https://opendesk.matrix.openharmony.cn' + location.pathname + location.search + location.hash);
+      }
+    })();
+    </script>
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <meta name="description" content={description} />
     <link rel="icon" href="/favicon.ico" />

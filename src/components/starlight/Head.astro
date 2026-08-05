@@ -3,6 +3,13 @@ import DefaultHead from '@astrojs/starlight/components/Head.astro';
 import { ClientRouter } from 'astro:transitions';
 ---
 
+<script is:inline>
+(function() {
+  if (location.hostname === 'opendesk.bitclub.ai') {
+    location.replace('https://opendesk.matrix.openharmony.cn' + location.pathname + location.search + location.hash);
+  }
+})();
+</script>
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@6.5.1/css/all.min.css" />
 <DefaultHead {...Astro.props} />
 <ClientRouter />

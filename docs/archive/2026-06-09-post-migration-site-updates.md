@@ -83,8 +83,8 @@ Preview deployment:
 
 Production configuration remains:
 
-- `astro.config.mjs` site: `https://opendesk.bitclub.ai`;
-- `public/CNAME`: `opendesk.bitclub.ai`;
+- `astro.config.mjs` site: `https://opendesk.matrix.openharmony.cn`;
+- `public/CNAME`: `opendesk.matrix.openharmony.cn`;
 - GitHub Pages deployment from `dist/` through `.github/workflows/deploy.yml`.
 
 ## Review Notes

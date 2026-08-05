@@ -6,7 +6,7 @@ const rootPath = root.pathname;
 const sourceFiles = [];
 const files = new Set();
 const routes = new Set(['/']);
-const siteOrigin = process.env.SITE_ORIGIN ?? 'https://opendesk.bitclub.ai';
+const siteOrigin = process.env.SITE_ORIGIN ?? 'https://opendesk.matrix.openharmony.cn';
 
 async function walk(dir) {
   const entries = await readdir(dir, { withFileTypes: true });
