@@ -1,5 +1,8 @@
 ---
 import { site } from '../../config/site';
+import fileManaging from '../../assets/images/gallery/file_managing.webm';
+import footerLogo from '../../assets/images/common/footer-logo.svg?url';
+import footerLogoDark from '../../assets/images/common/footer-logo-dark.svg?url';
 ---
 
 <section class="home-final snap-page">
@@ -12,18 +15,18 @@ import { site } from '../../config/site';
     </div>
   </div>
   <div class="home-final__visual">
-    <img src="/assets/images/gallery/file_managing.gif" alt="OpenDesk CLI 文件管理演示" />
+    <video src={fileManaging} autoplay loop muted playsinline />
   </div>
   <footer class="home-final__footer">
     <div class="site-footer__top">
       <img
         class="site-footer__logo site-footer__logo--light"
-        src="/assets/images/common/footer-logo.svg"
+        src={footerLogo}
         alt="OpenAtom OpenHarmony"
       />
       <img
         class="site-footer__logo site-footer__logo--dark"
-        src="/assets/images/common/footer-logo-dark.svg"
+        src={footerLogoDark}
         alt="OpenAtom OpenHarmony"
       />
       <div class="site-footer__social">

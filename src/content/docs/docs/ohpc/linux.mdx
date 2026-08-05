@@ -9,21 +9,21 @@ description: "OpenDesk 文档中心"
 
 [融合开发引擎](https://appgallery.huawei.com/app/detail?id=com.huawei.developer.rgm.images_openeuler22.03&channelId=SHARE&source=appshare) 是华为终端官方开发的鸿蒙PC免费虚拟机工具。该软件包自带 OpenEuler 虚拟机镜像（现阶段也仅支持该镜像），可以在鸿蒙PC中进入 OpenEuler 系统的命令行执行 Linux 命令。
 
-![](/assets/images/openharmony/fuse_engine.jpg)
+![](../../../../assets/images/openharmony/fuse_engine.jpg)
 
 在应用市场安装完成后，你可以直接在应用菜单中找到 *融合开发引擎* 点击启动，也可以直接在系统的终端应用中，创建新标签页时选择 OpenEuler，两种方式进入的是同一个 Shell。
 
-![](/assets/images/openharmony/hishell_openeuler.jpg)
+![](../../../../assets/images/openharmony/hishell_openeuler.jpg)
 
 ## 在 OpenDesk 中打开网关服务
 
 当前如果你需要连接融合开发引擎执行任务，需要手动在 OpenDesk 中让网关监听所有地址。如果你使用的是 OpenDesk Cli，你需要输入 `/config` 后进入网关设置选项，在里面把监听地址切换为 `0.0.0.0`，即监听所有来源的请求。
 
-![](/assets/images/gateway/cli_gateway.png)
+![](../../../../assets/images/gateway/cli_gateway.png)
 
 在 OpenDesk 桌面端中，点击左下角的设置按钮，然后点击通用设置，就可以找到网关设置界面，如下图所示。
 
-![](/assets/images/gateway/gui_gateway.png)
+![](../../../../assets/images/gateway/gui_gateway.png)
 
 ## 在融合开发引擎中启动 OpenDesk 节点
 
@@ -49,7 +49,7 @@ python3 node_headless.py --host 172.16.105.1 --port 19010 --shell-autorun instal
 
 在节点启动完成之后，打开 OpenDesk，之后在输入框中就可以看到节点选择界面。这里可以选择 Local （即鸿蒙侧执行）和 Headless Node （即虚拟机侧执行）。需要注意的是，OpenDesk 总是可以同时看到所有节点，在这里选择 Local 或者 Headless Node 意味着优先执行位置。比如同样一个任务，如果选择了 Headless Node 就会优先在虚拟机侧执行。反之，则只有在在鸿蒙侧无法执行下去的时候才会调度到虚拟机执行。
 
-![](/assets/images/gateway/switch_node.jpg)
+![](../../../../assets/images/gateway/switch_node.jpg)
 
-![](/assets/images/gateway/node_shell.jpg)
+![](../../../../assets/images/gateway/node_shell.jpg)
 

@@ -11,15 +11,13 @@ description: ""
 
 在桌面端中创建新任务时，你可以通过输入框右下角的「选择文件夹」按钮来指定工作空间。
 
-![选择工作空间](/assets/images/introduction/workspace/select.png)
+![选择工作空间](../../../../assets/images/introduction/workspace/select.png)
 
 点击后会弹出系统文件选择器，选择你想要操作的目录即可。OpenDesk 会记住最近使用过的 20 个工作空间，方便你快速切换。
 
 ### 查看和修改当前工作空间
 
 在任务执行过程中，你可以随时通过输入框正上方的「当前工作空间」按钮查看当前目录，也可以点击它来修改工作空间。
-
-![当前工作空间](/assets/images/introduction/workspace/current.png)
 
 ### 设置默认工作空间
 
@@ -60,8 +58,6 @@ opendesk
 
 此时工作空间会自动设为当前所在目录。
 
-![CLI 启动工作空间](/assets/images/introduction/workspace/cli_start.png)
-
 ### Server 模式下指定工作空间
 
 如果你使用 Server 模式启动 OpenDesk，可以通过 HTTP 请求指定工作目录：
@@ -81,8 +77,6 @@ curl -H 'x-opencode-directory: /repo/demo' http://127.0.0.1:4096/path
 ## 工作空间与文件引用
 
 在工作空间中，你可以使用 `@` 符号快速引用文件、文档等上下文信息。在输入框中输入 `@` 后，会弹出当前工作空间内的文件列表供你选择。
-
-![文件引用](/assets/images/introduction/workspace/mention.png)
 
 :::tip[工作空间边界]
 OpenDesk 的所有文件操作都严格限制在工作空间目录内。即使你在对话中提到了工作空间之外的文件路径，OpenDesk 也会拒绝访问。这是为了保护你的文件系统安全。

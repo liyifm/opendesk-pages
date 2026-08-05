@@ -4,6 +4,7 @@ description: "通过 Agent Client Protocol (ACP) 将 OpenDesk 接入 VS Code，�
 ---
 
 import { Tabs, TabItem } from '@astrojs/starlight/components';
+import acpclientDemo from '../../../../assets/images/quickstart/vscode/acpclient-demo.webm';
 
 OpenDesk 实现了 [Agent Client Protocol (ACP)](https://agentclientprotocol.org/)，这是一个类似 LSP 的开放协议，用于标准化代码编辑器与 AI Agent 之间的通信。通过 ACP，你可以在 VS Code 中直接调用 OpenDesk 的全部能力——包括文件读写、终端执行、MCP 工具、技能系统等。
 
@@ -14,7 +15,7 @@ OpenDesk 实现了 [Agent Client Protocol (ACP)](https://agentclientprotocol.org
 2. **完成模型配置**: 首次使用前需要配置至少一个大模型服务商。运行 `opendesk`，进入 OpenDesk Cli 后输入 `/config` 按提示配置模型, 并确认模型可用性;
     - 当前主流的 ACP 客户端中支持切换模型，但不支持配置模型列表，因此当你需要增加新模型的时候总是要先进入 OpenDesk Cli 来完成配置， 例如:
 
-![模型配置界面](/assets/images/quickstart/vscode/model-config.png)
+![模型配置界面](../../../../assets/images/quickstart/vscode/model-config.png)
 
 ## 验证 ACP 服务可用
 
@@ -65,7 +66,7 @@ VS Code 本身不内置 ACP 支持，需要安装第三方 ACP 客户端插件�
 
 或者在左侧点击打开 ACP Client 的插件面板 (也可直接输入 Ctrl + Shift + A)，单击 Add Agent 后根据提示输入上述内容。
 
-![ACP Client 配置界面](/assets/images/quickstart/vscode/acpclient-config.png)
+![ACP Client 配置界面](../../../../assets/images/quickstart/vscode/acpclient-config.png)
 
 配置完成后，点击侧栏的 **ACP** 图标打开面板，点击 Connect to Agent 后选择 **OpenDesk** 即可连接。
 
@@ -73,7 +74,7 @@ VS Code 本身不内置 ACP 支持，需要安装第三方 ACP 客户端插件�
   <TabItem label="Multicoder ACP">
 
 MultiCoder ACP 最新版本的配置不在 VSCode 中管理，而是在它自己的配置目录下。在配置 MultiCoder ACP时，你要先在左侧找到 MultiCoder 的插件面板，点击 `New Session` 然后按下图的位置找到 Agent Settings：
-![MultiCoder ACP 配置界面](/assets/images/quickstart/vscode/multicoder-config.png)
+![MultiCoder ACP 配置界面](../../../../assets/images/quickstart/vscode/multicoder-config.png)
 
 ```jsonc
 {
@@ -115,7 +116,7 @@ export PATH=$(npm prefix -g)/bin:$PATH
 2. OpenDesk 会自动读取当前工作区上下文，执行文件编辑、终端命令等操作
 3. 所有工具调用和权限请求都会在 VS Code 中展示，你可以逐一审批
 
-![对话效果](/assets/images/quickstart/vscode/acpclient-demo.gif)
+<video src={acpclientDemo} autoplay loop muted playsinline />
 
 通过 ACP 连接后，OpenDesk 的以下能力可以在 VS Code 中直接使用：
 

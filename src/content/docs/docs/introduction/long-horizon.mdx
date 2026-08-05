@@ -28,7 +28,7 @@ description: ""
 
 如果当前任务需要持续推进直至达成某个目标，可以在输入框下方点击"创建目标"。点击后右侧任务进展区会自动展开，你可以在该区域描述希望 OpenDesk 完成的事情，然后点击"开始跟进"。
 
-![创建goal](/assets/images/advanced/long-horizon/goal/gui_create_goal.png)
+![创建goal](../../../../assets/images/advanced/long-horizon/goal/gui_create_goal.png)
 
 
 ### 查看执行进度
@@ -40,11 +40,11 @@ description: ""
 - **最近评估**：最近一次目标评估的结果和依据（评估发生后才会出现）；
 - **时间线**：Goal 的创建、编辑和完成记录，每条包含时间戳、目标内容和原目标（如有修改）。
 
-![查看goal状态](/assets/images/advanced/long-horizon/goal/gui_track_goal.png)
+![查看goal状态](../../../../assets/images/advanced/long-horizon/goal/gui_track_goal.png)
 
 每轮工作结束前，OpenDesk 会自动评估目标是否达成。对话区和侧边栏会同时显示"正在评估目标达成情况…"提示。
 
-![评估goal](/assets/images/advanced/long-horizon/goal/gui_evaluate_goal.png)
+![评估goal](../../../../assets/images/advanced/long-horizon/goal/gui_evaluate_goal.png)
 
 评估完成后，"最近评估"区域会显示详细结果：
 
@@ -55,16 +55,16 @@ description: ""
 
 当目标已达成时，Goal 自动进入"已完成"状态，此时可以通过右侧面板中的“创建目标”按钮新建需要跟进的目标。
 
-![评估goal](/assets/images/advanced/long-horizon/goal/gui_complete_goal.png)
+![评估goal](../../../../assets/images/advanced/long-horizon/goal/gui_complete_goal.png)
 
 ### 在执行中补充信息
 
 当 Goal 正在执行时，可以继续发送纯文本消息。文本消息会默认进入消息队列中，你可以选择立即发送，或继续在队列中等待当前goal执行结束后再发送。
 
-![添加补充信息](/assets/images/advanced/long-horizon/goal/gui_goal_supplement_queue.png)
+![添加补充信息](../../../../assets/images/advanced/long-horizon/goal/gui_goal_supplement_queue.png)
 
 若选择立即发送，该文本消息会作为当前 Goal 的补充信息，而不是一个独立的新任务。OpenDesk 会在当前工具执行结束后读取补充内容，并结合它继续推进。
-![执行补充信息](/assets/images/advanced/long-horizon/goal/gui_goal_supplement.png)
+![执行补充信息](../../../../assets/images/advanced/long-horizon/goal/gui_goal_supplement.png)
 
 需要注意的是，Goal 正在执行时，图片和附件不能作为补充信息发送。你可以先用文字补充要求，或者暂停、清除 Goal 后再按普通任务的方式发送附件。
 
@@ -77,7 +77,7 @@ description: ""
 - **恢复**：继续推进已暂停或已阻塞的 Goal（只有暂停或阻塞状态下才会显示）。
 - **清除**：退出 Goal 控制。清除后，OpenDesk 不会再自动继续这个 Goal。
 
-![编辑goal](/assets/images/advanced/long-horizon/goal/edit_goal.png)
+![编辑goal](../../../../assets/images/advanced/long-horizon/goal/edit_goal.png)
 
 编辑时，面板会展开为编辑模式，显示目标描述输入框以及"保存"和"取消"按钮。时间线会同步记录本次编辑，包含新目标和原目标，以便你回溯变更历史。
 
@@ -87,13 +87,13 @@ description: ""
 
 在 CLI 输入 `/goal <目标>`：
 
-![cli创建goal](/assets/images/advanced/long-horizon/goal/cli_create_goal.png)
+![cli创建goal](../../../../assets/images/advanced/long-horizon/goal/cli_create_goal.png)
 
 如果当前还没有任务，OpenDesk 会自动创建一个任务并开始执行 Goal。
 
 当前任务已有未结束的 Goal 时，再输入一个不同的 `/goal <目标>`，CLI 会提示是否需要修改当前 Goal。确认后，OpenDesk 会按新的目标继续。
 
-![cli更新goal](/assets/images/advanced/long-horizon/goal/cli_edit_goal.png)
+![cli更新goal](../../../../assets/images/advanced/long-horizon/goal/cli_edit_goal.png)
 
 CLI 会显示当前 Goal 和新 Goal 的对比，并提供"修改 Goal"和"取消"两个选项。选择"修改 Goal"后，当前执行将按照新目标继续。
 
@@ -107,11 +107,11 @@ Goal 创建后，CLI 会显示 Goal 面板。面板中包含以下信息：
 - **Token 计数**：当前 Goal 执行过程中已消耗的 Token 数量；
 - **最近评估**：最近一次评估结果和依据（如果已经发生过评估）。
 
-![cli查看goal](/assets/images/advanced/long-horizon/goal/cli_new_goal.png)
+![cli查看goal](../../../../assets/images/advanced/long-horizon/goal/cli_new_goal.png)
 
 每轮工作结束前，CLI 会显示评估过程和结果。如果目标尚未达成，OpenDesk 会自动开始下一轮。Goal 完成后，CLI 面板会显示"已完成"状态，以及最近评估的结论和证据。
 
-![cli完成goal](/assets/images/advanced/long-horizon/goal/cli_complete_goal.png)
+![cli完成goal](../../../../assets/images/advanced/long-horizon/goal/cli_complete_goal.png)
 
 
 
@@ -119,7 +119,7 @@ Goal 创建后，CLI 会显示 Goal 面板。面板中包含以下信息：
 
 Goal 正在执行时，直接输入纯文本即可添加补充信息：
 
-![cli补充goal](/assets/images/advanced/long-horizon/goal/cli_supplement_goal.png)
+![cli补充goal](../../../../assets/images/advanced/long-horizon/goal/cli_supplement_goal.png)
 
 CLI 会提示"Goal 正在执行，你的消息已作为补充信息加入，将在当前工具结束后生效"。补充消息不会进入普通消息等待队列。
 
@@ -129,7 +129,7 @@ CLI 会提示"Goal 正在执行，你的消息已作为补充信息加入，将�
 
 在 CLI 中输入 `/goal help` 可以查看所有 Goal 相关指令：
 
-![cli goal help](/assets/images/advanced/long-horizon/goal/cli_goal_help.png)
+![cli goal help](../../../../assets/images/advanced/long-horizon/goal/cli_goal_help.png)
 
 可用的指令如下：
 

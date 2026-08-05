@@ -50,4 +50,4 @@ summary: "编辑器从 Monaco 迁移至 Ace、华为云模型支持、个人中�
 
 注: 鸿蒙安装包需要自己通过 [Deveco Studio](http://developer.huawei.com/consumer/cn/deveco-studio/) 或 [Auto-installer](https://github.com/likuai2010/auto-installer/) 手动签名后安装。
 
-![telemetry](/assets/images/profile/telemetry.png)
+![telemetry](../../assets/images/profile/telemetry.png)

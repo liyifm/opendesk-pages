@@ -1,7 +1,9 @@
 ---
+import { Image } from 'astro:assets';
 import { site } from '../config/site';
 import SiteSearch from './header/SiteSearch.astro';
 import ThemeToggle from './header/ThemeToggle.astro';
+import cliLogo from '../assets/images/cli-logo.png';
 
 interface Props {
   variant?: 'default' | 'landing';
@@ -15,7 +17,7 @@ const navItems = site.nav;
   <header class:list={['site-header', variant === 'landing' && 'site-header--landing']}>
     <div class="site-header__inner">
       <a class="site-brand" href="/" aria-label="OpenDesk">
-        <img src="/assets/images/cli-logo.png" alt="" width="148" height="34" />
+        <Image src={cliLogo} alt="" width="148" height="34" />
         <span>{site.title}</span>
       </a>
       <div class="site-header__search">

@@ -54,6 +54,7 @@ a {
 img {
   display: block;
   max-width: 100%;
+  height: auto;
 }
 
 .site-shell {
@@ -1151,7 +1152,7 @@ img {
 
 .home-hero::before {
   inset: 0;
-  background: url("/assets/images/common/banner.jpg") center / cover no-repeat;
+  background: url("../assets/images/common/banner.jpg") center / cover no-repeat;
 }
 
 .home-hero::after {

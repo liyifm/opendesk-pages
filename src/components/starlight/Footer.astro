@@ -1,5 +1,7 @@
 ---
 import { site } from '../../config/site';
+import footerLogo from '../../assets/images/common/footer-logo.svg?url';
+import footerLogoDark from '../../assets/images/common/footer-logo-dark.svg?url';
 ---
 
 <footer class="opendesk-sl-footer">
@@ -7,12 +9,12 @@ import { site } from '../../config/site';
     <div class="opendesk-sl-footer__top">
       <img
         class="opendesk-sl-footer__logo opendesk-sl-footer__logo--light"
-        src="/assets/images/common/footer-logo.svg"
+        src={footerLogo}
         alt="OpenAtom OpenHarmony"
       />
       <img
         class="opendesk-sl-footer__logo opendesk-sl-footer__logo--dark"
-        src="/assets/images/common/footer-logo-dark.svg"
+        src={footerLogoDark}
         alt="OpenAtom OpenHarmony"
       />
       <div class="opendesk-sl-footer__social">

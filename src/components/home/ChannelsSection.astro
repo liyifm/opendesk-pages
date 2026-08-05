@@ -1,4 +1,7 @@
 ---
+import { Image } from 'astro:assets';
+import phoneScanning from '../../assets/images/channels/feishu/phone_scanning.png';
+
 const channels = [
   ['Feishu', '扫码创建或绑定机器人，让移动端消息成为桌面工作入口。'],
   ['Weixin', '复用微信插件生态，把日常对话交给 OpenDesk 回到电脑侧执行。'],
@@ -23,7 +26,7 @@ const channels = [
   </div>
   <div class="home-phone-panel" aria-label="手机扫码连接飞书">
     <div class="home-phone-shot">
-      <img src="/assets/images/channels/feishu/phone_scanning.png" alt="手机扫码连接飞书" />
+      <Image src={phoneScanning} alt="手机扫码连接飞书" />
     </div>
   </div>
 </section>

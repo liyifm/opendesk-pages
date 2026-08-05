@@ -1,11 +1,15 @@
 ---
+import { Image } from 'astro:assets';
 import SiteLayout from '../layouts/SiteLayout.astro';
+import fileOrganizeSmall from '../assets/images/gallery/file_organize_small.png';
+import fileTransferSmall from '../assets/images/gallery/file_transfer_small.png';
+import fileBatchSmall from '../assets/images/gallery/file_batch_small.png';
 
 const cases = [
   {
     title: '文件整理',
     href: '/gallery/file_organize/',
-    image: '/assets/images/gallery/file_organize_small.png',
+    image: fileOrganizeSmall,
     alt: '整理文件',
     description:
       '把混乱的目录重新归档，清理过时或重复的内容，自动把文件改成合适的名字。',
@@ -13,7 +17,7 @@ const cases = [
   {
     title: '远程文件查找',
     href: '/gallery/file_transfer/',
-    image: '/assets/images/gallery/file_transfer_small.png',
+    image: fileTransferSmall,
     alt: '远程文件查找',
     description:
       '出差路上急需电脑上的重要文件时，通过飞书机器人等渠道联系 OpenDesk 快速找到内容。',
@@ -21,7 +25,7 @@ const cases = [
   {
     title: '批量文件处理',
     href: '/gallery/file_batch/',
-    image: '/assets/images/gallery/file_batch_small.png',
+    image: fileBatchSmall,
     alt: '批量文件处理',
     description:
       '把压缩视频、裁剪图片、调整格式等重复动作交给 OpenDesk 连续执行。',
@@ -42,7 +46,7 @@ const cases = [
       {
         cases.map((item) => (
           <a class="gallery-card" href={item.href}>
-            <img src={item.image} alt={item.alt} loading="lazy" />
+            <Image src={item.image} alt={item.alt} loading="lazy" />
             <span>{item.title}</span>
             <p>{item.description}</p>
           </a>

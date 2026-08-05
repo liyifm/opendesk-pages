@@ -54,7 +54,7 @@ $ ./jaeger
 
 确认容器或进程已启动后，访问 `http://localhost:16686`，应能看到 Jaeger 的查询页面。
 
-![Jaeger UI 首页](/assets/images/opentelemetry/jaegerhome.png)
+![Jaeger UI 首页](../../../../assets/images/opentelemetry/jaegerhome.png)
 
 ### Jaeger 的常用服务路径
 
@@ -77,7 +77,7 @@ OpenDesk 的遥测配置存储在 `setting.json` 中，路径为 `telemetry.open
 4. 点击 **添加端点**，填写端点 URL（如 `http://localhost:4318/v1/traces`），开启"启用此端点"
 5. 保存后配置即时生效，无需重启应用
 
-![GUI 遥测设置页面](/assets/images/opentelemetry/guiconfig.png)
+![GUI 遥测设置页面](../../../../assets/images/opentelemetry/guiconfig.png)
 
 > 配置变更时，OpenDesk 会热重载 OTel SDK——先刷新所有待发送的 Span，再根据新配置重新初始化 Provider。整个过程无需重启。
 
@@ -85,7 +85,7 @@ OpenDesk 的遥测配置存储在 `setting.json` 中，路径为 `telemetry.open
 
 启动 OpenDesk Cli 后输出 `/config`进入配置页面。
 
-![TUI 遥测设置页面](/assets/images/opentelemetry/cliconfig.png)
+![TUI 遥测设置页面](../../../../assets/images/opentelemetry/cliconfig.png)
 
 选择 **遥测设置** 页面打开，在遥测设置页面中：
 - 按 `+ 添加端点` 新增 OTLP 端点
@@ -93,7 +93,7 @@ OpenDesk 的遥测配置存储在 `setting.json` 中，路径为 `telemetry.open
 - 支持设置端点 URL、协议类型和启用开关
 - 保存后自动热重载
 
-![TUI 遥测设置页面](/assets/images/opentelemetry/cliconfig2.png)
+![TUI 遥测设置页面](../../../../assets/images/opentelemetry/cliconfig2.png)
 
 ### 直接编辑 setting.json 添加配置
 
@@ -202,7 +202,7 @@ task.turn                              # 一个对话回合
 3. 点击 **Find Traces** 查看追踪列表
 4. 点击任意一条 Trace 查看完整的调用链瀑布图
 
-![Jaeger Trace 详情](/assets/images/opentelemetry/hierarchy.png)
+![Jaeger Trace 详情](../../../../assets/images/opentelemetry/hierarchy.png)
 
 ### 常见问题
 
