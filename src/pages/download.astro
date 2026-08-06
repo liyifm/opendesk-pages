@@ -1,6 +1,6 @@
 ---
 import { getCollection } from 'astro:content';
-import DownloadTabs from '../components/DownloadTabs.astro';
+import DownloadCard from '../components/DownloadCard.astro';
 import SiteLayout from '../layouts/SiteLayout.astro';
 
 const notes = (await getCollection('releaseNotes')).sort(
@@ -22,24 +22,6 @@ const cleanMarkdownText = (text: string) =>
 const inferVersion = (note: ReleaseNote) => {
   const match = `${note.data.title}\n${note.body}`.match(/\b\d+\.\d+\.\d+(?:-[a-z0-9.-]+)?\b/i);
   return match?.[0] ?? note.data.title;
-};
-
-const inferSummary = (body: string) => {
-  const lines = body
-    .split('\n')
-    .map((line) => line.trim())
-    .filter((line) => {
-      if (!line) return false;
-      if (line.startsWith('#')) return false;
-      if (line.startsWith('**Cli**') || line.startsWith('**桌面端**')) return false;
-      if (line.startsWith('注:') || line.startsWith('- [')) return false;
-      return true;
-    })
-    .slice(0, 2)
-    .map(cleanMarkdownText)
-    .filter(Boolean);
-
-  return lines.join(' ') || '查看版本说明了解本次更新内容。';
 };
 
 const findMarkdownLink = (body: string, labelPattern: RegExp) => {
@@ -67,7 +49,7 @@ const toDownloadItem = (note?: ReleaseNote) => {
     version: note.data.version ?? inferVersion(note),
     date: note.data.date,
     category: note.data.category,
-    summary: note.data.summary ?? inferSummary(note.body),
+    summary: note.data.summary ?? note.data.title,
     cli: note.data.downloads?.cli ?? inferCliCommand(note.body),
     windows: windowsUrl
       ? {
@@ -91,23 +73,101 @@ const toDownloadItem = (note?: ReleaseNote) => {
   };
 };
 
-const latestStable = toDownloadItem(notes.find((note) => note.data.category === 'stable-release'));
-const latestNightly = toDownloadItem(notes.find((note) => note.data.category === 'nightly-release'));
+const allItems = notes.map(toDownloadItem).filter(Boolean) as NonNullable<ReturnType<typeof toDownloadItem>>[];
+const latestStable = allItems.find((item) => item.category === 'stable-release');
+const recentVersions = allItems.slice(0, 6);
+
+const formatDate = new Intl.DateTimeFormat('zh-CN', {
+  year: 'numeric',
+  month: 'long',
+  day: 'numeric',
+});
 ---
 
 <SiteLayout frontmatter={{ title: '下载 OpenDesk', description: '下载 OpenDesk 稳定版和每日构建' }}>
   <section class="content-page download-page">
     <div class="download-page__grid">
       <div class="download-page__content">
-        <DownloadTabs stable={latestStable} nightly={latestNightly} />
+        {
+          latestStable ? (
+            <DownloadCard item={latestStable} variant="stable" />
+          ) : (
+            <article class="download-card">
+              <h2 class="download-card__version">暂无可用版本</h2>
+              <p class="download-card__summary">当前还没有可下载的版本。</p>
+              <footer class="download-card__links">
+                <a href="/news/">查看历史版本</a>
+              </footer>
+            </article>
+          )
+        }
       </div>
-      <header class="download-page__header">
-        <h1>下载 OpenDesk</h1>
-        <p>选择适合你的版本，开始使用 AI 驱动的桌面工作流助手</p>
-        <ul class="download-page__links">
-          <li><a href="/news/">查看完整更新历史</a></li>
+      <aside class="download-page__sidebar">
+        <h2 class="download-sidebar__title">最近发布的版本</h2>
+        <ul class="download-version-list">
+          {recentVersions.map((item) => (
+            <li class="download-version-item">
+              <a href={item.noteUrl} class="download-version-link">
+                <span class="download-version-item__top">
+                  <span class="download-version-item__version">{item.version}</span>
+                  <span class={`download-version-item__badge${item.category === 'stable-release' ? ' download-version-item__badge--stable' : ' download-version-item__badge--nightly'}`}>
+                    {item.category === 'stable-release' ? '稳定版' : '日构建'}
+                  </span>
+                  <span class="download-version-item__date">{formatDate.format(item.date)}</span>
+                </span>
+                <span class="download-version-item__summary">{item.summary}</span>
+              </a>
+            </li>
+          ))}
         </ul>
-      </header>
+        <a class="download-sidebar__more" href="/news/">查看所有历史版本 →</a>
+      </aside>
     </div>
   </section>
 </SiteLayout>
+
+<script>
+  const writeClipboardText = async (text: string) => {
+    if (navigator.clipboard?.writeText) {
+      await navigator.clipboard.writeText(text);
+      return;
+    }
+
+    const textarea = document.createElement('textarea');
+    textarea.value = text;
+    textarea.setAttribute('readonly', '');
+    textarea.style.position = 'fixed';
+    textarea.style.opacity = '0';
+    document.body.append(textarea);
+    textarea.select();
+    document.execCommand('copy');
+    textarea.remove();
+  };
+
+  const setupCopyButtons = () => {
+    document.querySelectorAll<HTMLButtonElement>('[data-copy-text]').forEach((button) => {
+      if (button.dataset.copyReady === 'true') return;
+      button.dataset.copyReady = 'true';
+
+      button.addEventListener('click', async () => {
+        const text = button.dataset.copyText;
+        if (!text) return;
+
+        const originalLabel = button.textContent ?? '复制';
+        try {
+          await writeClipboardText(text);
+          button.textContent = '已复制';
+        } catch {
+          button.textContent = '复制失败';
+        }
+
+        window.setTimeout(() => {
+          button.textContent = originalLabel;
+        }, 2000);
+      });
+    });
+  };
+
+  setupCopyButtons();
+  document.addEventListener('astro:page-load', setupCopyButtons);
+</script>

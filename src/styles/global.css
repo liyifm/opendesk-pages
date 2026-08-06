@@ -925,6 +925,124 @@ img {
   background: var(--download-nightly-soft);
 }
 
+/* ---- Download sidebar version list ---- */
+
+.download-page__sidebar {
+  flex: 0 0 350px;
+  min-width: 0;
+  padding-top: 8px;
+  overflow: hidden;
+}
+
+.download-sidebar__title {
+  margin: 0 0 20px;
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--ink);
+}
+
+.download-version-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.download-version-item {
+  margin: 0;
+}
+
+.download-version-link {
+  display: block;
+  padding: 10px 12px;
+  border-radius: 6px;
+  text-decoration: none;
+  color: var(--ink);
+  overflow: hidden;
+  transition: background 140ms ease;
+}
+
+.download-version-link:hover {
+  background: rgba(16, 19, 20, 0.04);
+}
+
+.download-version-item__top {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.download-version-item__version {
+  font-weight: 600;
+  font-family: "SFMono-Regular", Consolas, "Liberation Mono", monospace;
+  font-size: 12px;
+  white-space: nowrap;
+}
+
+.download-version-item__badge {
+  display: inline-flex;
+  align-items: center;
+  flex: 0 0 auto;
+  border-radius: 999px;
+  padding: 1px 8px;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  white-space: nowrap;
+}
+
+.download-version-item__badge--stable {
+  background: var(--download-stable-soft);
+  color: var(--download-stable-deep);
+}
+
+.download-version-item__badge--nightly {
+  background: rgba(16, 19, 20, 0.06);
+  color: var(--muted);
+}
+
+.download-version-item__date {
+  color: var(--muted);
+  font-size: 11px;
+  margin-left: auto;
+  white-space: nowrap;
+}
+
+.download-version-item__summary {
+  display: block;
+  margin-top: 4px;
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 1.45;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.download-sidebar__more {
+  display: inline-block;
+  margin-top: 16px;
+  color: var(--download-stable-deep);
+  font-size: 13px;
+  font-weight: 600;
+  text-decoration: none;
+  transition: opacity 160ms ease;
+}
+
+.download-sidebar__more:hover {
+  opacity: 0.7;
+}
+
+:root[data-theme="dark"] .download-version-link:hover {
+  background: rgba(247, 243, 234, 0.06);
+}
+
+:root[data-theme="dark"] .download-version-item__badge--nightly {
+  background: rgba(247, 243, 234, 0.08);
+}
+
 .gallery-page {
   max-width: 100%;
 }
