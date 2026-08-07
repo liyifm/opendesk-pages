@@ -1,25 +1,139 @@
 ---
+import { getCollection } from 'astro:content';
 import { Image } from 'astro:assets';
-import firsttimeGui from '../../assets/images/quickstart/firsttime_gui.jpg';
+import homepage from '../../assets/images/quickstart/homepage.jpg';
+import homepageDark from '../../assets/images/quickstart/homepage_dark.jpg';
+import cliDemo from '../../assets/images/gallery/file_managing.webm';
+
+const notes = await getCollection('releaseNotes');
+const sorted = notes.sort((a, b) => b.data.date.getTime() - a.data.date.getTime());
+const latestStable = sorted.find((n) => n.data.category === 'stable-release');
+const downloads = latestStable?.data.downloads;
+const version = latestStable?.data.version ?? '';
+const windowsUrl = downloads?.windows?.url ?? '';
+const macosUrl = downloads?.macos?.url ?? '';
 ---
 
 <section class="home-hero snap-page">
   <div class="home-hero__inner">
     <div class="home-hero__copy">
-      <div class="home-eyebrow">Personal AI operator</div>
+      <div class="home-eyebrow">编程/轻办公一站式生产力智能体</div>
       <h1>OpenDesk</h1>
       <p>把模型、MCP、Skills 和消息渠道连接成一个可长期运行的桌面智能体。让它整理文件、连接飞书微信、执行开发任务，并把结果送回你手边。</p>
       <div class="home-actions">
-        <a class="home-button home-button--primary" href="/docs/quickstart/cli/">快速开始</a>
+        <div class="home-actions__tabs">
+          <button class="home-actions__tab is-active" data-tab="desktop" type="button">安装桌面端</button>
+          <button class="home-actions__tab" data-tab="cli" type="button">安装 CLI</button>
+        </div>
+        <div class="home-actions__panel is-active" data-panel="desktop">
+          <p class="home-actions__desc">桌面客户端适合大多数办公和开发场景，如资料搜索，文档制作，网站设计，应用开发等。OpenDesk 桌面端支持所有主流操作系统使用。</p>
+          <div class="home-actions__row">
+            <a
+              class="home-button home-button--primary home-button--download"
+              href="/download"
+              data-download-btn
+              data-windows={windowsUrl}
+              data-macos={macosUrl}
+              data-fallback="/download"
+              data-version={version}
+            >
+              <span class="home-button__label">
+                <svg class="home-button__icon" aria-hidden="true" width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+                  <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+                  <polyline points="7 10 12 15 17 10"/>
+                  <line x1="12" y1="15" x2="12" y2="3"/>
+                </svg>
+                下载桌面端
+              </span>
+              <span class="home-button__hint" data-download-hint>(自动识别对应平台)</span>
+            </a>
+            <a class="home-button" href="/docs/quickstart/desktop/">
+              <svg class="home-button__icon" aria-hidden="true" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round">
+                <line x1="5" y1="12" x2="19" y2="12"/>
+                <polyline points="12 5 19 12 12 19"/>
+              </svg>
+              快速开始
+            </a>
+          </div>
+        </div>
+        <div class="home-actions__panel" data-panel="cli">
+          <p class="home-actions__desc">CLI 与桌面 App 共享同一套智能体能力。你可以在命令行里发起任务、观察执行过程、接入同样的模型、插件、MCP 与 Skills，用更简约、更极客的入口把工作交给 OpenDesk。</p>
+          <div class="home-terminal-strip">
+            <code><span>$</span> npm i -g @bitclub.ai/opendesk-cli</code>
+          </div>
+          <div class="home-actions__row">
+            <a class="home-button" href="/docs/manual/cli/">
+              <svg class="home-button__icon" aria-hidden="true" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round">
+                <line x1="5" y1="12" x2="19" y2="12"/>
+                <polyline points="12 5 19 12 12 19"/>
+              </svg>
+              浏览 CLI 手册
+            </a>
+          </div>
+        </div>
       </div>
     </div>
     <div class="home-product-visual" aria-label="OpenDesk 产品界面预览">
-      <div class="home-window">
-        <Image src={firsttimeGui} alt="OpenDesk 桌面界面" />
+      <div class="home-window" data-visual="desktop">
+        <Image class="home-window__img home-window__img--light" src={homepage} alt="OpenDesk 桌面界面" />
+        <Image class="home-window__img home-window__img--dark" src={homepageDark} alt="OpenDesk 桌面界面" />
+      </div>
+      <div class="home-window" data-visual="cli" style="display:none">
+        <video class="home-window__video" src={cliDemo} autoplay loop muted playsinline />
       </div>
     </div>
   </div>
-  <div class="home-terminal-strip">
-    <code><span>$</span> npm i -g @bitclub.ai/opendesk-cli</code>
-  </div>
 </section>
+
+<script>
+  // Tab switching
+  const tabs = document.querySelectorAll('[data-tab]');
+  const panels = document.querySelectorAll('[data-panel]');
+
+  tabs.forEach((tab) => {
+    tab.addEventListener('click', () => {
+      const target = tab.dataset.tab;
+      tabs.forEach((t) => t.classList.remove('is-active'));
+      panels.forEach((p) => p.classList.remove('is-active'));
+      tab.classList.add('is-active');
+      document.querySelector(`[data-panel="${target}"]`)?.classList.add('is-active');
+
+      // Switch product visual
+      const desktopVisual = document.querySelector('[data-visual="desktop"]');
+      const cliVisual = document.querySelector('[data-visual="cli"]');
+      if (desktopVisual) desktopVisual.style.display = target === 'desktop' ? '' : 'none';
+      if (cliVisual) cliVisual.style.display = target === 'cli' ? '' : 'none';
+    });
+  });
+
+  // OS detection
+  const btn = document.querySelector('[data-download-btn]');
+  const hint = document.querySelector('[data-download-hint]');
+  if (btn) {
+    const ua = navigator.userAgent;
+    const platform = navigator.platform ?? '';
+
+    const isWindows = /windows|win32|win64/i.test(platform) || /windows/i.test(ua);
+    const isMac = /macintosh|macintel|macppc|mac68k|darwin/i.test(platform) || /mac os x/i.test(ua);
+
+    let url = '';
+    let label = '';
+    if (isWindows && btn.dataset.windows) {
+      url = btn.dataset.windows;
+      label = 'Windows';
+    } else if (isMac && btn.dataset.macos) {
+      url = btn.dataset.macos;
+      label = 'macOS';
+    }
+
+    const ver = btn.dataset.version ? ` · v${btn.dataset.version}` : '';
+
+    if (url) {
+      btn.href = url;
+      btn.setAttribute('download', '');
+      if (hint) hint.textContent = `(${label}${ver})`;
+    } else if (ver && hint) {
+      hint.textContent = `(最新稳定版${ver})`;
+    }
+  }
+</script>
