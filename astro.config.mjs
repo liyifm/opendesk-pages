@@ -113,6 +113,12 @@ export default defineConfig({
                 { label: '通过 OTel 进行全链路监测', slug: 'docs/contribute/otel' }
               ],
             },
+            {
+              label: '插件系统',
+              items: [
+                { label: '插件开发指南', slug: 'docs/plugins/development' },
+              ],
+            },
           ],
         },
       ],

@@ -1,15 +1,29 @@
 ---
 title: "插件使用"
-description: "OpenDesk 插件使用"
+description: "安装、启停和管理 OpenDesk 插件"
 ---
 
-OpenDesk 通过插件扩展工具、消息渠道和工作流能力。
+OpenDesk 插件可以扩展 Tool、Hook、Skill、MCP Server、TUI Command 和应用事件处理能力。
 
-## 当前状态
+## 管理插件
 
-插件使用文档正在从项目本体和现有插件说明中整理。当前页面保留 `/docs/plugins/` 路由，避免旧导航入口失效。
+可以通过桌面版“插件中心”管理插件，也可以使用 CLI：
 
-## 相关入口
+~~~bash
+opendesk plugins install <本地目录、ZIP、TGZ、URL 或 npm spec>
+opendesk plugins list
+opendesk plugins enable <插件ID>
+opendesk plugins disable <插件ID>
+opendesk plugins uninstall <插件ID>
+~~~
 
-- [Opendesk Cli 使用手册](/docs/manual/cli)
-- [开发环境准备](/docs/contribute/prepare)
+插件代码在 OpenDesk 主进程中运行。安装或启用第三方插件前，应确认来源可信，并检查其文件、网络、进程和凭据访问行为。
+
+## 开发插件
+
+需要创建自己的插件时，请阅读[插件开发指南](/docs/plugins/development/)。指南包含完整协议、全部 Hook 参数、六类扩展能力，以及依赖 SDK 和不依赖 SDK 的对应示例。
+
+## 相关文档
+
+- [OpenDesk CLI 使用手册](/docs/manual/cli/)
+- [准备开发环境](/docs/contribute/prepare/)
