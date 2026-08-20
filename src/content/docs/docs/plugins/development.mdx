@@ -1,0 +1,1326 @@
+---
+title: "插件开发指南"
+description: "OpenDesk 插件协议、SDK、扩展能力、Hook、打包和调试的完整参考"
+---
+
+OpenDesk 插件是在 OpenDesk 主进程中运行的受信任 Node.js 模块。插件可以增加 Tool、Hook、Skill、MCP Server、TUI Command 和应用事件监听器，也可以把这些能力组合在同一个插件中。
+
+本文对应插件 API v1。插件运行在宿主进程中，拥有与 OpenDesk 相同的本机权限；只安装可信来源的插件，并在发布前明确说明文件、网络、进程和凭据访问行为。
+
+## SDK 与无 SDK 开发
+
+OpenDesk 支持两种入口写法：
+
+| 方式 | 适用场景 | 运行时要求 |
+| --- | --- | --- |
+| 依赖 SDK | TypeScript 开发、需要类型检查、需要 Tool 参数辅助函数时推荐 | 安装 @bitclub.ai/opendesk-plugin-sdk；未打包进产物时必须放在 dependencies |
+| 不依赖 SDK | 简单 JavaScript 插件、SDK 暂时无法下载或希望减少依赖 | 默认导出符合协议的普通对象；Tool 仍必须单独依赖 Zod 4 |
+
+SDK 的 definePlugin 只提供类型约束并返回原对象，插件运行时不要求入口必须由 definePlugin 创建。无 SDK 版本仍然调用同一套 context API，因此行为与 SDK 版本一致，只是没有编译期类型检查和辅助函数。
+
+不要从 OpenDesk 仓库的 src 目录导入类型或实现。公共类型统一从 @bitclub.ai/opendesk-plugin-sdk 导入；无 SDK 插件使用本文描述的稳定对象协议。
+
+## 最小插件
+
+### 目录结构
+
+~~~text
+hello-plugin/
+├── opendesk.plugin.json
+├── package.json
+└── index.mjs
+~~~
+
+OpenDesk 直接执行 JavaScript 入口，不会替插件编译 TypeScript。TypeScript 项目必须先构建，并把 JavaScript 产物及运行时依赖放入安装包。
+
+### opendesk.plugin.json
+
+~~~json
+{
+  "schemaVersion": 1,
+  "id": "hello-plugin",
+  "displayName": "Hello Plugin",
+  "entry": "./index.mjs",
+  "apiVersion": 1,
+  "capabilities": []
+}
+~~~
+
+### 依赖 SDK
+
+package.json：
+
+~~~json
+{
+  "name": "hello-plugin",
+  "version": "0.1.0",
+  "type": "module",
+  "dependencies": {
+    "@bitclub.ai/opendesk-plugin-sdk": "^0.1.0"
+  }
+}
+~~~
+
+index.mjs：
+
+~~~js
+import { definePlugin } from '@bitclub.ai/opendesk-plugin-sdk';
+
+export default definePlugin({
+  id: 'hello-plugin',
+  displayName: 'Hello Plugin',
+  version: '0.1.0',
+  capabilities: [],
+  setup(ctx) {
+    console.info('Loaded plugin from', ctx.pluginDir);
+  }
+});
+~~~
+
+### 不依赖 SDK
+
+package.json：
+
+~~~json
+{
+  "name": "hello-plugin",
+  "version": "0.1.0",
+  "type": "module"
+}
+~~~
+
+index.mjs：
+
+~~~js
+export default {
+  id: 'hello-plugin',
+  displayName: 'Hello Plugin',
+  version: '0.1.0',
+  capabilities: [],
+  setup(ctx) {
+    console.info('Loaded plugin from', ctx.pluginDir);
+  }
+};
+~~~
+
+两种入口的 id 都必须与 manifest 中的 id 一致。建议始终显式声明 capabilities；省略它会请求宿主支持的全部插件能力，通常不是预期结果。
+
+## Manifest 参考
+
+插件目录优先读取 opendesk.plugin.json。npm 包也可以把同样的信息写入 package.json 的 opendesk 字段。
+
+### 顶层字段
+
+| 字段 | 类型 | 必填 | 说明 |
+| --- | --- | --- | --- |
+| schemaVersion | 1 | 是 | Manifest 结构版本，当前只能为 1 |
+| id | string | 是 | 插件唯一标识；必须以字母开头，只能包含字母、数字、点、下划线和连字符 |
+| displayName | string | 否 | 面向用户显示的名称 |
+| entry | string | 是 | 相对插件根目录的 JavaScript 入口；不能越出插件目录 |
+| apiVersion | 1 | 是 | 插件 API 版本，当前只能为 1 |
+| version | string | 否 | 插件版本；npm 包通常使用 package.json 的 version |
+| capabilities | string[] | 是 | 插件申请的能力列表，详见下表 |
+| minOpenDeskVersion | string | 否 | 可运行的最低 OpenDesk 语义化版本 |
+| maxOpenDeskVersion | string | 否 | 可运行的最高 OpenDesk 语义化版本 |
+| contributions | object | 否 | 无需执行 setup 即可声明的静态 Skill 和 MCP Server |
+
+### capabilities
+
+| 值 | 对应 API |
+| --- | --- |
+| hook | ctx.hooks.on |
+| tool | ctx.tools.register |
+| skill | ctx.skills.register 或 contributions.skills |
+| mcp | ctx.mcps.registerServer 或 contributions.mcpServers |
+| command | ctx.commands.register |
+| event | ctx.events.onApplication |
+
+插件只能注册已声明且已经获准的能力。静态 Skill 或 MCP contribution 也必须分别声明 skill 或 mcp。
+
+### contributions
+
+| 字段 | 类型 | 说明 |
+| --- | --- | --- |
+| skills | string[] | Skill 目录的相对路径。目录可以直接包含 SKILL.md，也可以包含多个以 SKILL.md 为入口的一级子目录 |
+| mcpServers | object[] | MCP Server 定义；字段与后文 MCP 插件相同 |
+
+contributions 是 manifest 中的静态声明。PluginMgr 发现插件后，会先解析这些声明并注册 Skill 和 MCP Server，再执行入口的 setup(ctx)。因此，插件只需要携带标准 Skill 目录或 MCP Server 文件，不必在 setup(ctx) 中重复调用 ctx.skills.register 或 ctx.mcps.registerServer。
+
+静态 contribution 与 SDK 无关，但插件仍然必须提供合法的 JavaScript 入口和 setup 函数。它适合内容和配置固定、无需读取 ctx.options 的 Skill/MCP；需要根据用户配置决定是否注册、动态拼装定义或自行管理生命周期时，应使用 setup(ctx) 中的动态注册。
+
+#### contributions.skills 与 ctx.skills.register
+
+两种方式最终都会把 Skill 加入同一个 pluginMgr bundle，但输入形式和加载时机不同：
+
+| 对比项 | contributions.skills | ctx.skills.register(definition) |
+| --- | --- | --- |
+| 声明位置 | opendesk.plugin.json 或 package.json#opendesk | 入口的 setup(ctx) |
+| Skill 内容来源 | 读取并解析插件目录中的 SKILL.md | 直接使用 definition.body 字符串 |
+| 必填信息 | 相对 Skill 目录路径；目录内必须有合法 SKILL.md | name、description、body |
+| directory 含义 | 声明路径就是 Skill 目录或 Skill 集合目录 | 可选资源目录；不会自动读取其中的 SKILL.md |
+| 加载数量 | 一个路径可加载一个 Skill，也可扫描多个一级子目录 | 每调用一次只注册一个 Skill |
+| 加载时机 | 在 setup(ctx) 之前由 PluginMgr 自动加载 | 执行 setup(ctx) 时注册 |
+| 条件控制 | 固定加载，不能读取 ctx.options 后决定 | 可以根据 ctx.options、平台或其他运行时条件决定 |
+| 元数据来源 | SKILL.md frontmatter | definition 字段及 definition.frontmatter |
+| 注销控制 | 没有单独 registration 句柄，由插件生命周期统一管理 | 返回 PluginRegistration，可提前调用 dispose |
+| SDK 要求 | 不依赖 SDK | 运行时不依赖 SDK；SDK 只提供 PluginSkillDefinition 类型 |
+| capability | manifest/入口必须包含 skill | manifest/入口必须包含 skill |
+
+使用标准 SKILL.md 并希望连同脚本、模板、references 等资源原样发布时，优先使用 contributions.skills。Skill 内容需要按插件配置动态生成、需要条件注册，或只存在于代码字符串中时，使用 ctx.skills.register。
+
+同一个 Skill 不要同时使用两种方式注册。静态 Skill 已经在 setup(ctx) 前进入宿主，再调用 ctx.skills.register 注册同名 Skill 会因 contribution 名称冲突而使插件激活失败。如果 setup(ctx) 后续抛错，PluginMgr 仍会回收此前加载的静态 Skill。
+
+#### 能力声明与加载顺序
+
+静态加载按以下顺序执行：
+
+1. 读取并校验 manifest；
+2. 解析 contributions.skills 和 contributions.mcpServers；
+3. 检查插件申请并获准了 skill、mcp 能力；
+4. 注册静态 Skill 和 MCP Server；
+5. 调用入口的 setup(ctx)，继续注册动态能力。
+
+manifest 中包含 contributions.skills 时，capabilities 必须包含 skill；包含 contributions.mcpServers 时，必须包含 mcp。插件入口中的 capabilities 优先于 manifest，因此入口如果也声明该字段，必须保留这些能力。对于纯静态 contribution 插件，建议在入口中省略 capabilities，让宿主直接使用 manifest 的声明。
+
+如果路径、Skill 内容或 MCP 定义无效，插件不会进入正常激活状态。插件被禁用、卸载或重新加载时，静态 contribution 与动态注册项会一起移除；stdio MCP 的连接也由 PluginMgr 关闭。
+
+#### Skill 目录解析
+
+contributions.skills 的每一项都是相对插件根目录的目录路径，不是 Skill 定义对象。PluginMgr 按以下规则加载：
+
+- 声明目录自身包含 SKILL.md 时，该目录代表一个 Skill；
+- 声明目录不直接包含 SKILL.md 时，只扫描它的一级子目录，并加载其中包含 SKILL.md 的目录；
+- 所有路径必须存在且位于插件根目录内，绝对路径、越过根目录的路径和越界符号链接都会被拒绝；
+- SKILL.md 的 name、description、user-invocable 和 disable-model-invocation 等 frontmatter 会被解析为 Skill 元数据；
+- Skill 以只读方式加入 pluginMgr bundle，并保留插件来源信息；同目录中的脚本、模板等资源仍可由该 Skill 使用。
+
+例如 skills 可以指向单个 Skill：
+
+~~~json
+"contributions": {
+  "skills": ["./skills/review-code"]
+}
+~~~
+
+也可以指向一个包含多个 Skill 的集合目录：
+
+~~~json
+"contributions": {
+  "skills": ["./skills"]
+}
+~~~
+
+第二种写法会加载 skills/review-code/SKILL.md、skills/summarize/SKILL.md 等一级子目录，但不会递归扫描更深层级。
+
+#### MCP Server 解析
+
+contributions.mcpServers 直接包含 MCP Server 定义：
+
+- stdio Server 必须提供 name、transport: stdio 和 command，可选 args、cwd、env；
+- sse 或 streamableHttp Server 必须提供 name、transport 和合法的绝对 url，可选 headers；
+- stdio command 以 ./ 或 ../ 开头时，会按插件根目录解析，并且必须指向插件内的文件；
+- cwd 按插件根目录解析，必须是插件内已经存在的目录；
+- args 不会自动转换为绝对路径。使用 command: node 和相对脚本参数时，应把 cwd 设置为插件根目录；
+- 推荐使用 node 等可移植命令，不要使用 process.execPath；
+- 本地 Server 文件和它的运行时依赖必须随插件一起发布。
+
+#### 完整静态 contribution 示例
+
+目录：
+
+~~~text
+review-bundle/
+├── opendesk.plugin.json
+├── package.json
+├── index.mjs
+├── skills/
+│   ├── review-code/
+│   │   ├── SKILL.md
+│   │   └── references/
+│   └── summarize/
+│       └── SKILL.md
+└── mcps/
+    └── server.mjs
+~~~
+
+skills/review-code/SKILL.md：
+
+~~~md
+---
+name: review-code
+description: 检查代码变更并报告正确性、安全性和测试问题
+user-invocable: true
+disable-model-invocation: false
+---
+
+# Review Code
+
+检查用户指定的代码变更，并按严重程度输出发现。
+~~~
+
+opendesk.plugin.json：
+
+~~~json
+{
+  "schemaVersion": 1,
+  "id": "review-bundle",
+  "entry": "./index.mjs",
+  "apiVersion": 1,
+  "capabilities": ["skill", "mcp"],
+  "contributions": {
+    "skills": ["./skills"],
+    "mcpServers": [
+      {
+        "name": "review-files",
+        "transport": "stdio",
+        "command": "node",
+        "args": ["./mcps/server.mjs"],
+        "cwd": "."
+      }
+    ]
+  }
+}
+~~~
+
+如果入口依赖 SDK，可以只用 definePlugin 校验入口结构；不要在入口中把 capabilities 重写为空数组：
+
+~~~js
+import { definePlugin } from '@bitclub.ai/opendesk-plugin-sdk';
+
+export default definePlugin({
+  id: 'review-bundle',
+  setup(ctx) {
+    console.info('Static contributions loaded for', ctx.pluginId);
+  }
+});
+~~~
+
+不依赖 SDK 时默认导出同样的普通对象：
+
+~~~js
+export default {
+  id: 'review-bundle',
+  setup(ctx) {
+    console.info('Static contributions loaded for', ctx.pluginId);
+  }
+};
+~~~
+
+两种入口都会从 manifest 获得 skill 和 mcp capabilities。不要在 setup(ctx) 中再次注册相同 Skill 或 MCP 名称，否则会发生 contribution 名称冲突。
+
+### 使用 package.json 声明
+
+没有 opendesk.plugin.json 时，可以把 entry 改名为 plugin 并放入 package.json#opendesk：
+
+~~~json
+{
+  "name": "hello-plugin",
+  "version": "0.1.0",
+  "type": "module",
+  "opendesk": {
+    "schemaVersion": 1,
+    "id": "hello-plugin",
+    "plugin": "./index.mjs",
+    "apiVersion": 1,
+    "capabilities": ["hook"]
+  }
+}
+~~~
+
+如果两处声明同时存在，入口和 id 必须一致。发布 npm 包时 package.json 必须包含 name 和 version。
+
+## 入口对象参考
+
+入口模块必须默认导出 OpenDeskPlugin 对象。
+
+| 字段 | 类型 | 必填 | 说明 |
+| --- | --- | --- | --- |
+| id | string | 是 | 插件唯一标识，规则与 manifest 相同 |
+| displayName | string | 否 | 显示名称；入口值优先于 manifest |
+| version | string | 否 | 插件版本；入口值优先于 manifest |
+| apiVersion | number | 否 | 默认使用当前 API 版本，显式设置时必须为 1 |
+| capabilities | PluginCapability[] | 建议 | 申请的能力；入口值优先于 manifest |
+| minOpenDeskVersion | string | 否 | 最低宿主版本 |
+| maxOpenDeskVersion | string | 否 | 最高宿主版本 |
+| configSchema | Zod schema | 否 | 校验插件 options，解析结果必须是普通对象 |
+| failureMode | open 或 closed | 否 | Hook 默认失败策略，默认为 open |
+| setup | function | 是 | 激活插件时调用，可同步或异步 |
+
+setup 可以返回以下任一种值：
+
+- undefined：没有额外清理逻辑；
+- 清理函数：停用、卸载、重载或宿主退出时执行；
+- 带有异步 dispose 方法的 PluginRegistration。
+
+通过 context 注册的所有 contribution 都会被宿主跟踪并按注册顺序的逆序释放。插件自行创建的计时器、文件监听器或子进程应由 setup 返回的清理函数释放。
+
+## PluginContext 参考
+
+| 字段 | 类型 | 说明 |
+| --- | --- | --- |
+| pluginId | string | 当前插件 id |
+| pluginDir | string | 当前插件安装根目录的绝对路径 |
+| configDir | string | OpenDesk 配置目录的绝对路径 |
+| options | Readonly object | 用户为插件保存的配置，已经由 configSchema 校验 |
+| hooks.on | function | 注册 Hook |
+| tools.register | function | 注册 Tool |
+| skills.register | function | 注册 Skill |
+| mcps.registerServer | function | 注册 MCP Server |
+| commands.register | function | 注册 TUI Command |
+| events.onApplication | function | 监听应用事件 |
+
+每个 register 或 on 方法都返回 PluginRegistration。通常不需要手工调用 dispose，因为宿主会在插件退出时统一清理；只有插件需要提前撤销某一项注册时才主动调用。
+
+## Tool 插件
+
+Tool 会加入 Agent 可见工具集，最终名称由插件 id 和 Tool name 共同限定。参数必须使用 Zod 4 对象 Schema；普通对象、JSON Schema、字符串或只模拟 toJSONSchema 的对象都会在插件激活时被拒绝。
+
+### ToolDefinition 参数
+
+| 字段 | 类型 | 必填 | 说明 |
+| --- | --- | --- | --- |
+| name | string | 是 | Tool 名称，不能为空 |
+| description | string | 是 | 给模型读取的功能说明，不能为空 |
+| parameters | Zod object schema | 是 | 直接注册时使用；必须同时支持 safeParse 和 toJSONSchema，且生成 object JSON Schema |
+| agentIds | readonly string[] | 否 | 仅向指定 Agent 暴露 |
+| serialExecution | boolean | 否 | 为 true 时要求串行执行，默认为 false |
+| getDeclaredPermissions | function | 否 | 根据参数声明本次调用需要的权限 |
+| execute | async function | 是 | 执行 Tool |
+| stop | function | 否 | 宿主要求停止 Tool 时调用 |
+| render | object | 否 | CLI 和 GUI 自定义渲染器 |
+
+使用 SDK 的 tool 辅助函数时传入 args，而不是 parameters。tool 会执行 parameters: z.object(args) 的转换。直接调用 ctx.tools.register 时始终传 parameters，不能传 args。
+
+### execute 参数
+
+execute(args, context, result) 接收：
+
+| 参数 | 字段 | 说明 |
+| --- | --- | --- |
+| args | Schema 解析结果 | 已通过 parameters 校验的工具参数 |
+| context | taskId | 当前任务 id，某些无任务场景可能为空 |
+| context | workspace | 当前工作空间，可能为空 |
+| context | abort | AbortSignal，用于响应任务停止 |
+| result | attachResult(chunk) | 追加过程输出 |
+| result | updateResult(text) | 替换文本结果 |
+| result | updateResultObject(object) | 更新结构化结果 |
+
+execute 可以返回 undefined、string，或形如 output + resultObject 的对象。返回 string 会成为最终文本；对象中的 output 是最终文本，resultObject 是可选结构化结果。
+
+### 权限声明
+
+getDeclaredPermissions 返回 PermissionRequest 数组。每一项包含：
+
+| 字段 | 可选值 | 说明 |
+| --- | --- | --- |
+| resourceType | file、network、skill、plugin、* | 受保护资源类型 |
+| action | read、write、execute、access、* | 操作 |
+| resourcePath | string | 实际路径、URL、Skill 名或插件 id，不要用笼统占位值 |
+
+### Tool 渲染
+
+render.gui 接收 ToolRenderContext，返回 text、code 或 keyValue 内容；render.cli 额外接收 width，返回 string[]。渲染失败只会回退到默认显示，不会改变 Tool 执行结果。
+
+ToolRenderContext 字段：
+
+| 字段 | 类型 | 说明 |
+| --- | --- | --- |
+| tool | string | 完整 Tool 名 |
+| callId | string | 本次调用 id |
+| status | pending、running、success、error | 调用状态 |
+| args | unknown | 调用参数 |
+| result | string | 可选文本结果 |
+| resultObject | object | 可选结构化结果 |
+| width | number | 仅 CLI 渲染器可用的终端宽度 |
+
+GUI 返回值：
+
+~~~js
+{ type: 'text', text: 'plain text' }
+{ type: 'code', code: '{"ok":true}', language: 'json' }
+{ type: 'keyValue', items: [{ label: 'Status', value: 'Ready' }] }
+~~~
+
+### 依赖 SDK 的 Tool 示例
+
+~~~js
+import { definePlugin, tool } from '@bitclub.ai/opendesk-plugin-sdk';
+
+export default definePlugin({
+  id: 'greeting-tools',
+  capabilities: ['tool'],
+  setup(ctx) {
+    return ctx.tools.register(tool({
+      name: 'greet',
+      description: 'Generate a greeting for one person',
+      args: {
+        name: tool.schema.string().min(1).describe('Person to greet')
+      },
+      getDeclaredPermissions(args, context) {
+        return [];
+      },
+      async execute(args, context, result) {
+        result.attachResult('Preparing greeting');
+        if (context.abort.aborted) {
+          return { output: 'Cancelled' };
+        }
+        return {
+          output: 'Hello, ' + args.name + '!',
+          resultObject: { greeted: args.name }
+        };
+      },
+      render: {
+        gui({ status, resultObject }) {
+          return {
+            type: 'keyValue',
+            items: [
+              { label: 'Status', value: status },
+              { label: 'Name', value: String(resultObject?.greeted || '') }
+            ]
+          };
+        },
+        cli({ status, result, width }) {
+          return ['[' + status + '] ' + (result || '') + ' (width=' + width + ')'];
+        }
+      }
+    }));
+  }
+});
+~~~
+
+### 不依赖 SDK 的 Tool 示例
+
+无 SDK Tool 仍需 Zod 4：
+
+~~~json
+{
+  "name": "greeting-tools",
+  "version": "0.1.0",
+  "type": "module",
+  "dependencies": {
+    "zod": "^4.2.1"
+  }
+}
+~~~
+
+~~~js
+import { z } from 'zod';
+
+export default {
+  id: 'greeting-tools',
+  capabilities: ['tool'],
+  setup(ctx) {
+    return ctx.tools.register({
+      name: 'greet',
+      description: 'Generate a greeting for one person',
+      parameters: z.object({
+        name: z.string().min(1).describe('Person to greet')
+      }),
+      getDeclaredPermissions(args, context) {
+        return [];
+      },
+      async execute(args, context, result) {
+        result.attachResult('Preparing greeting');
+        if (context.abort.aborted) {
+          return { output: 'Cancelled' };
+        }
+        return {
+          output: 'Hello, ' + args.name + '!',
+          resultObject: { greeted: args.name }
+        };
+      },
+      render: {
+        gui({ status, resultObject }) {
+          return {
+            type: 'keyValue',
+            items: [
+              { label: 'Status', value: status },
+              { label: 'Name', value: String(resultObject?.greeted || '') }
+            ]
+          };
+        },
+        cli({ status, result, width }) {
+          return ['[' + status + '] ' + (result || '') + ' (width=' + width + ')'];
+        }
+      }
+    });
+  }
+};
+~~~
+
+## Hook 插件
+
+使用 ctx.hooks.on(name, callback, options) 注册 Hook。callback 接收只读语义的 input 和可修改的 output；通过修改 output 改变后续行为，不需要返回值。
+
+options 目前只有 failureMode：
+
+| 值 | 行为 |
+| --- | --- |
+| open | 默认值。回调抛错或输出校验失败时，放弃该回调的修改并继续主流程 |
+| closed | 回调抛错或输出校验失败时，把失败传播到当前 Hook 的调用方；after Hook 已发生的操作不会被回滚 |
+
+插件入口的 failureMode 是全部 Hook 的默认值，单次注册 options.failureMode 可以覆盖它。OpenDesk 依次执行已注册回调，每个回调都操作输出副本；只有回调成功且输出合法时才合并，因此一个失败回调不会留下部分修改。
+
+### chat.headers
+
+在每次模型请求准备 Header 时触发。一次用户消息可能产生主回复、终止检查、记忆更新或自动重试等多次模型请求，因此不能假设每条消息只触发一次。
+
+Input：
+
+| 字段 | 类型 | 说明 |
+| --- | --- | --- |
+| taskId | string，可选 | 当前任务 |
+| workspace | string，可选 | 当前工作空间 |
+| modelAlias | string，可选 | 当前模型别名 |
+
+Output：
+
+| 字段 | 类型 | 说明 |
+| --- | --- | --- |
+| headers | Record&lt;string, string&gt; | 最终请求 Header；值必须是字符串 |
+
+~~~js
+ctx.hooks.on('chat.headers', (input, output) => {
+  output.headers['x-request-source'] = 'my-plugin';
+});
+~~~
+
+### chat.params
+
+在每次模型请求准备可公开调整的模型参数时触发。Input 与 chat.headers 相同。
+
+Output：
+
+| 字段 | 类型 | 说明 |
+| --- | --- | --- |
+| reasoningEffort | 空字符串、none、low、medium、high、max，可选 | 推理强度；空字符串表示交给模型默认值 |
+| maxCompletionTokens | 正整数，可选 | 最大输出 token 数 |
+
+~~~js
+ctx.hooks.on('chat.params', (input, output) => {
+  if (input.modelAlias?.includes('reasoning')) {
+    output.reasoningEffort = 'high';
+  }
+  output.maxCompletionTokens = 8192;
+});
+~~~
+
+### skill.load.before
+
+Agent 即将加载一个具体 Skill 时触发，可允许或拒绝加载。
+
+Input：
+
+| 字段 | 类型 | 说明 |
+| --- | --- | --- |
+| bundleName | string | Skill 所属 bundle |
+| skillName | string | Skill 名 |
+| skillDirectory | string，可选 | Skill 目录 |
+| source | installed、config、mounted、builtin、plugin，可选 | Skill 来源 |
+| frontmatter | object | 已解析的 Skill frontmatter |
+
+Output：
+
+| 字段 | 类型 | 说明 |
+| --- | --- | --- |
+| operation | allow 或 deny | 默认 allow；deny 阻止加载 |
+| message | string，可选 | 允许或拒绝原因 |
+| metadata | object，可选 | 插件附加记录 |
+
+~~~js
+ctx.hooks.on('skill.load.before', (input, output) => {
+  if (input.frontmatter.requiresApproval === true) {
+    output.operation = 'deny';
+    output.message = 'This Skill requires separate approval';
+    output.metadata = { policy: 'requires-approval' };
+  }
+});
+~~~
+
+### skill.load.after
+
+一个具体 Skill 成功加载后触发。Input 与 skill.load.before 相同，Output 为空对象，适合审计、计数或日志记录。它不能修改已经加载的 Skill。
+
+~~~js
+ctx.hooks.on('skill.load.after', (input) => {
+  console.info('Loaded Skill', input.bundleName, input.skillName);
+});
+~~~
+
+### skill.install.before
+
+SkillMgr 即将安装 Skill 时触发，可拒绝安装。
+
+Input：
+
+| 字段 | 类型 | 说明 |
+| --- | --- | --- |
+| source | directory、zip、url、registry | 安装源类型 |
+| path | string，可选 | directory 或 zip 的本地路径 |
+| url | string，可选 | URL 安装地址 |
+| skillRelPath | string，可选 | 安装源内的 Skill 相对路径 |
+| force | boolean，可选 | 是否覆盖已有 Skill |
+| customName | string，可选 | 用户指定的 Skill 名 |
+
+Output 与 skill.load.before 相同：operation 为 allow 或 deny，message 和 metadata 可选。
+
+~~~js
+ctx.hooks.on('skill.install.before', (input, output) => {
+  if (input.source === 'url' && !input.url?.startsWith('https://')) {
+    output.operation = 'deny';
+    output.message = 'Only HTTPS Skill URLs are allowed';
+  }
+});
+~~~
+
+### skill.install.after
+
+Skill 成功安装后触发。Input 在 skill.install.before 字段之外增加 skillName，Output 为空对象。适合写审计日志或更新插件自己的索引，不能撤销已经完成的安装。
+
+~~~js
+ctx.hooks.on('skill.install.after', (input) => {
+  console.info('Installed Skill', input.skillName, 'from', input.source);
+});
+~~~
+
+### permission.ask
+
+OpenDesk 即将为一次 Tool 调用询问权限时触发。
+
+Input：
+
+| 字段 | 类型 | 说明 |
+| --- | --- | --- |
+| taskId | string | 当前任务 |
+| workspace | string，可选 | 当前工作空间 |
+| tool | string | 请求权限的 Tool |
+| callId | string，可选 | Tool 调用 id |
+| requests | PermissionRequest[] | 需要确认的资源、操作和路径 |
+
+Output：
+
+| 字段 | 类型 | 说明 |
+| --- | --- | --- |
+| decision | ask、allow、deny | ask 保留用户确认；allow 或 deny 直接决定 |
+
+只有明确的组织策略或安全策略才应自动 allow 或 deny。不要用该 Hook 隐式扩大 Tool 权限。
+
+~~~js
+ctx.hooks.on('permission.ask', (input, output) => {
+  const usesHttp = input.requests.some((request) =>
+    request.resourceType === 'network' && request.resourcePath.startsWith('http:')
+  );
+  if (usesHttp) output.decision = 'deny';
+});
+~~~
+
+### shell.env
+
+Terminal 应用即将执行 Shell 命令时触发，用于添加、修改或移除本次进程环境变量。
+
+Input：
+
+| 字段 | 类型 | 说明 |
+| --- | --- | --- |
+| taskId | string，可选 | 当前任务 |
+| workspace | string，可选 | 当前工作空间 |
+| shell | string | Shell 可执行文件 |
+| command | string | 即将执行的命令 |
+
+Output：
+
+| 字段 | 类型 | 说明 |
+| --- | --- | --- |
+| env | Record&lt;string, string 或 undefined&gt; | 本次进程环境；字符串设置值，undefined 移除值 |
+
+~~~js
+ctx.hooks.on('shell.env', (input, output) => {
+  output.env.MY_PLUGIN_WORKSPACE = input.workspace || '';
+});
+~~~
+
+不要把长期凭据无条件注入所有命令；至少按 workspace、shell 或 command 收窄触发范围。
+
+### tool.definition
+
+OpenDesk 为任务组装可用 Tool 定义时，对每一个 Tool 触发。它可能因多个任务、重试或工具集刷新而重复触发。
+
+Input：
+
+| 字段 | 类型 | 说明 |
+| --- | --- | --- |
+| tool | string | 完整 Tool 名 |
+| pluginId | string，可选 | Tool 来自插件时为其插件 id，原生 Tool 为空 |
+| taskId | string，可选 | 当前任务 |
+| workspace | string，可选 | 当前工作空间 |
+
+Output：
+
+| 字段 | 类型 | 说明 |
+| --- | --- | --- |
+| description | string | 给模型读取的说明，修改后仍不能为空 |
+| parameters | Zod object schema | Tool 参数 Schema，必须满足与 ToolDefinition.parameters 相同的校验 |
+
+~~~js
+ctx.hooks.on('tool.definition', (input, output) => {
+  if (input.tool === 'files-read') {
+    output.description += ' Prefer paths inside the current workspace.';
+  }
+});
+~~~
+
+### tool.execute.before
+
+Tool 参数完成解析、但尚未进入后续校验和执行前触发。修改后的 args 会用于权限检查和实际执行。
+
+Input：
+
+| 字段 | 类型 | 说明 |
+| --- | --- | --- |
+| tool | string | 完整 Tool 名 |
+| taskId | string | 当前任务 |
+| callId | string | Tool 调用 id |
+| workspace | string，可选 | 当前工作空间 |
+
+Output：
+
+| 字段 | 类型 | 说明 |
+| --- | --- | --- |
+| args | unknown | 即将校验和执行的参数，可以替换 |
+| deny | object，可选 | 设置后拒绝执行 |
+| deny.message | string，可选 | 面向调用方的拒绝原因 |
+| deny.metadata | object，可选 | 写入 Tool 结构化结果的拒绝信息 |
+
+~~~js
+ctx.hooks.on('tool.execute.before', (input, output) => {
+  if (input.tool === 'dangerous-tool') {
+    output.deny = {
+      message: 'Blocked by plugin policy',
+      metadata: { policy: 'deny-dangerous-tool' }
+    };
+  }
+});
+~~~
+
+### tool.execute.after
+
+Tool 执行结束后触发，可调整返回给模型和界面的状态与结果。
+
+Input：
+
+| 字段 | 类型 | 说明 |
+| --- | --- | --- |
+| tool | string | 完整 Tool 名 |
+| taskId | string | 当前任务 |
+| callId | string | Tool 调用 id |
+| workspace | string，可选 | 当前工作空间 |
+| args | unknown | 实际执行参数 |
+
+Output：
+
+| 字段 | 类型 | 说明 |
+| --- | --- | --- |
+| status | success 或 error | 最终状态 |
+| result | string | 最终文本结果 |
+| resultObject | object，可选 | 最终结构化结果 |
+
+~~~js
+ctx.hooks.on('tool.execute.after', (input, output) => {
+  output.resultObject = {
+    ...(output.resultObject || {}),
+    auditedBy: 'my-plugin'
+  };
+});
+~~~
+
+### 依赖 SDK 的 Hook 示例
+
+~~~js
+import { definePlugin } from '@bitclub.ai/opendesk-plugin-sdk';
+
+export default definePlugin({
+  id: 'request-policy',
+  capabilities: ['hook'],
+  failureMode: 'open',
+  setup(ctx) {
+    const headers = ctx.hooks.on('chat.headers', (input, output) => {
+      output.headers['x-opendesk-workspace'] = input.workspace || 'none';
+    });
+    const tools = ctx.hooks.on(
+      'tool.execute.before',
+      (input, output) => {
+        if (input.tool === 'blocked-tool') {
+          output.deny = { message: 'Blocked by request-policy' };
+        }
+      },
+      { failureMode: 'closed' }
+    );
+
+    return async () => {
+      await tools.dispose();
+      await headers.dispose();
+    };
+  }
+});
+~~~
+
+### 不依赖 SDK 的 Hook 示例
+
+~~~js
+export default {
+  id: 'request-policy',
+  capabilities: ['hook'],
+  failureMode: 'open',
+  setup(ctx) {
+    const headers = ctx.hooks.on('chat.headers', (input, output) => {
+      output.headers['x-opendesk-workspace'] = input.workspace || 'none';
+    });
+    const tools = ctx.hooks.on(
+      'tool.execute.before',
+      (input, output) => {
+        if (input.tool === 'blocked-tool') {
+          output.deny = { message: 'Blocked by request-policy' };
+        }
+      },
+      { failureMode: 'closed' }
+    );
+
+    return async () => {
+      await tools.dispose();
+      await headers.dispose();
+    };
+  }
+};
+~~~
+
+## Skill 插件
+
+Skill 插件把一组可由用户或模型调用的说明注册到 pluginMgr bundle。
+
+### PluginSkillDefinition 参数
+
+| 字段 | 类型 | 必填 | 说明 |
+| --- | --- | --- | --- |
+| name | string | 是 | Skill 名，必须以字母开头，只能包含字母、数字、点、下划线和连字符 |
+| description | string | 是 | Skill 用途，不能为空 |
+| body | string | 是 | Skill Markdown 正文 |
+| directory | string | 否 | Skill 资源目录，可相对 pluginDir；必须存在且位于插件根目录内 |
+| frontmatter | object | 否 | 额外 frontmatter；name 和 description 由顶层字段覆盖 |
+| userInvocable | boolean | 否 | 是否允许用户直接调用 |
+| modelInvocable | boolean | 否 | 是否允许模型调用 |
+
+### 依赖 SDK 的 Skill 示例
+
+~~~js
+import { definePlugin } from '@bitclub.ai/opendesk-plugin-sdk';
+
+export default definePlugin({
+  id: 'review-skills',
+  capabilities: ['skill'],
+  setup(ctx) {
+    return ctx.skills.register({
+      name: 'review-code',
+      description: 'Review the requested code change',
+      body: [
+        '# Review Code',
+        '',
+        'Inspect the requested change and report correctness, security and test findings.'
+      ].join('\n'),
+      directory: './skills/review-code',
+      userInvocable: true,
+      modelInvocable: true
+    });
+  }
+});
+~~~
+
+### 不依赖 SDK 的 Skill 示例
+
+~~~js
+export default {
+  id: 'review-skills',
+  capabilities: ['skill'],
+  setup(ctx) {
+    return ctx.skills.register({
+      name: 'review-code',
+      description: 'Review the requested code change',
+      body: [
+        '# Review Code',
+        '',
+        'Inspect the requested change and report correctness, security and test findings.'
+      ].join('\n'),
+      directory: './skills/review-code',
+      userInvocable: true,
+      modelInvocable: true
+    });
+  }
+};
+~~~
+
+如果 Skill 已经以标准 SKILL.md 存在，更适合使用 manifest 静态声明：
+
+~~~json
+{
+  "schemaVersion": 1,
+  "id": "review-skills",
+  "entry": "./index.mjs",
+  "apiVersion": 1,
+  "capabilities": ["skill"],
+  "contributions": {
+    "skills": ["./skills"]
+  }
+}
+~~~
+
+静态声明与 SDK 无关。入口 setup 可以为空，但仍必须存在并导出合法插件对象。
+
+## MCP 插件
+
+MCP 插件可以注册本地 stdio Server 或远程 sse / streamableHttp Server。
+
+### stdio 参数
+
+| 字段 | 类型 | 必填 | 说明 |
+| --- | --- | --- | --- |
+| name | string | 是 | Server 名，不能为空 |
+| transport | stdio | 是 | 传输类型 |
+| command | string | 是 | 可执行命令；推荐 node 等可移植命令 |
+| args | string[] | 否 | 命令参数 |
+| cwd | string | 否 | 工作目录 |
+| env | Record&lt;string, string&gt; | 否 | Server 进程环境变量 |
+
+### 远程 Server 参数
+
+| 字段 | 类型 | 必填 | 说明 |
+| --- | --- | --- | --- |
+| name | string | 是 | Server 名 |
+| transport | sse 或 streamableHttp | 是 | 远程传输类型 |
+| url | string | 是 | 合法的绝对 URL |
+| headers | Record&lt;string, string&gt; | 否 | 建立连接时附带的 Header |
+
+### 依赖 SDK 的 MCP 示例
+
+~~~js
+import { definePlugin } from '@bitclub.ai/opendesk-plugin-sdk';
+
+export default definePlugin({
+  id: 'project-mcp',
+  capabilities: ['mcp'],
+  setup(ctx) {
+    return ctx.mcps.registerServer({
+      name: 'project-files',
+      transport: 'stdio',
+      command: 'node',
+      args: ['./mcps/server.mjs'],
+      cwd: ctx.pluginDir,
+      env: {
+        OPENDESK_PLUGIN_ID: ctx.pluginId
+      }
+    });
+  }
+});
+~~~
+
+### 不依赖 SDK 的 MCP 示例
+
+~~~js
+export default {
+  id: 'project-mcp',
+  capabilities: ['mcp'],
+  setup(ctx) {
+    return ctx.mcps.registerServer({
+      name: 'project-files',
+      transport: 'stdio',
+      command: 'node',
+      args: ['./mcps/server.mjs'],
+      cwd: ctx.pluginDir,
+      env: {
+        OPENDESK_PLUGIN_ID: ctx.pluginId
+      }
+    });
+  }
+};
+~~~
+
+MCP 也支持 contributions.mcpServers 静态声明。动态注册适合需要读取 ctx.options 或按配置选择 Server 的插件。
+
+## Command 插件
+
+Command 注册到 OpenDesk TUI 命令系统。
+
+### PluginCommandDefinition 参数
+
+| 字段 | 类型 | 必填 | 说明 |
+| --- | --- | --- | --- |
+| name | string | 是 | Command 名；注册后由插件 id 限定命名空间 |
+| description | string | 是 | 命令说明 |
+| execute | function | 是 | 接收原始参数字符串和 PluginCommandContext |
+
+PluginCommandContext：
+
+| 字段 | 类型 | 说明 |
+| --- | --- | --- |
+| taskId | string，可选 | 当前活动任务 |
+| workspace | string，可选 | TUI 当前工作空间 |
+| abort | AbortSignal | 当前任务停止信号 |
+
+execute 可以返回 undefined、string，或包含可选 title 与必填 output 的对象。
+
+### 依赖 SDK 的 Command 示例
+
+~~~js
+import { definePlugin } from '@bitclub.ai/opendesk-plugin-sdk';
+
+export default definePlugin({
+  id: 'workspace-commands',
+  capabilities: ['command'],
+  setup(ctx) {
+    return ctx.commands.register({
+      name: 'where',
+      description: 'Show the current workspace',
+      execute(args, context) {
+        return {
+          title: 'Workspace',
+          output: context.workspace || 'No active workspace'
+        };
+      }
+    });
+  }
+});
+~~~
+
+### 不依赖 SDK 的 Command 示例
+
+~~~js
+export default {
+  id: 'workspace-commands',
+  capabilities: ['command'],
+  setup(ctx) {
+    return ctx.commands.register({
+      name: 'where',
+      description: 'Show the current workspace',
+      execute(args, context) {
+        return {
+          title: 'Workspace',
+          output: context.workspace || 'No active workspace'
+        };
+      }
+    });
+  }
+};
+~~~
+
+## Event 插件
+
+Event 插件监听 OpenDesk Application Registry 发布的应用事件。事件名和参数由产生事件的应用定义，插件必须把 args 视为未知外部输入。
+
+### 注册参数
+
+ctx.events.onApplication(filter, callback)：
+
+| 参数 | 字段 | 类型 | 说明 |
+| --- | --- | --- | --- |
+| filter | application | string，可选 | 只监听指定应用 |
+| filter | event | string，可选 | 只监听指定事件 |
+| callback event | application | string | 事件来源应用 |
+| callback event | event | string | 事件名 |
+| callback event | args | unknown[] | 事件参数的副本 |
+
+两个过滤字段都省略时会收到全部应用事件。回调异步执行；回调失败会记录插件诊断，但不会阻断发布事件的应用。
+
+### 依赖 SDK 的 Event 示例
+
+~~~js
+import { definePlugin } from '@bitclub.ai/opendesk-plugin-sdk';
+
+export default definePlugin({
+  id: 'application-audit',
+  capabilities: ['event'],
+  setup(ctx) {
+    return ctx.events.onApplication(
+      { application: 'terminal' },
+      async (event) => {
+        console.info('[application-audit]', event.application, event.event, event.args);
+      }
+    );
+  }
+});
+~~~
+
+### 不依赖 SDK 的 Event 示例
+
+~~~js
+export default {
+  id: 'application-audit',
+  capabilities: ['event'],
+  setup(ctx) {
+    return ctx.events.onApplication(
+      { application: 'terminal' },
+      async (event) => {
+        console.info('[application-audit]', event.application, event.event, event.args);
+      }
+    );
+  }
+};
+~~~
+
+## 插件配置
+
+用户保存的插件配置通过 ctx.options 读取。SDK 版本可以直接复用 SDK 导出的 Zod：
+
+~~~js
+import { definePlugin, tool } from '@bitclub.ai/opendesk-plugin-sdk';
+
+export default definePlugin({
+  id: 'configured-plugin',
+  capabilities: [],
+  configSchema: tool.schema.object({
+    endpoint: tool.schema.url(),
+    timeoutMs: tool.schema.number().int().positive().default(10000)
+  }),
+  setup(ctx) {
+    console.info(ctx.options.endpoint, ctx.options.timeoutMs);
+  }
+});
+~~~
+
+无 SDK 版本需要直接依赖并导入 Zod 4：
+
+~~~js
+import { z } from 'zod';
+
+export default {
+  id: 'configured-plugin',
+  capabilities: [],
+  configSchema: z.object({
+    endpoint: z.url(),
+    timeoutMs: z.number().int().positive().default(10000)
+  }),
+  setup(ctx) {
+    console.info(ctx.options.endpoint, ctx.options.timeoutMs);
+  }
+};
+~~~
+
+configSchema 解析失败时插件不会进入 setup。不要在 options 中保存无法安全明文持久化的长期密钥。
+
+## 安装与开发目录
+
+OpenDesk 全局插件目录与配置文件同级：
+
+- Windows：%APPDATA%\opendesk\plugins
+- Linux 和 macOS：~/.opendesk/plugins
+- 使用 <code>--config-directory</code> 或 OPENDESK_CONFIG_DIRECTORY 时：指定配置目录下的 plugins
+
+开发阶段有两种常见方式：
+
+1. 把插件目录放入全局 plugins，重启或重新加载插件；
+2. 在 OpenDesk 配置的 applications.pluginmgr.externalPaths 中加入开发目录，避免复制源码。
+
+~~~json
+{
+  "applications": {
+    "pluginmgr": {
+      "externalPaths": ["D:/projects/my-plugin"]
+    }
+  }
+}
+~~~
+
+正式安装支持本地目录、ZIP、TGZ、HTTP/HTTPS URL 和 npm spec：
+
+~~~bash
+opendesk plugins install ./my-plugin
+opendesk plugins install ./my-plugin.zip
+opendesk plugins install ./my-plugin.tgz
+opendesk plugins install https://example.com/my-plugin.zip
+opendesk plugins install my-opendesk-plugin@latest
+~~~
+
+ZIP 与 TGZ 是同一层级的插件归档格式。归档根目录可以直接是插件内容，也可以只有一个包含插件内容的顶层目录。声明 dependencies 或 peerDependencies 时，安装器会准备运行时依赖；安装过程忽略 devDependencies、optionalDependencies 和 npm scripts。
+
+修改已经托管安装的插件源码后，需要重新安装同一来源；修改原始目录不会自动同步到托管副本。
+
+## 校验、调试与发布
+
+### 安装前校验
+
+依赖 SDK 时可运行：
+
+~~~bash
+npx opendesk-plugin-sdk validate ./my-plugin
+~~~
+
+无 SDK 时至少检查：
+
+- manifest id 与入口 id 一致；
+- entry、Skill 和 MCP 路径存在且位于插件根目录内；
+- capabilities 覆盖所有注册项；
+- 每个 Tool 的 parameters 是 Zod 4 对象 Schema；
+- index.mjs 可以通过 <code>node --check</code>；
+- 安装包包含运行时 dependencies，不依赖 devDependencies；
+- stdio MCP 使用 node 等可用命令，且 server 文件已打包。
+
+### 运行时诊断
+
+~~~bash
+opendesk plugins list
+opendesk plugins status
+opendesk plugins verify plugin-id
+opendesk plugins doctor
+~~~
+
+插件加载失败时先检查 PluginMgr 诊断信息。常见问题包括 id 不一致、能力未声明、API 版本不兼容、Tool parameters 不是 Zod 4 对象 Schema、MCP 路径越界，以及 setup 抛错。
+
+### 发布检查
+
+- package.json 包含 name、version 和 type: module；
+- npm 包声明 package.json#opendesk，或包含 opendesk.plugin.json；
+- ZIP/TGZ 解压后的插件根目录可直接找到 manifest 和入口；
+- README 说明插件能力、配置、权限、副作用和支持的 OpenDesk 版本；
+- 不把访问令牌、用户路径或本机生成文件打入归档；
+- 在 CLI 和 GUI 中分别验证 Tool、渲染器、MCP 连接及卸载清理行为。
+
+## 完整组合示例
+
+一个插件可以声明多个 capability，并在同一个 setup 中注册多项能力。建议保留每个 registration，并在清理函数中按逆序释放；宿主也会在插件停用时进行兜底清理。
+
+~~~js
+import { definePlugin, tool } from '@bitclub.ai/opendesk-plugin-sdk';
+
+export default definePlugin({
+  id: 'team-helper',
+  capabilities: ['hook', 'tool', 'skill'],
+  setup(ctx) {
+    const registrations = [
+      ctx.hooks.on('chat.headers', (_input, output) => {
+        output.headers['x-team-helper'] = 'enabled';
+      }),
+      ctx.tools.register(tool({
+        name: 'team-status',
+        description: 'Return the current team status',
+        args: {},
+        async execute() {
+          return {
+            output: 'Team is ready',
+            resultObject: { ready: true }
+          };
+        }
+      })),
+      ctx.skills.register({
+        name: 'team-workflow',
+        description: 'Follow the team workflow',
+        body: '# Team workflow\n\nFollow the project review and verification process.',
+        userInvocable: true,
+        modelInvocable: true
+      })
+    ];
+
+    return async () => {
+      for (const registration of registrations.reverse()) {
+        await registration.dispose();
+      }
+    };
+  }
+});
+~~~
