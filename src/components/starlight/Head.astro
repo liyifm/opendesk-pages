@@ -14,6 +14,51 @@ import { ClientRouter } from 'astro:transitions';
 <DefaultHead {...Astro.props} />
 <ClientRouter />
 
+{/*
+  Starlight's sidebar scroll restore lives in inline scripts that Astro dedupes and does NOT
+  re-execute across view-transition navigations, so the menu jumps back to the top on every
+  click. Implement a self-contained save/restore using our own storage key: capture the
+  `#starlight__sidebar` scrollTop before the swap, and re-apply it after the new page is in
+  place. Listeners are registered once and persist on `document` for the whole session.
+*/}
+<script>
+  const SIDEBAR_SCROLL_KEY = 'opendesk-sidebar-scroll';
+  const getScroller = () => document.getElementById('starlight__sidebar');
+
+  const saveSidebarScroll = () => {
+    const scroller = getScroller();
+    if (!scroller) return;
+    try {
+      sessionStorage.setItem(SIDEBAR_SCROLL_KEY, String(scroller.scrollTop));
+    } catch {}
+  };
+
+  const restoreSidebarScroll = () => {
+    const scroller = getScroller();
+    if (!scroller) return;
+    let scroll = 0;
+    try {
+      scroll = parseInt(sessionStorage.getItem(SIDEBAR_SCROLL_KEY) || '0', 10) || 0;
+    } catch {}
+    // Wait one frame so the new sidebar is laid out before applying scrollTop.
+    requestAnimationFrame(() => {
+      scroller.scrollTop = scroll;
+    });
+  };
+
+  if (!window.__opendeskSidebarScrollPatched) {
+    window.__opendeskSidebarScrollPatched = true;
+    document.addEventListener('astro:before-swap', saveSidebarScroll);
+    document.addEventListener('astro:after-swap', restoreSidebarScroll);
+    document.addEventListener('astro:page-load', restoreSidebarScroll);
+    // Also cover full page navigations / tab switches.
+    addEventListener('pagehide', saveSidebarScroll);
+    addEventListener('visibilitychange', () => {
+      if (document.visibilityState === 'hidden') saveSidebarScroll();
+    });
+  }
+</script>
+
 <script is:inline>
 (function() {
   function initImageLightbox() {

@@ -1,0 +1,99 @@
+---
+title: "在插件中挂载 MCP"
+description: "在插件中注册本地 stdio 或远程 sse / streamableHttp MCP Server，支持静态声明与动态注册"
+---
+
+MCP 插件可以注册本地 stdio Server 或远程 sse / streamableHttp Server。插件贡献的 MCP 会出现在 GUI 的 MCP 管理器中，来源优先显示插件的 `displayName`，未声明时回退到插件 `id`。这类配置由插件拥有，因此在 MCP 管理器中只读；应通过插件中心启停插件或修改插件配置。
+
+## stdio 参数
+
+| 字段 | 类型 | 必填 | 说明 |
+| --- | --- | --- | --- |
+| name | string | 是 | Server 名，不能为空 |
+| transport | stdio | 是 | 传输类型 |
+| command | string | 是 | 可执行命令；推荐 `node` 等可移植命令 |
+| args | string[] | 否 | 命令参数 |
+| cwd | string | 否 | 工作目录 |
+| env | Record&lt;string, string&gt; | 否 | Server 进程环境变量 |
+
+## 远程 Server 参数
+
+| 字段 | 类型 | 必填 | 说明 |
+| --- | --- | --- | --- |
+| name | string | 是 | Server 名 |
+| transport | sse 或 streamableHttp | 是 | 远程传输类型 |
+| url | string | 是 | 合法的绝对 URL |
+| headers | Record&lt;string, string&gt; | 否 | 建立连接时附带的 Header |
+
+## 依赖 SDK 的 MCP 示例
+
+~~~js
+import { definePlugin } from '@bitclub.ai/opendesk-plugin-sdk';
+
+export default definePlugin({
+  id: 'project-mcp',
+  capabilities: ['mcp'],
+  setup(ctx) {
+    return ctx.mcps.registerServer({
+      name: 'project-files',
+      transport: 'stdio',
+      command: 'node',
+      args: ['./mcps/server.mjs'],
+      cwd: ctx.pluginDir,
+      env: {
+        OPENDESK_PLUGIN_ID: ctx.pluginId
+      }
+    });
+  }
+});
+~~~
+
+## 不依赖 SDK 的 MCP 示例
+
+~~~js
+export default {
+  id: 'project-mcp',
+  capabilities: ['mcp'],
+  setup(ctx) {
+    return ctx.mcps.registerServer({
+      name: 'project-files',
+      transport: 'stdio',
+      command: 'node',
+      args: ['./mcps/server.mjs'],
+      cwd: ctx.pluginDir,
+      env: {
+        OPENDESK_PLUGIN_ID: ctx.pluginId
+      }
+    });
+  }
+};
+~~~
+
+`mcp-server.mjs` 必须位于插件目录中并实现对应的 MCP Server；也可以改用 `sse` 或 `streamableHttp` 并提供远程 `url`。
+
+## 静态 MCP 声明
+
+MCP 也支持 `contributions.mcpServers` 静态声明（详见[插件结构概述](/docs/plugins/development/)中的 contributions 解析规则）。下面的 `opendesk.plugin.json` 与上面的动态注册等价：
+
+~~~json
+{
+  "schemaVersion": 1,
+  "id": "project-mcp",
+  "entry": "./index.mjs",
+  "apiVersion": 1,
+  "capabilities": ["mcp"],
+  "contributions": {
+    "mcpServers": [
+      {
+        "name": "project-files",
+        "transport": "stdio",
+        "command": "node",
+        "args": ["./mcps/server.mjs"],
+        "cwd": "."
+      }
+    ]
+  }
+}
+~~~
+
+静态声明由 `pluginmgr` 在 `setup(ctx)` 之前自动加载，适合配置固定的 Server；动态注册适合需要读取 `ctx.options` 或按配置选择 Server 的插件。两种方式可以同时使用，但不要重复注册同名 Server。

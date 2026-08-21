@@ -1,0 +1,70 @@
+---
+title: "扩展自定义命令"
+description: "通过 ctx.commands.register 向 OpenDesk TUI 命令系统注册自定义命令"
+---
+
+Command 注册到 OpenDesk TUI 命令系统。
+
+## PluginCommandDefinition 参数
+
+| 字段 | 类型 | 必填 | 说明 |
+| --- | --- | --- | --- |
+| name | string | 是 | Command 名；注册后由插件 id 限定命名空间 |
+| description | string | 是 | 命令说明 |
+| execute | function | 是 | 接收原始参数字符串和 PluginCommandContext |
+
+PluginCommandContext：
+
+| 字段 | 类型 | 说明 |
+| --- | --- | --- |
+| taskId | string，可选 | 当前活动任务 |
+| workspace | string，可选 | TUI 当前工作空间 |
+| abort | AbortSignal | 当前任务停止信号 |
+
+`execute` 可以返回 `undefined`、`string`，或包含可选 `title` 与必填 `output` 的对象。
+
+## 依赖 SDK 的 Command 示例
+
+~~~js
+import { definePlugin } from '@bitclub.ai/opendesk-plugin-sdk';
+
+export default definePlugin({
+  id: 'workspace-commands',
+  capabilities: ['command'],
+  setup(ctx) {
+    return ctx.commands.register({
+      name: 'where',
+      description: 'Show the current workspace',
+      execute(args, context) {
+        return {
+          title: 'Workspace',
+          output: context.workspace || 'No active workspace'
+        };
+      }
+    });
+  }
+});
+~~~
+
+## 不依赖 SDK 的 Command 示例
+
+~~~js
+export default {
+  id: 'workspace-commands',
+  capabilities: ['command'],
+  setup(ctx) {
+    return ctx.commands.register({
+      name: 'where',
+      description: 'Show the current workspace',
+      execute(args, context) {
+        return {
+          title: 'Workspace',
+          output: context.workspace || 'No active workspace'
+        };
+      }
+    });
+  }
+};
+~~~
+
+命令注册后由插件 `id` 限定命名空间，避免与其他插件或内置命令冲突。通过 `setup` 返回的清理函数或 registration 的 `dispose` 可以提前移除命令；插件停用、重载或宿主退出时，宿主会统一释放所有注册项。

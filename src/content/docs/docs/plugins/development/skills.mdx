@@ -1,0 +1,87 @@
+---
+title: "在插件中添加 Skills"
+description: "在插件中注册可由用户或模型调用的 Skill 说明，支持动态注册与标准 SKILL.md 静态声明"
+---
+
+Skill 插件把一组可由用户或模型调用的说明注册到 pluginMgr bundle。
+
+## PluginSkillDefinition 参数
+
+| 字段 | 类型 | 必填 | 说明 |
+| --- | --- | --- | --- |
+| name | string | 是 | Skill 名，必须以字母开头，只能包含字母、数字、点、下划线和连字符 |
+| description | string | 是 | Skill 用途，不能为空 |
+| body | string | 是 | Skill Markdown 正文 |
+| directory | string | 否 | Skill 资源目录，可相对 pluginDir；必须存在且位于插件根目录内 |
+| frontmatter | object | 否 | 额外 frontmatter；name 和 description 由顶层字段覆盖 |
+| userInvocable | boolean | 否 | 是否允许用户直接调用 |
+| modelInvocable | boolean | 否 | 是否允许模型调用 |
+
+## 依赖 SDK 的 Skill 示例
+
+~~~js
+import { definePlugin } from '@bitclub.ai/opendesk-plugin-sdk';
+
+export default definePlugin({
+  id: 'review-skills',
+  capabilities: ['skill'],
+  setup(ctx) {
+    return ctx.skills.register({
+      name: 'review-code',
+      description: 'Review the requested code change',
+      body: [
+        '# Review Code',
+        '',
+        'Inspect the requested change and report correctness, security and test findings.'
+      ].join('\n'),
+      directory: './skills/review-code',
+      userInvocable: true,
+      modelInvocable: true
+    });
+  }
+});
+~~~
+
+## 不依赖 SDK 的 Skill 示例
+
+~~~js
+export default {
+  id: 'review-skills',
+  capabilities: ['skill'],
+  setup(ctx) {
+    return ctx.skills.register({
+      name: 'review-code',
+      description: 'Review the requested code change',
+      body: [
+        '# Review Code',
+        '',
+        'Inspect the requested change and report correctness, security and test findings.'
+      ].join('\n'),
+      directory: './skills/review-code',
+      userInvocable: true,
+      modelInvocable: true
+    });
+  }
+};
+~~~
+
+## 使用标准 SKILL.md 静态声明
+
+如果 Skill 已经以标准 `SKILL.md` 存在，更适合使用 manifest 静态声明（详见[插件结构概述](/docs/plugins/development/)中的 `contributions.skills` 解析规则）：
+
+~~~json
+{
+  "schemaVersion": 1,
+  "id": "review-skills",
+  "entry": "./index.mjs",
+  "apiVersion": 1,
+  "capabilities": ["skill"],
+  "contributions": {
+    "skills": ["./skills"]
+  }
+}
+~~~
+
+静态声明与 SDK 无关。入口 `setup` 可以为空，但仍必须存在并导出合法插件对象。
+
+使用标准 `SKILL.md` 并希望连同脚本、模板、references 等资源原样发布时，优先使用 `contributions.skills`；Skill 内容需要按插件配置动态生成、需要条件注册，或只存在于代码字符串中时，使用 `ctx.skills.register`。同一个 Skill 不要同时使用两种方式注册，否则会因 contribution 名称冲突使插件激活失败。

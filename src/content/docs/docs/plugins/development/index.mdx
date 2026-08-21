@@ -1,0 +1,449 @@
+---
+title: "插件结构概述"
+description: "了解 OpenDesk 插件的协议、入口、Manifest、PluginContext、生命周期与基础能力组合"
+---
+
+OpenDesk 插件是在 OpenDesk 主进程中运行的受信任 Node.js 模块，由 `pluginmgr` 应用负责发现、安装、启停、校验和加载。插件可以增加 Tool、Hook、Skill、MCP Server、TUI Command 和应用事件监听器，也可以把这些能力组合在同一个插件中。
+
+本文对应插件 API v1。插件运行在宿主进程中，拥有与 OpenDesk 相同的本机权限；只安装可信来源的插件，并在发布前明确说明文件、网络、进程和凭据访问行为。能力声明、授权和完整性检查用于约束贡献（contribution）的加载，不是操作系统级沙箱；安装第三方插件前仍应审查来源。
+
+## SDK 与无 SDK 开发
+
+OpenDesk 支持两种入口写法：
+
+| 方式 | 适用场景 | 运行时要求 |
+| --- | --- | --- |
+| 依赖 SDK | TypeScript 开发、需要类型检查、需要 Tool 参数辅助函数时推荐 | 安装 `@bitclub.ai/opendesk-plugin-sdk`；未打包进产物时必须放在 `dependencies` |
+| 不依赖 SDK | 简单 JavaScript 插件、SDK 暂时无法下载或希望减少依赖 | 默认导出符合协议的普通对象；Tool 仍必须单独依赖 Zod 4 |
+
+SDK 的 `definePlugin` 只提供类型约束并返回原对象，插件运行时不要求入口必须由 `definePlugin` 创建。无 SDK 版本仍然调用同一套 context API，因此行为与 SDK 版本一致，只是没有编译期类型检查和辅助函数。
+
+不要从 OpenDesk 仓库的 `src` 目录导入类型或实现。公共类型统一从 `@bitclub.ai/opendesk-plugin-sdk` 导入；无 SDK 插件使用本文描述的稳定对象协议。
+
+## 最小插件
+
+### 目录结构
+
+~~~text
+hello-plugin/
+├── opendesk.plugin.json
+├── package.json
+└── index.mjs
+~~~
+
+OpenDesk 直接执行 JavaScript 入口，不会替插件编译 TypeScript。TypeScript 项目必须先构建，并把 JavaScript 产物及运行时依赖放入安装包。
+
+### opendesk.plugin.json
+
+~~~json
+{
+  "schemaVersion": 1,
+  "id": "hello-plugin",
+  "displayName": "Hello Plugin",
+  "entry": "./index.mjs",
+  "apiVersion": 1,
+  "capabilities": []
+}
+~~~
+
+### 依赖 SDK
+
+package.json：
+
+~~~json
+{
+  "name": "hello-plugin",
+  "version": "0.1.0",
+  "type": "module",
+  "dependencies": {
+    "@bitclub.ai/opendesk-plugin-sdk": "^0.1.0"
+  }
+}
+~~~
+
+index.mjs：
+
+~~~js
+import { definePlugin } from '@bitclub.ai/opendesk-plugin-sdk';
+
+export default definePlugin({
+  id: 'hello-plugin',
+  displayName: 'Hello Plugin',
+  version: '0.1.0',
+  capabilities: [],
+  setup(ctx) {
+    console.info('Loaded plugin from', ctx.pluginDir);
+  }
+});
+~~~
+
+### 不依赖 SDK
+
+package.json：
+
+~~~json
+{
+  "name": "hello-plugin",
+  "version": "0.1.0",
+  "type": "module"
+}
+~~~
+
+index.mjs：
+
+~~~js
+export default {
+  id: 'hello-plugin',
+  displayName: 'Hello Plugin',
+  version: '0.1.0',
+  capabilities: [],
+  setup(ctx) {
+    console.info('Loaded plugin from', ctx.pluginDir);
+  }
+};
+~~~
+
+两种入口的 `id` 都必须与 manifest 中的 `id` 一致。建议始终显式声明 `capabilities`；省略它会请求宿主支持的全部插件能力，通常不是预期结果。
+
+## Manifest 参考
+
+插件目录优先读取 `opendesk.plugin.json`。npm 包也可以把同样的信息写入 `package.json` 的 `opendesk` 字段。
+
+### 顶层字段
+
+| 字段 | 类型 | 必填 | 说明 |
+| --- | --- | --- | --- |
+| schemaVersion | 1 | 是 | Manifest 结构版本，当前只能为 1 |
+| id | string | 是 | 插件唯一标识；必须以字母开头，只能包含字母、数字、点、下划线和连字符 |
+| displayName | string | 否 | 面向用户显示的名称 |
+| entry | string | 是 | 相对插件根目录的 JavaScript 入口；不能越出插件目录 |
+| apiVersion | 1 | 是 | 插件 API 版本，当前只能为 1 |
+| version | string | 否 | 插件版本；npm 包通常使用 `package.json` 的 `version` |
+| capabilities | string[] | 是 | 插件申请的能力列表，详见下表 |
+| minOpenDeskVersion | string | 否 | 可运行的最低 OpenDesk 语义化版本 |
+| maxOpenDeskVersion | string | 否 | 可运行的最高 OpenDesk 语义化版本 |
+| contributions | object | 否 | 无需执行 `setup` 即可声明的静态 Skill 和 MCP Server |
+
+### capabilities
+
+| 值 | 对应 API |
+| --- | --- |
+| hook | `ctx.hooks.on` |
+| tool | `ctx.tools.register` |
+| skill | `ctx.skills.register` 或 `contributions.skills` |
+| mcp | `ctx.mcps.registerServer` 或 `contributions.mcpServers` |
+| command | `ctx.commands.register` |
+| event | `ctx.events.onApplication` |
+
+插件只能注册已声明且已经获准的能力。静态 Skill 或 MCP contribution 也必须分别声明 `skill` 或 `mcp`。
+
+### contributions
+
+| 字段 | 类型 | 说明 |
+| --- | --- | --- |
+| skills | string[] | Skill 目录的相对路径。目录可以直接包含 `SKILL.md`，也可以包含多个以 `SKILL.md` 为入口的一级子目录 |
+| mcpServers | object[] | MCP Server 定义；字段与后文 MCP 插件相同 |
+
+`contributions` 是 manifest 中的静态声明。`pluginmgr` 发现插件后，会先解析这些声明并注册 Skill 和 MCP Server，再执行入口的 `setup(ctx)`。因此，插件只需要携带标准 Skill 目录或 MCP Server 文件，不必在 `setup(ctx)` 中重复调用 `ctx.skills.register` 或 `ctx.mcps.registerServer`。
+
+静态 contribution 与 SDK 无关，但插件仍然必须提供合法的 JavaScript 入口和 `setup` 函数。它适合内容和配置固定、无需读取 `ctx.options` 的 Skill/MCP；需要根据用户配置决定是否注册、动态拼装定义或自行管理生命周期时，应使用 `setup(ctx)` 中的动态注册。
+
+#### contributions.skills 与 ctx.skills.register
+
+两种方式最终都会把 Skill 加入同一个 pluginMgr bundle，但输入形式和加载时机不同：
+
+| 对比项 | contributions.skills | ctx.skills.register(definition) |
+| --- | --- | --- |
+| 声明位置 | `opendesk.plugin.json` 或 `package.json#opendesk` | 入口的 `setup(ctx)` |
+| Skill 内容来源 | 读取并解析插件目录中的 `SKILL.md` | 直接使用 `definition.body` 字符串 |
+| 必填信息 | 相对 Skill 目录路径；目录内必须有合法 `SKILL.md` | name、description、body |
+| directory 含义 | 声明路径就是 Skill 目录或 Skill 集合目录 | 可选资源目录；不会自动读取其中的 `SKILL.md` |
+| 加载数量 | 一个路径可加载一个 Skill，也可扫描多个一级子目录 | 每调用一次只注册一个 Skill |
+| 加载时机 | 在 `setup(ctx)` 之前由 PluginMgr 自动加载 | 执行 `setup(ctx)` 时注册 |
+| 条件控制 | 固定加载，不能读取 `ctx.options` 后决定 | 可以根据 `ctx.options`、平台或其他运行时条件决定 |
+| 元数据来源 | `SKILL.md` frontmatter | definition 字段及 `definition.frontmatter` |
+| 注销控制 | 没有单独 registration 句柄，由插件生命周期统一管理 | 返回 PluginRegistration，可提前调用 dispose |
+| SDK 要求 | 不依赖 SDK | 运行时不依赖 SDK；SDK 只提供 PluginSkillDefinition 类型 |
+| capability | manifest/入口必须包含 skill | manifest/入口必须包含 skill |
+
+使用标准 `SKILL.md` 并希望连同脚本、模板、references 等资源原样发布时，优先使用 `contributions.skills`。Skill 内容需要按插件配置动态生成、需要条件注册，或只存在于代码字符串中时，使用 `ctx.skills.register`。
+
+同一个 Skill 不要同时使用两种方式注册。静态 Skill 已经在 `setup(ctx)` 前进入宿主，再调用 `ctx.skills.register` 注册同名 Skill 会因 contribution 名称冲突而使插件激活失败。如果 `setup(ctx)` 后续抛错，PluginMgr 仍会回收此前加载的静态 Skill。
+
+#### 能力声明与加载顺序
+
+静态加载按以下顺序执行：
+
+1. 读取并校验 manifest；
+2. 解析 `contributions.skills` 和 `contributions.mcpServers`；
+3. 检查插件申请并获准了 `skill`、`mcp` 能力；
+4. 注册静态 Skill 和 MCP Server；
+5. 调用入口的 `setup(ctx)`，继续注册动态能力。
+
+manifest 中包含 `contributions.skills` 时，`capabilities` 必须包含 `skill`；包含 `contributions.mcpServers` 时，必须包含 `mcp`。插件入口中的 `capabilities` 优先于 manifest，因此入口如果也声明该字段，必须保留这些能力。对于纯静态 contribution 插件，建议在入口中省略 `capabilities`，让宿主直接使用 manifest 的声明。
+
+如果路径、Skill 内容或 MCP 定义无效，插件不会进入正常激活状态。插件被禁用、卸载或重新加载时，静态 contribution 与动态注册项会一起移除；stdio MCP 的连接也由 PluginMgr 关闭。
+
+#### Skill 目录解析
+
+`contributions.skills` 的每一项都是相对插件根目录的目录路径，不是 Skill 定义对象。PluginMgr 按以下规则加载：
+
+- 声明目录自身包含 `SKILL.md` 时，该目录代表一个 Skill；
+- 声明目录不直接包含 `SKILL.md` 时，只扫描它的一级子目录，并加载其中包含 `SKILL.md` 的目录；
+- 所有路径必须存在且位于插件根目录内，绝对路径、越过根目录的路径和越界符号链接都会被拒绝；
+- `SKILL.md` 的 `name`、`description`、`user-invocable` 和 `disable-model-invocation` 等 frontmatter 会被解析为 Skill 元数据；
+- Skill 以只读方式加入 pluginMgr bundle，并保留插件来源信息；同目录中的脚本、模板等资源仍可由该 Skill 使用。
+
+例如 skills 可以指向单个 Skill：
+
+~~~json
+"contributions": {
+  "skills": ["./skills/review-code"]
+}
+~~~
+
+也可以指向一个包含多个 Skill 的集合目录：
+
+~~~json
+"contributions": {
+  "skills": ["./skills"]
+}
+~~~
+
+第二种写法会加载 `skills/review-code/SKILL.md`、`skills/summarize/SKILL.md` 等一级子目录，但不会递归扫描更深层级。
+
+#### MCP Server 解析
+
+`contributions.mcpServers` 直接包含 MCP Server 定义：
+
+- stdio Server 必须提供 `name`、`transport: stdio` 和 `command`，可选 `args`、`cwd`、`env`；
+- sse 或 `streamableHttp` Server 必须提供 `name`、`transport` 和合法的绝对 `url`，可选 `headers`；
+- stdio `command` 以 `./` 或 `../` 开头时，会按插件根目录解析，并且必须指向插件内的文件；
+- `cwd` 按插件根目录解析，必须是插件内已经存在的目录；
+- `args` 不会自动转换为绝对路径。使用 `command: node` 和相对脚本参数时，应把 `cwd` 设置为插件根目录；
+- 推荐使用 `node` 等可移植命令，不要使用 `process.execPath`；
+- 本地 Server 文件和它的运行时依赖必须随插件一起发布。
+
+#### 完整静态 contribution 示例
+
+目录：
+
+~~~text
+review-bundle/
+├── opendesk.plugin.json
+├── package.json
+├── index.mjs
+├── skills/
+│   ├── review-code/
+│   │   ├── SKILL.md
+│   │   └── references/
+│   └── summarize/
+│       └── SKILL.md
+└── mcps/
+    └── server.mjs
+~~~
+
+skills/review-code/SKILL.md：
+
+~~~md
+---
+name: review-code
+description: 检查代码变更并报告正确性、安全性和测试问题
+user-invocable: true
+disable-model-invocation: false
+---
+
+# Review Code
+
+检查用户指定的代码变更，并按严重程度输出发现。
+~~~
+
+opendesk.plugin.json：
+
+~~~json
+{
+  "schemaVersion": 1,
+  "id": "review-bundle",
+  "entry": "./index.mjs",
+  "apiVersion": 1,
+  "capabilities": ["skill", "mcp"],
+  "contributions": {
+    "skills": ["./skills"],
+    "mcpServers": [
+      {
+        "name": "review-files",
+        "transport": "stdio",
+        "command": "node",
+        "args": ["./mcps/server.mjs"],
+        "cwd": "."
+      }
+    ]
+  }
+}
+~~~
+
+如果入口依赖 SDK，可以只用 `definePlugin` 校验入口结构；不要在入口中把 `capabilities` 重写为空数组：
+
+~~~js
+import { definePlugin } from '@bitclub.ai/opendesk-plugin-sdk';
+
+export default definePlugin({
+  id: 'review-bundle',
+  setup(ctx) {
+    console.info('Static contributions loaded for', ctx.pluginId);
+  }
+});
+~~~
+
+不依赖 SDK 时默认导出同样的普通对象：
+
+~~~js
+export default {
+  id: 'review-bundle',
+  setup(ctx) {
+    console.info('Static contributions loaded for', ctx.pluginId);
+  }
+};
+~~~
+
+两种入口都会从 manifest 获得 `skill` 和 `mcp` capabilities。不要在 `setup(ctx)` 中再次注册相同 Skill 或 MCP 名称，否则会发生 contribution 名称冲突。
+
+### 使用 package.json 声明
+
+没有 `opendesk.plugin.json` 时，可以把 entry 改名为 `plugin` 并放入 `package.json#opendesk`：
+
+~~~json
+{
+  "name": "hello-plugin",
+  "version": "0.1.0",
+  "type": "module",
+  "opendesk": {
+    "schemaVersion": 1,
+    "id": "hello-plugin",
+    "plugin": "./index.mjs",
+    "apiVersion": 1,
+    "capabilities": ["hook"]
+  }
+}
+~~~
+
+如果两处声明同时存在，入口和 `id` 必须一致。发布 npm 包时 `package.json` 必须包含 `name` 和 `version`。
+
+## 入口对象参考
+
+入口模块必须默认导出 `OpenDeskPlugin` 对象。
+
+| 字段 | 类型 | 必填 | 说明 |
+| --- | --- | --- | --- |
+| id | string | 是 | 插件唯一标识，规则与 manifest 相同 |
+| displayName | string | 否 | 显示名称；入口值优先于 manifest |
+| version | string | 否 | 插件版本；入口值优先于 manifest |
+| apiVersion | number | 否 | 默认使用当前 API 版本，显式设置时必须为 1 |
+| capabilities | PluginCapability[] | 建议 | 申请的能力；入口值优先于 manifest |
+| minOpenDeskVersion | string | 否 | 最低宿主版本 |
+| maxOpenDeskVersion | string | 否 | 最高宿主版本 |
+| configSchema | Zod schema | 否 | 校验插件 options，解析结果必须是普通对象 |
+| failureMode | open 或 closed | 否 | Hook 默认失败策略，默认为 open |
+| setup | function | 是 | 激活插件时调用，可同步或异步 |
+
+`setup` 可以返回以下任一种值：
+
+- `undefined`：没有额外清理逻辑；
+- 清理函数：停用、卸载、重载或宿主退出时执行；
+- 带有异步 `dispose` 方法的 PluginRegistration。
+
+通过 context 注册的所有 contribution 都会被宿主跟踪并按注册顺序的逆序释放。插件自行创建的计时器、文件监听器或子进程应由 `setup` 返回的清理函数释放。
+
+## PluginContext 参考
+
+| 字段 | 类型 | 说明 |
+| --- | --- | --- |
+| pluginId | string | 当前插件 id |
+| pluginDir | string | 当前插件安装根目录的绝对路径 |
+| configDir | string | OpenDesk 配置目录的绝对路径 |
+| options | Readonly object | 用户为插件保存的配置，已经由 configSchema 校验 |
+| hooks.on | function | 注册 Hook |
+| tools.register | function | 注册 Tool |
+| skills.register | function | 注册 Skill |
+| mcps.registerServer | function | 注册 MCP Server |
+| commands.register | function | 注册 TUI Command |
+| events.onApplication | function | 监听应用事件 |
+
+每个 `register` 或 `on` 方法都返回 PluginRegistration。通常不需要手工调用 `dispose`，因为宿主会在插件退出时统一清理；只有插件需要提前撤销某一项注册时才主动调用。
+
+## 生命周期与安全边界
+
+插件按以下流程加载：
+
+~~~text
+discover
+  -> resolve entry
+  -> validate path containment and managed integrity
+  -> read manifest and static contributions
+  -> verify the entry is directly runnable
+  -> import plugin
+  -> validate API version, capability grants and options
+  -> register static contributions
+  -> setup(ctx)
+~~~
+
+`setup` 失败会释放本次激活已创建的注册项。插件停用或宿主重载时，Hook、工具、Skill、MCP、命令和事件监听都会随所属插件释放。
+
+Hook 按插件激活顺序串行执行。默认 `failureMode: 'open'` 会记录失败并继续主流程；安全或认证场景可以在注册 Hook 时指定 `failureMode: 'closed'`，让异常阻止对应操作。托管插件在 import 前检查安装内容完整性；手工和外部插件会标记为 unmanaged，不进行内容锁定。
+
+## 能力概览
+
+插件可以组合以下扩展能力，各能力的详细用法见对应章节：
+
+- [在插件中添加工具](/docs/plugins/development/tool/) — 把工具加入 Agent 可见工具集，支持参数 Schema、权限声明与 CLI/GUI 渲染器
+- [在插件中挂载 MCP](/docs/plugins/development/mcp/) — 注册本地 stdio 或远程 sse / streamableHttp MCP Server
+- [在插件中添加 Skills](/docs/plugins/development/skills/) — 注册可由用户或模型调用的 Skill 说明
+- [在插件中使用钩子](/docs/plugins/development/hooks/) — 在模型请求、工具调用、Skill 加载等节点插入逻辑
+- [扩展自定义命令](/docs/plugins/development/commands/) — 向 TUI 命令系统注册命令
+- [插件的调试与发布](/docs/plugins/development/debug-publish/) — 配置、内置插件、安装与开发目录、校验与发布
+
+> Event（应用事件监听）能力当前文档暂未覆盖，后续补充。
+
+## 完整组合示例
+
+一个插件可以声明多个 capability，并在同一个 `setup` 中注册多项能力。建议保留每个 registration，并在清理函数中按逆序释放；宿主也会在插件停用时进行兜底清理。
+
+~~~js
+import { definePlugin, tool } from '@bitclub.ai/opendesk-plugin-sdk';
+
+export default definePlugin({
+  id: 'team-helper',
+  capabilities: ['hook', 'tool', 'skill'],
+  setup(ctx) {
+    const registrations = [
+      ctx.hooks.on('chat.headers', (_input, output) => {
+        output.headers['x-team-helper'] = 'enabled';
+      }),
+      ctx.tools.register(tool({
+        name: 'team-status',
+        description: 'Return the current team status',
+        args: {},
+        async execute() {
+          return {
+            output: 'Team is ready',
+            resultObject: { ready: true }
+          };
+        }
+      })),
+      ctx.skills.register({
+        name: 'team-workflow',
+        description: 'Follow the team workflow',
+        body: '# Team workflow\n\nFollow the project review and verification process.',
+        userInvocable: true,
+        modelInvocable: true
+      })
+    ];
+
+    return async () => {
+      for (const registration of registrations.reverse()) {
+        await registration.dispose();
+      }
+    };
+  }
+});
+~~~

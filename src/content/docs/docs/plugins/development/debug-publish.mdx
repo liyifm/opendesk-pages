@@ -1,0 +1,189 @@
+---
+title: "插件的调试与发布"
+description: "插件配置、内置插件、安装与开发目录、安装前校验、运行时诊断与发布检查"
+---
+
+本章合并插件的配置、内置插件、安装与开发目录，以及校验、调试与发布相关内容。
+
+## 插件配置
+
+用户保存的插件配置通过 `ctx.options` 读取。SDK 版本可以直接复用 SDK 导出的 Zod：
+
+~~~js
+import { definePlugin, tool } from '@bitclub.ai/opendesk-plugin-sdk';
+
+export default definePlugin({
+  id: 'configured-plugin',
+  capabilities: [],
+  configSchema: tool.schema.object({
+    endpoint: tool.schema.url(),
+    timeoutMs: tool.schema.number().int().positive().default(10000)
+  }),
+  setup(ctx) {
+    console.info(ctx.options.endpoint, ctx.options.timeoutMs);
+  }
+});
+~~~
+
+无 SDK 版本需要直接依赖并导入 Zod 4：
+
+~~~js
+import { z } from 'zod';
+
+export default {
+  id: 'configured-plugin',
+  capabilities: [],
+  configSchema: z.object({
+    endpoint: z.url(),
+    timeoutMs: z.number().int().positive().default(10000)
+  }),
+  setup(ctx) {
+    console.info(ctx.options.endpoint, ctx.options.timeoutMs);
+  }
+};
+~~~
+
+`configSchema` 解析失败时插件不会进入 `setup`。不要在 options 中保存无法安全明文持久化的长期密钥。
+
+## 内置插件
+
+OpenDesk 可以在仓库的 `resources/plugins` 中维护随应用发布的内置插件源码。每个一级子目录是一个独立插件，并且必须包含 `opendesk.plugin.json` 和其中声明的主入口：
+
+~~~text
+resources/plugins/
+└── builtin-review/
+    ├── opendesk.plugin.json
+    ├── index.mjs
+    └── helper.mjs
+~~~
+
+执行 `npm run build:plugins`、`npm run build` 或 `npm run build-cli` 时，OpenDesk 会将每个内置插件复制到只读运行时目录：
+
+~~~text
+dist/plugins/
+└── builtin-review/
+    ├── opendesk.plugin.json
+    └── index.mjs
+~~~
+
+内置插件入口必须是可直接运行的 `.js`、`.mjs` 或 `.cjs` 文件；构建流程不会编译 TypeScript。当前内置插件构建流程只负责复制插件目录；内置 Skill 和 MCP 的独立构建规则尚未纳入该流程。
+
+Electron 打包时，`dist/plugins` 会作为只读资源复制到 `process.resourcesPath/plugins`；独立 CLI/TUI 从可执行文件相邻的 `dist/plugins` 读取相同产物。开发环境也加载 `dist/plugins`，因此修改内置插件源码后需要重新执行插件构建或重启开发命令。
+
+内置插件在 `pluginmgr` 中的来源为 `builtin`，默认启用且不允许卸载。启停、权限和 options 只作为用户策略写入 `pluginmgr` 注册表，不会修改内置插件文件。内置插件 `id` 具有最高优先级；用户目录、托管安装或外部路径中的同 `id` 插件不会覆盖内置插件。
+
+## 安装与开发目录
+
+OpenDesk 全局插件目录与配置文件同级：
+
+- Windows：`%APPDATA%\opendesk\plugins`
+- Linux 和 macOS：`~/.opendesk/plugins`
+- 使用 `--config-directory <dir>` 或 `OPENDESK_CONFIG_DIRECTORY` 时：指定配置目录下的 `plugins`
+
+开发阶段有两种常见方式：
+
+1. 把插件目录放入全局 `plugins`，重启或重新加载插件；
+2. 在 OpenDesk 配置的 `applications.pluginmgr.externalPaths` 中加入开发目录，避免复制源码。
+
+~~~json
+{
+  "applications": {
+    "pluginmgr": {
+      "externalPaths": ["D:/projects/my-plugin"]
+    }
+  }
+}
+~~~
+
+相对的 `externalPaths` 以 OpenDesk 配置目录为基准。
+
+启动 TUI 时也可以临时指定一个额外的插件集合目录：
+
+~~~bash
+opendesk --plugins-directory ./plugins
+~~~
+
+OpenDesk 会扫描该目录的一级子目录和 `.js`、`.mjs`、`.cjs` 单文件插件，并在 TUI 启动前完成注册。相对路径以当前工作目录为基准；该参数只对本次进程生效，不修改全局插件目录或 `setting.json`。
+
+### 正式安装
+
+支持本地目录、ZIP、TGZ、HTTP/HTTPS URL 和 npm spec：
+
+~~~bash
+opendesk plugins install ./my-plugin
+opendesk plugins install ./my-plugin.zip
+opendesk plugins install ./my-plugin.tgz
+opendesk plugins install https://example.com/my-plugin.zip
+opendesk plugins install my-opendesk-plugin@latest
+~~~
+
+ZIP 与 TGZ 是同一层级的插件归档格式。归档根目录可以直接是插件内容，也可以只有一个包含插件内容的顶层目录。声明 `dependencies` 或 `peerDependencies` 时，安装器会准备运行时依赖；安装过程忽略 `devDependencies`、`optionalDependencies` 和 npm scripts。所有 npm 安装路径都传递 `--omit=dev`、`--no-optional` 和 `--ignore-scripts`，不会安装开发依赖、可选依赖，也不会运行插件或依赖的 npm 生命周期脚本。
+
+修改已经托管安装的插件源码后，需要重新安装同一来源；修改原始目录不会自动同步到托管副本。卸载只适用于托管插件，手工插件应从 `plugins/` 删除，外部目录插件应从 `externalPaths` 移除。
+
+### 常用 CLI
+
+除 `install` 外，其他常用命令：
+
+~~~bash
+opendesk plugins list
+opendesk plugins status
+opendesk plugins enable <插件ID>
+opendesk plugins disable <插件ID>
+opendesk plugins uninstall <插件ID>
+opendesk plugins reload
+opendesk plugins commands
+opendesk plugins tools
+opendesk plugins config review-helper '{"strict":true}'
+opendesk plugins permissions review-helper
+opendesk plugins grant review-helper skill mcp
+opendesk plugins revoke review-helper mcp
+opendesk plugins verify review-helper
+opendesk plugins doctor
+~~~
+
+需要机器可读输出的 `status`、`reload`、`verify` 和 `doctor` 支持 `--json`。
+
+GUI 中通过“插件中心”应用安装和管理插件；TUI 中通过“设置 → 插件中心”查看、重新加载、启停和卸载。`opendesk plugins` CLI、GUI、TUI、headless CLI 和 serve 模式共用同一套 `pluginmgr` 注册表和插件宿主。
+
+`pluginmgr` Application 还会向 Agent 提供 `manage-plugins` Skill，其中包含 `listPlugins`、`getPluginDetails`、`installPlugin`、`uninstallPlugin`、`setPluginEnabled` 和 `reloadPlugins` 工具。插件列表和详情读取默认允许；安装、卸载、启停和重新加载会通过 `plugin` 权限资源请求用户确认。Agent 安装仍遵循上述 OpenDesk 插件校验、托管目录和 `--ignore-scripts` 规则。
+
+## 校验、调试与发布
+
+### 安装前校验
+
+依赖 SDK 时可运行：
+
+~~~bash
+npx opendesk-plugin-sdk validate ./my-plugin
+~~~
+
+无 SDK 时至少检查：
+
+- manifest `id` 与入口 `id` 一致；
+- `entry`、Skill 和 MCP 路径存在且位于插件根目录内；
+- `capabilities` 覆盖所有注册项；
+- 每个 Tool 的 `parameters` 是 Zod 4 对象 Schema；
+- `index.mjs` 可以通过 `node --check`；
+- 安装包包含运行时 `dependencies`，不依赖 `devDependencies`；
+- stdio MCP 使用 `node` 等可用命令，且 server 文件已打包。
+
+### 运行时诊断
+
+~~~bash
+opendesk plugins list
+opendesk plugins status
+opendesk plugins verify plugin-id
+opendesk plugins doctor
+~~~
+
+插件加载失败时先检查 PluginMgr 诊断信息。常见问题包括 `id` 不一致、能力未声明、API 版本不兼容、Tool `parameters` 不是 Zod 4 对象 Schema、MCP 路径越界，以及 `setup` 抛错。
+
+### 发布检查
+
+- `package.json` 包含 `name`、`version` 和 `type: module`；
+- npm 包声明 `package.json#opendesk`，或包含 `opendesk.plugin.json`；
+- ZIP/TGZ 解压后的插件根目录可直接找到 manifest 和入口；
+- README 说明插件能力、配置、权限、副作用和支持的 OpenDesk 版本；
+- 不把访问令牌、用户路径或本机生成文件打入归档；
+- 在 CLI 和 GUI 中分别验证 Tool、渲染器、MCP 连接及卸载清理行为。

@@ -86,6 +86,7 @@ export default defineConfig({
                 { label: '常见问题', slug: 'docs/manual/desktop/faq' },
               ],
             },
+            { label: '插件使用', slug: 'docs/plugins' },
           ],
         },
         {
@@ -114,9 +115,15 @@ export default defineConfig({
               ],
             },
             {
-              label: '插件系统',
+              label: '插件开发指南',
               items: [
-                { label: '插件开发指南', slug: 'docs/plugins/development' },
+                { label: '插件结构概述', slug: 'docs/plugins/development' },
+                { label: '在插件中添加工具', slug: 'docs/plugins/development/tool' },
+                { label: '在插件中挂载 MCP', slug: 'docs/plugins/development/mcp' },
+                { label: '在插件中添加 Skills', slug: 'docs/plugins/development/skills' },
+                { label: '在插件中使用钩子', slug: 'docs/plugins/development/hooks' },
+                { label: '扩展自定义命令', slug: 'docs/plugins/development/commands' },
+                { label: '插件的调试与发布', slug: 'docs/plugins/development/debug-publish' },
               ],
             },
           ],

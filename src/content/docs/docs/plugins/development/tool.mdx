@@ -1,0 +1,179 @@
+---
+title: "在插件中添加工具"
+description: "在插件中注册 Agent 可见工具：参数 Schema、权限声明、增量结果、取消信号与 CLI/GUI 渲染器"
+---
+
+Tool 会加入 Agent 可见工具集，最终名称由插件 `id` 和 Tool `name` 共同限定。参数必须使用 Zod 4 对象 Schema；普通对象、JSON Schema、字符串或只模拟 `toJSONSchema` 的对象都会在插件激活时被拒绝。
+
+## ToolDefinition 参数
+
+| 字段 | 类型 | 必填 | 说明 |
+| --- | --- | --- | --- |
+| name | string | 是 | Tool 名称，不能为空 |
+| description | string | 是 | 给模型读取的功能说明，不能为空 |
+| parameters | Zod object schema | 是 | 直接注册时使用；必须同时支持 safeParse 和 toJSONSchema，且生成 object JSON Schema |
+| agentIds | readonly string[] | 否 | 仅向指定 Agent 暴露 |
+| serialExecution | boolean | 否 | 为 true 时要求串行执行，默认为 false |
+| getDeclaredPermissions | function | 否 | 根据参数声明本次调用需要的权限 |
+| execute | async function | 是 | 执行 Tool |
+| stop | function | 否 | 宿主要求停止 Tool 时调用 |
+| render | object | 否 | CLI 和 GUI 自定义渲染器 |
+
+使用 SDK 的 `tool` 辅助函数时传入 `args`，而不是 `parameters`。`tool` 会执行 `parameters: z.object(args)` 的转换。直接调用 `ctx.tools.register` 时始终传 `parameters`，不能传 `args`。
+
+## execute 参数
+
+`execute(args, context, result)` 接收：
+
+| 参数 | 字段 | 说明 |
+| --- | --- | --- |
+| args | Schema 解析结果 | 已通过 `parameters` 校验的工具参数 |
+| context | taskId | 当前任务 id，某些无任务场景可能为空 |
+| context | workspace | 当前工作空间，可能为空 |
+| context | abort | AbortSignal，用于响应任务停止 |
+| result | attachResult(chunk) | 追加过程输出 |
+| result | updateResult(text) | 替换文本结果 |
+| result | updateResultObject(object) | 更新结构化结果 |
+
+`execute` 可以返回 `undefined`、`string`，或形如 `output` + `resultObject` 的对象。返回 `string` 会成为最终文本；对象中的 `output` 是最终文本，`resultObject` 是可选结构化结果。
+
+## 权限声明
+
+`getDeclaredPermissions` 返回 `PermissionRequest` 数组。每一项包含：
+
+| 字段 | 可选值 | 说明 |
+| --- | --- | --- |
+| resourceType | file、network、skill、plugin、* | 受保护资源类型 |
+| action | read、write、execute、access、* | 操作 |
+| resourcePath | string | 实际路径、URL、Skill 名或插件 id，不要用笼统占位值 |
+
+## Tool 渲染
+
+`render.gui` 接收 `ToolRenderContext`，返回 `text`、`code` 或 `keyValue` 内容；`render.cli` 额外接收 `width`，返回 `string[]`。渲染失败只会回退到默认显示，不会改变 Tool 执行结果。
+
+ToolRenderContext 字段：
+
+| 字段 | 类型 | 说明 |
+| --- | --- | --- |
+| tool | string | 完整 Tool 名 |
+| callId | string | 本次调用 id |
+| status | pending、running、success、error | 调用状态 |
+| args | unknown | 调用参数 |
+| result | string | 可选文本结果 |
+| resultObject | object | 可选结构化结果 |
+| width | number | 仅 CLI 渲染器可用的终端宽度 |
+
+GUI 返回值：
+
+~~~js
+{ type: 'text', text: 'plain text' }
+{ type: 'code', code: '{"ok":true}', language: 'json' }
+{ type: 'keyValue', items: [{ label: 'Status', value: 'Ready' }] }
+~~~
+
+## 依赖 SDK 的 Tool 示例
+
+~~~js
+import { definePlugin, tool } from '@bitclub.ai/opendesk-plugin-sdk';
+
+export default definePlugin({
+  id: 'greeting-tools',
+  capabilities: ['tool'],
+  setup(ctx) {
+    return ctx.tools.register(tool({
+      name: 'greet',
+      description: 'Generate a greeting for one person',
+      args: {
+        name: tool.schema.string().min(1).describe('Person to greet')
+      },
+      getDeclaredPermissions(args, context) {
+        return [];
+      },
+      async execute(args, context, result) {
+        result.attachResult('Preparing greeting');
+        if (context.abort.aborted) {
+          return { output: 'Cancelled' };
+        }
+        return {
+          output: 'Hello, ' + args.name + '!',
+          resultObject: { greeted: args.name }
+        };
+      },
+      render: {
+        gui({ status, resultObject }) {
+          return {
+            type: 'keyValue',
+            items: [
+              { label: 'Status', value: status },
+              { label: 'Name', value: String(resultObject?.greeted || '') }
+            ]
+          };
+        },
+        cli({ status, result, width }) {
+          return ['[' + status + '] ' + (result || '') + ' (width=' + width + ')'];
+        }
+      }
+    }));
+  }
+});
+~~~
+
+## 不依赖 SDK 的 Tool 示例
+
+无 SDK Tool 仍需 Zod 4：
+
+~~~json
+{
+  "name": "greeting-tools",
+  "version": "0.1.0",
+  "type": "module",
+  "dependencies": {
+    "zod": "^4.2.1"
+  }
+}
+~~~
+
+~~~js
+import { z } from 'zod';
+
+export default {
+  id: 'greeting-tools',
+  capabilities: ['tool'],
+  setup(ctx) {
+    return ctx.tools.register({
+      name: 'greet',
+      description: 'Generate a greeting for one person',
+      parameters: z.object({
+        name: z.string().min(1).describe('Person to greet')
+      }),
+      getDeclaredPermissions(args, context) {
+        return [];
+      },
+      async execute(args, context, result) {
+        result.attachResult('Preparing greeting');
+        if (context.abort.aborted) {
+          return { output: 'Cancelled' };
+        }
+        return {
+          output: 'Hello, ' + args.name + '!',
+          resultObject: { greeted: args.name }
+        };
+      },
+      render: {
+        gui({ status, resultObject }) {
+          return {
+            type: 'keyValue',
+            items: [
+              { label: 'Status', value: status },
+              { label: 'Name', value: String(resultObject?.greeted || '') }
+            ]
+          };
+        },
+        cli({ status, result, width }) {
+          return ['[' + status + '] ' + (result || '') + ' (width=' + width + ')'];
+        }
+      }
+    });
+  }
+};
+~~~

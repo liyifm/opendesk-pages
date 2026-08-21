@@ -1,0 +1,519 @@
+---
+title: "在插件中使用钩子"
+description: "通过 ctx.hooks.on 在模型请求、工具调用、Skill 加载、Shell 执行与权限询问等节点插入插件逻辑"
+---
+
+使用 `ctx.hooks.on(name, callback, options)` 注册 Hook。callback 接收只读语义的 input 和可修改的 output；通过修改 output 改变后续行为，不需要返回值。
+
+options 目前只有 `failureMode`：
+
+| 值 | 行为 |
+| --- | --- |
+| open | 默认值。回调抛错或输出校验失败时，放弃该回调的修改并继续主流程 |
+| closed | 回调抛错或输出校验失败时，把失败传播到当前 Hook 的调用方；after Hook 已发生的操作不会被回滚 |
+
+插件入口的 `failureMode` 是全部 Hook 的默认值，单次注册 `options.failureMode` 可以覆盖它。OpenDesk 依次执行已注册回调，每个回调都操作输出副本；只有回调成功且输出合法时才合并，因此一个失败回调不会留下部分修改。
+
+插件 API 不提供其他错误调度选项；插件作者只需要按上述语义配置 `failureMode`。
+
+## 运行时 Hook 列表
+
+当前 `OPENDESK_PLUGIN_HOOK_NAMES` 暴露以下 Hook 名（TypeScript 插件可用 `PluginHookName` 或 `OPENDESK_PLUGIN_HOOK_NAMES` 获得同一套有效名称）：
+
+| 分组 | Hook 名 | 触发时机 |
+| --- | --- | --- |
+| 对话 | `chat.headers` | 在当前模型请求前追加或改写 HTTP Header |
+| 对话 | `chat.params` | 在当前模型请求前调整推理强度和最大输出 token |
+| 技能 | `skill.load.before` | Agent 明确加载某个 Skill 时触发，可拒绝加载 |
+| 技能 | `skill.load.after` | 某个 Skill 成功加载后触发，仅用于观测和审计 |
+| 技能 | `skill.install.before` | 用户 Skill 安装前触发，可拒绝安装 |
+| 技能 | `skill.install.after` | 用户 Skill 安装成功后触发，仅用于观测和审计 |
+| 工具 | `tool.definition` | 调整工具在模型侧可见的描述和参数 Schema |
+| 工具 | `tool.validate.before` | 在参数校验前修改工具参数或拒绝本次执行 |
+| 工具 | `tool.execute.before` | 在执行前（权限检查之后）拒绝本次执行（**不可修改参数**） |
+| 工具 | `tool.execute.after` | 在工具完成后修改状态、文本结果或结构化结果 |
+| 工具 | `permission.ask` | 对权限请求返回 `ask`、`allow` 或 `deny` |
+| 工具 | `shell.env` | 为终端 Shell 请求调整环境变量 |
+| 工具 | `shell.execute.before` | 在执行 Shell 命令前修改参数或拒绝执行 |
+| 工具 | `shell.execute.after` | 在 Shell 命令完成后修改状态、文本或结构化结果 |
+
+JavaScript 插件注册未知 Hook 名时会在 `setup` 阶段失败。`chat.headers` 和 `chat.params` 共享 `PluginChatRequestInput`，但使用独立输出对象并依次执行。单个 Hook 回调失败时，只回滚该 Hook 的修改；`chat.headers` 不会改写模型参数，`chat.params` 也不会改写 Header。
+
+## 对话相关
+
+### chat.headers
+
+在每次模型请求准备 Header 时触发。一次用户消息可能产生主回复、终止检查、记忆更新或自动重试等多次模型请求，因此不能假设每条消息只触发一次。
+
+Input：
+
+| 字段 | 类型 | 说明 |
+| --- | --- | --- |
+| taskId | string，可选 | 当前任务 |
+| workspace | string，可选 | 当前工作空间 |
+| modelAlias | string，可选 | 当前模型别名 |
+
+Output：
+
+| 字段 | 类型 | 说明 |
+| --- | --- | --- |
+| headers | Record&lt;string, string&gt; | 最终请求 Header；值必须是字符串 |
+
+~~~js
+ctx.hooks.on('chat.headers', (input, output) => {
+  output.headers['x-request-source'] = 'my-plugin';
+});
+~~~
+
+### chat.params
+
+在每次模型请求准备可公开调整的模型参数时触发。Input 与 `chat.headers` 相同。
+
+Output：
+
+| 字段 | 类型 | 说明 |
+| --- | --- | --- |
+| reasoningEffort | 空字符串、none、low、medium、high、max，可选 | 推理强度；空字符串表示交给模型默认值 |
+| maxCompletionTokens | 正整数，可选 | 最大输出 token 数 |
+
+~~~js
+ctx.hooks.on('chat.params', (input, output) => {
+  if (input.modelAlias?.includes('reasoning')) {
+    output.reasoningEffort = 'high';
+  }
+  output.maxCompletionTokens = 8192;
+});
+~~~
+
+## 技能相关
+
+### skill.load.before
+
+Agent 即将加载一个具体 Skill 时触发，可允许或拒绝加载。
+
+Input：
+
+| 字段 | 类型 | 说明 |
+| --- | --- | --- |
+| bundleName | string | Skill 所属 bundle |
+| skillName | string | Skill 名 |
+| skillDirectory | string，可选 | Skill 目录 |
+| source | installed、config、mounted、builtin、plugin，可选 | Skill 来源 |
+| frontmatter | object | 已解析的 Skill frontmatter |
+
+Output：
+
+| 字段 | 类型 | 说明 |
+| --- | --- | --- |
+| operation | allow 或 deny | 默认 allow；deny 阻止加载 |
+| message | string，可选 | 允许或拒绝原因 |
+| metadata | object，可选 | 插件附加记录 |
+
+~~~js
+ctx.hooks.on('skill.load.before', (input, output) => {
+  if (input.frontmatter.requiresApproval === true) {
+    output.operation = 'deny';
+    output.message = 'This Skill requires separate approval';
+    output.metadata = { policy: 'requires-approval' };
+  }
+});
+~~~
+
+`skill.load.before` 只对应一次具体的 Skill 加载请求，例如 Agent 调用 `LoadSkill` 或用户通过 `/skill-name` 预加载。Skill 列举、目录扫描、registry refresh，以及 `CallSkillTool` 调用已加载 Skill 的内部工具，都不会触发这组 Hook。`before` 拒绝时不会执行 Skill 的环境变量合并，也不会触发 `after`。
+
+### skill.load.after
+
+一个具体 Skill 成功加载后触发。Input 与 `skill.load.before` 相同，Output 为空对象，适合审计、计数或日志记录。它不能修改已经加载的 Skill。
+
+~~~js
+ctx.hooks.on('skill.load.after', (input) => {
+  console.info('Loaded Skill', input.bundleName, input.skillName);
+});
+~~~
+
+### skill.install.before
+
+SkillMgr 即将安装 Skill 时触发，可拒绝安装。
+
+Input：
+
+| 字段 | 类型 | 说明 |
+| --- | --- | --- |
+| source | directory、zip、url、registry | 安装源类型 |
+| path | string，可选 | directory 或 zip 的本地路径 |
+| url | string，可选 | URL 安装地址 |
+| skillRelPath | string，可选 | 安装源内的 Skill 相对路径 |
+| force | boolean，可选 | 是否覆盖已有 Skill |
+| customName | string，可选 | 用户指定的 Skill 名 |
+
+Output 与 `skill.load.before` 相同：operation 为 allow 或 deny，message 和 metadata 可选。
+
+~~~js
+ctx.hooks.on('skill.install.before', (input, output) => {
+  if (input.source === 'url' && !input.url?.startsWith('https://')) {
+    output.operation = 'deny';
+    output.message = 'Only HTTPS Skill URLs are allowed';
+  }
+});
+~~~
+
+### skill.install.after
+
+Skill 成功安装后触发。Input 在 `skill.install.before` 字段之外增加 `skillName`，Output 为空对象。适合写审计日志或更新插件自己的索引，不能撤销已经完成的安装。
+
+~~~js
+ctx.hooks.on('skill.install.after', (input) => {
+  console.info('Installed Skill', input.skillName, 'from', input.source);
+});
+~~~
+
+## 工具相关
+
+以下 Hook 都围绕一次工具调用、Shell 命令或权限请求：`tool.*` 作用于工具，`shell.*` 作用于终端命令，`permission.ask` 作用于工具调用前的权限确认。
+
+### 工具调用顺序
+
+一次工具调用按顺序经过以下阶段，其中绿色节点是插件可注入的 Hook。完整的调用链能帮助你判断某个逻辑应该挂在哪一个 Hook 上：
+
+<svg viewBox="0 0 680 640" width="100%" role="img" xmlns="http://www.w3.org/2000/svg">
+  <title>工具调用顺序与插件 Hook 节点</title>
+  <desc>从解析模型参数到执行工具完成，标注插件可注入的 Hook 节点及其可修改或拒绝的能力边界。</desc>
+  <defs>
+    <marker id="arrow" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+      <path d="M2 1L8 5L2 9" fill="none" stroke="context-stroke" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+    </marker>
+  </defs>
+  <rect x="150" y="40" width="380" height="52" rx="10" fill="#F1EFE8" stroke="#888780" stroke-width="1"/>
+  <text x="340" y="72" text-anchor="middle" font-family="inherit" font-size="14" font-weight="500" fill="#2C2C2A">解析模型参数</text>
+  <line x1="340" y1="92" x2="340" y2="122" stroke="#888780" stroke-width="1.5" marker-end="url(#arrow)"/>
+  <rect x="150" y="122" width="380" height="52" rx="10" fill="#E1F5EE" stroke="#1D9E75" stroke-width="1"/>
+  <text x="340" y="146" text-anchor="middle" font-family="inherit" font-size="14" font-weight="500" fill="#0F6E56">tool.validate.before</text>
+  <text x="340" y="166" text-anchor="middle" font-family="inherit" font-size="11" fill="#085041">可修改参数 · 可拒绝</text>
+  <line x1="340" y1="174" x2="340" y2="204" stroke="#888780" stroke-width="1.5" marker-end="url(#arrow)"/>
+  <rect x="150" y="204" width="380" height="52" rx="10" fill="#F1EFE8" stroke="#888780" stroke-width="1"/>
+  <text x="340" y="236" text-anchor="middle" font-family="inherit" font-size="14" font-weight="500" fill="#2C2C2A">参数校验（使用修改后的参数）</text>
+  <line x1="340" y1="256" x2="340" y2="286" stroke="#888780" stroke-width="1.5" marker-end="url(#arrow)"/>
+  <rect x="150" y="286" width="380" height="52" rx="10" fill="#F1EFE8" stroke="#888780" stroke-width="1"/>
+  <text x="340" y="318" text-anchor="middle" font-family="inherit" font-size="14" font-weight="500" fill="#2C2C2A">权限检查</text>
+  <line x1="340" y1="338" x2="340" y2="368" stroke="#888780" stroke-width="1.5" marker-end="url(#arrow)"/>
+  <rect x="150" y="368" width="380" height="52" rx="10" fill="#E1F5EE" stroke="#1D9E75" stroke-width="1"/>
+  <text x="340" y="392" text-anchor="middle" font-family="inherit" font-size="14" font-weight="500" fill="#0F6E56">tool.execute.before</text>
+  <text x="340" y="412" text-anchor="middle" font-family="inherit" font-size="11" fill="#085041">仅可拒绝 · 不可改参数</text>
+  <line x1="340" y1="420" x2="340" y2="450" stroke="#888780" stroke-width="1.5" marker-end="url(#arrow)"/>
+  <rect x="150" y="450" width="380" height="52" rx="10" fill="#F1EFE8" stroke="#888780" stroke-width="1"/>
+  <text x="340" y="482" text-anchor="middle" font-family="inherit" font-size="14" font-weight="500" fill="#2C2C2A">执行工具</text>
+  <line x1="340" y1="502" x2="340" y2="532" stroke="#888780" stroke-width="1.5" marker-end="url(#arrow)"/>
+  <rect x="150" y="532" width="380" height="52" rx="10" fill="#E1F5EE" stroke="#1D9E75" stroke-width="1"/>
+  <text x="340" y="556" text-anchor="middle" font-family="inherit" font-size="14" font-weight="500" fill="#0F6E56">tool.execute.after</text>
+  <text x="340" y="576" text-anchor="middle" font-family="inherit" font-size="11" fill="#085041">可修改状态与结果</text>
+  <rect x="150" y="610" width="14" height="14" rx="3" fill="#E1F5EE" stroke="#1D9E75" stroke-width="1"/>
+  <text x="172" y="622" font-family="inherit" font-size="12" fill="#2C2C2A">插件 Hook 节点（可拦截 / 修改）</text>
+  <rect x="400" y="610" width="14" height="14" rx="3" fill="#F1EFE8" stroke="#888780" stroke-width="1"/>
+  <text x="422" y="622" font-family="inherit" font-size="12" fill="#2C2C2A">系统阶段</text>
+</svg>
+
+### tool.definition
+
+OpenDesk 为任务组装可用 Tool 定义时，对每一个 Tool 触发。它可能因多个任务、重试或工具集刷新而重复触发。
+
+Input：
+
+| 字段 | 类型 | 说明 |
+| --- | --- | --- |
+| tool | string | 完整 Tool 名 |
+| pluginId | string，可选 | Tool 来自插件时为其插件 id，原生 Tool 为空 |
+| taskId | string，可选 | 当前任务 |
+| workspace | string，可选 | 当前工作空间 |
+
+Output：
+
+| 字段 | 类型 | 说明 |
+| --- | --- | --- |
+| description | string | 给模型读取的说明，修改后仍不能为空 |
+| parameters | Zod object schema | Tool 参数 Schema，必须满足与 ToolDefinition.parameters 相同的校验 |
+
+~~~js
+ctx.hooks.on('tool.definition', (input, output) => {
+  if (input.tool === 'files-read') {
+    output.description += ' Prefer paths inside the current workspace.';
+  }
+});
+~~~
+
+### tool.validate.before
+
+工具参数完成解析、但尚未进入校验和执行前触发。修改后的 `args` 会用于后续校验和实际执行，因此可以修正或规整参数，也可以拒绝执行。
+
+Input：
+
+| 字段 | 类型 | 说明 |
+| --- | --- | --- |
+| tool | string | 完整 Tool 名 |
+| taskId | string | 当前任务 |
+| callId | string | Tool 调用 id |
+| workspace | string，可选 | 当前工作空间 |
+
+Output：
+
+| 字段 | 类型 | 说明 |
+| --- | --- | --- |
+| args | unknown | 即将校验和执行的参数，可以替换 |
+| deny | object，可选 | 设置后拒绝执行 |
+| deny.message | string，可选 | 面向调用方的拒绝原因 |
+| deny.metadata | object，可选 | 写入 Tool 结构化结果的拒绝信息 |
+
+~~~js
+ctx.hooks.on('tool.validate.before', (input, output) => {
+  if (typeof input.args === 'object' && input.args && 'path' in input.args) {
+    const args = input.args;
+    args.path = args.path.replace(/^~\//, process.env.HOME + '/');
+  }
+});
+~~~
+
+### tool.execute.before
+
+Tool 参数完成校验、权限检查之后，但尚未实际执行前触发。该阶段**不可修改参数**（以免绕过权限检查），只能拒绝执行。
+
+Input：
+
+| 字段 | 类型 | 说明 |
+| --- | --- | --- |
+| tool | string | 完整 Tool 名 |
+| taskId | string | 当前任务 |
+| callId | string | Tool 调用 id |
+| workspace | string，可选 | 当前工作空间 |
+
+Output：
+
+| 字段 | 类型 | 说明 |
+| --- | --- | --- |
+| deny | object，可选 | 设置后拒绝执行 |
+| deny.message | string，可选 | 面向调用方的拒绝原因 |
+| deny.metadata | object，可选 | 写入 Tool 结构化结果的拒绝信息 |
+
+~~~js
+ctx.hooks.on('tool.execute.before', (input, output) => {
+  if (input.tool === 'dangerous-tool') {
+    output.deny = {
+      message: 'Blocked by plugin policy',
+      metadata: { policy: 'deny-dangerous-tool' }
+    };
+  }
+});
+~~~
+
+### tool.execute.after
+
+Tool 执行结束后触发，可调整返回给模型和界面的状态与结果。
+
+Input：
+
+| 字段 | 类型 | 说明 |
+| --- | --- | --- |
+| tool | string | 完整 Tool 名 |
+| taskId | string | 当前任务 |
+| callId | string | Tool 调用 id |
+| workspace | string，可选 | 当前工作空间 |
+| args | unknown | 实际执行参数 |
+
+Output：
+
+| 字段 | 类型 | 说明 |
+| --- | --- | --- |
+| status | success 或 error | 最终状态 |
+| result | string | 最终文本结果 |
+| resultObject | object，可选 | 最终结构化结果 |
+
+~~~js
+ctx.hooks.on('tool.execute.after', (input, output) => {
+  output.resultObject = {
+    ...(output.resultObject || {}),
+    auditedBy: 'my-plugin'
+  };
+});
+~~~
+
+### permission.ask
+
+OpenDesk 即将为一次 Tool 调用询问权限时触发。
+
+Input：
+
+| 字段 | 类型 | 说明 |
+| --- | --- | --- |
+| taskId | string | 当前任务 |
+| workspace | string，可选 | 当前工作空间 |
+| tool | string | 请求权限的 Tool |
+| callId | string，可选 | Tool 调用 id |
+| requests | PermissionRequest[] | 需要确认的资源、操作和路径 |
+
+Output：
+
+| 字段 | 类型 | 说明 |
+| --- | --- | --- |
+| decision | ask、allow、deny | ask 保留用户确认；allow 或 deny 直接决定 |
+
+只有明确的组织策略或安全策略才应自动 allow 或 deny。不要用该 Hook 隐式扩大 Tool 权限。
+
+~~~js
+ctx.hooks.on('permission.ask', (input, output) => {
+  const usesHttp = input.requests.some((request) =>
+    request.resourceType === 'network' && request.resourcePath.startsWith('http:')
+  );
+  if (usesHttp) output.decision = 'deny';
+});
+~~~
+
+### shell.env
+
+Terminal 应用即将执行 Shell 命令时触发，用于添加、修改或移除本次进程环境变量。
+
+Input：
+
+| 字段 | 类型 | 说明 |
+| --- | --- | --- |
+| taskId | string，可选 | 当前任务 |
+| workspace | string，可选 | 当前工作空间 |
+| shell | string | Shell 可执行文件 |
+| command | string | 即将执行的命令 |
+
+Output：
+
+| 字段 | 类型 | 说明 |
+| --- | --- | --- |
+| env | Record&lt;string, string 或 undefined&gt; | 本次进程环境；字符串设置值，undefined 移除值 |
+
+~~~js
+ctx.hooks.on('shell.env', (input, output) => {
+  output.env.MY_PLUGIN_WORKSPACE = input.workspace || '';
+});
+~~~
+
+不要把长期凭据无条件注入所有命令；至少按 workspace、shell 或 command 收窄触发范围。
+
+### shell.execute.before
+
+Terminal 即将执行 Shell 命令、但在参数定稿前触发，可修改参数或拒绝执行。
+
+Input：
+
+| 字段 | 类型 | 说明 |
+| --- | --- | --- |
+| tool | string | 完整 Tool 名 |
+| taskId | string | 当前任务 |
+| callId | string | 调用 id |
+| workspace | string，可选 | 当前工作空间 |
+| shellType | bash、zsh、powershell | Shell 类型 |
+
+Output：
+
+| 字段 | 类型 | 说明 |
+| --- | --- | --- |
+| args | unknown | 即将执行的参数，可以替换 |
+| deny | object，可选 | 设置后拒绝执行 |
+| deny.message | string，可选 | 面向调用方的拒绝原因 |
+| deny.metadata | object，可选 | 写入结构化结果的拒绝信息 |
+
+~~~js
+ctx.hooks.on('shell.execute.before', (input, output) => {
+  if (input.shellType === 'powershell') {
+    output.deny = { message: 'PowerShell execution is blocked by plugin policy' };
+  }
+});
+~~~
+
+### shell.execute.after
+
+Shell 命令执行结束后触发，可调整返回给模型和界面的状态与结果。
+
+Input：
+
+| 字段 | 类型 | 说明 |
+| --- | --- | --- |
+| tool | string | 完整 Tool 名 |
+| taskId | string | 当前任务 |
+| callId | string | 调用 id |
+| workspace | string，可选 | 当前工作空间 |
+| args | unknown | 实际执行参数 |
+| shellType | bash、zsh、powershell | Shell 类型 |
+| returnCode | number 或 null | 进程返回码 |
+
+Output：
+
+| 字段 | 类型 | 说明 |
+| --- | --- | --- |
+| status | success 或 error | 最终状态 |
+| result | string | 最终文本结果 |
+| resultObject | object，可选 | 最终结构化结果 |
+
+~~~js
+ctx.hooks.on('shell.execute.after', (input, output) => {
+  output.resultObject = {
+    ...(output.resultObject || {}),
+    returnCode: input.returnCode
+  };
+});
+~~~
+
+## 示例
+
+### 依赖 SDK 的 Hook 示例
+
+~~~js
+import { definePlugin } from '@bitclub.ai/opendesk-plugin-sdk';
+
+export default definePlugin({
+  id: 'request-policy',
+  capabilities: ['hook'],
+  failureMode: 'open',
+  setup(ctx) {
+    const headers = ctx.hooks.on('chat.headers', (input, output) => {
+      output.headers['x-opendesk-workspace'] = input.workspace || 'none';
+    });
+    const tools = ctx.hooks.on(
+      'tool.execute.before',
+      (input, output) => {
+        if (input.tool === 'blocked-tool') {
+          output.deny = { message: 'Blocked by request-policy' };
+        }
+      },
+      { failureMode: 'closed' }
+    );
+
+    return async () => {
+      await tools.dispose();
+      await headers.dispose();
+    };
+  }
+});
+~~~
+
+### 不依赖 SDK 的 Hook 示例
+
+~~~js
+export default {
+  id: 'request-policy',
+  capabilities: ['hook'],
+  failureMode: 'open',
+  setup(ctx) {
+    const headers = ctx.hooks.on('chat.headers', (input, output) => {
+      output.headers['x-opendesk-workspace'] = input.workspace || 'none';
+    });
+    const tools = ctx.hooks.on(
+      'tool.execute.before',
+      (input, output) => {
+        if (input.tool === 'blocked-tool') {
+          output.deny = { message: 'Blocked by request-policy' };
+        }
+      },
+      { failureMode: 'closed' }
+    );
+
+    return async () => {
+      await tools.dispose();
+      await headers.dispose();
+    };
+  }
+};
+~~~
