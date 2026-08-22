@@ -120,6 +120,7 @@ export default {
 | apiVersion | 1 | 是 | 插件 API 版本，当前只能为 1 |
 | version | string | 否 | 插件版本；npm 包通常使用 `package.json` 的 `version` |
 | capabilities | string[] | 是 | 插件申请的能力列表，详见下表 |
+| platforms | string[] | 否 | 限制插件可运行的目标平台，值为 `win32`、`darwin`、`linux`、`android`、`openharmony` 之一。未指定时任意平台都加载该插件 |
 | minOpenDeskVersion | string | 否 | 可运行的最低 OpenDesk 语义化版本 |
 | maxOpenDeskVersion | string | 否 | 可运行的最高 OpenDesk 语义化版本 |
 | contributions | object | 否 | 无需执行 `setup` 即可声明的静态 Skill 和 MCP Server |
@@ -340,6 +341,7 @@ export default {
 | version | string | 否 | 插件版本；入口值优先于 manifest |
 | apiVersion | number | 否 | 默认使用当前 API 版本，显式设置时必须为 1 |
 | capabilities | PluginCapability[] | 建议 | 申请的能力；入口值优先于 manifest |
+| platforms | PluginPlatform[] | 否 | 限制插件可运行的目标平台；入口值优先于 manifest |
 | minOpenDeskVersion | string | 否 | 最低宿主版本 |
 | maxOpenDeskVersion | string | 否 | 最高宿主版本 |
 | configSchema | Zod schema | 否 | 校验插件 options，解析结果必须是普通对象 |
