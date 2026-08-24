@@ -12,6 +12,7 @@ const downloads = latestStable?.data.downloads;
 const version = latestStable?.data.version ?? '';
 const windowsUrl = downloads?.windows?.url ?? '';
 const macosUrl = downloads?.macos?.url ?? '';
+const harmonyosUrl = downloads?.harmonyos?.url ?? '';
 ---
 
 <section class="home-hero snap-page">
@@ -34,6 +35,7 @@ const macosUrl = downloads?.macos?.url ?? '';
               data-download-btn
               data-windows={windowsUrl}
               data-macos={macosUrl}
+              data-harmonyos={harmonyosUrl}
               data-fallback="/download"
               data-version={version}
             >
@@ -113,12 +115,21 @@ const macosUrl = downloads?.macos?.url ?? '';
     const ua = navigator.userAgent;
     const platform = navigator.platform ?? '';
 
+    // HarmonyOS first: HarmonyOS browsers may expose a Windows-like UA
+    // (e.g. "Win64") or a Linux platform, so check both UA and platform
+    // before windows/mac to avoid misrouting.
+    const isHarmony = /harmony\s?os|ohos|openharmony/i.test(`${ua} ${platform}`);
     const isWindows = /windows|win32|win64/i.test(platform) || /windows/i.test(ua);
     const isMac = /macintosh|macintel|macppc|mac68k|darwin/i.test(platform) || /mac os x/i.test(ua);
 
     let url = '';
     let label = '';
-    if (isWindows && btn.dataset.windows) {
+    let isExternal = false;
+    if (isHarmony && btn.dataset.harmonyos) {
+      url = btn.dataset.harmonyos;
+      label = 'HarmonyOS';
+      isExternal = true;
+    } else if (isWindows && btn.dataset.windows) {
       url = btn.dataset.windows;
       label = 'Windows';
     } else if (isMac && btn.dataset.macos) {
@@ -130,7 +141,7 @@ const macosUrl = downloads?.macos?.url ?? '';
 
     if (url) {
       btn.href = url;
-      btn.setAttribute('download', '');
+      if (!isExternal) btn.setAttribute('download', '');
       if (hint) hint.textContent = `(${label}${ver})`;
     } else if (ver && hint) {
       hint.textContent = `(最新稳定版${ver})`;
