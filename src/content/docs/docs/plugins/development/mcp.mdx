@@ -3,7 +3,7 @@ title: "在插件中挂载 MCP"
 description: "在插件中注册本地 stdio 或远程 sse / streamableHttp MCP Server，支持静态声明与动态注册"
 ---
 
-MCP 插件可以注册本地 stdio Server 或远程 sse / streamableHttp Server。插件贡献的 MCP 会出现在 GUI 的 MCP 管理器中，来源优先显示插件的 `displayName`，未声明时回退到插件 `id`。这类配置由插件拥有，因此在 MCP 管理器中只读；应通过插件中心启停插件或修改插件配置。
+MCP 插件可以注册本地 stdio Server 或远程 sse / streamableHttp Server。插件贡献的 MCP 会出现在 GUI 的 MCP 管理器中，来源优先显示插件的 `displayName`（支持本地化对象形式，按当前界面语言解析），未声明时回退到插件 `id`。这类配置由插件拥有，因此在 MCP 管理器中只读；应通过插件中心启停插件或修改插件配置。
 
 ## stdio 参数
 
@@ -73,7 +73,7 @@ export default {
 
 ## 静态 MCP 声明
 
-MCP 也支持 `contributions.mcpServers` 静态声明（详见[插件结构概述](/docs/plugins/development/)中的 contributions 解析规则）。下面的 `opendesk.plugin.json` 与上面的动态注册等价：
+MCP 也支持 `resources.mcpServers` 静态声明（详见[插件结构概述](/docs/plugins/development/)中的 resources 解析规则）。下面的 `opendesk.plugin.json` 与上面的动态注册等价：
 
 ~~~json
 {
@@ -82,7 +82,7 @@ MCP 也支持 `contributions.mcpServers` 静态声明（详见[插件结构概�
   "entry": "./index.mjs",
   "apiVersion": 1,
   "capabilities": ["mcp"],
-  "contributions": {
+  "resources": {
     "mcpServers": [
       {
         "name": "project-files",

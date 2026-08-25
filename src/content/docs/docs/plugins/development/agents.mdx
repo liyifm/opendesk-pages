@@ -1,0 +1,192 @@
+---
+title: "在插件中贡献子 Agent"
+description: "在插件中声明可由主 Agent 调度的子 Agent，支持 agents.md 静态目录声明与动态注册"
+---
+
+Agent 能力让插件向系统贡献子 Agent（subagent）。声明后，子 Agent 与内置的 `explore`、`plan` 一样，可以被主 Agent 作为子任务执行者调度，拥有独立的系统提示词、名称和使用场景描述。
+
+## AgentDefinition 参数
+
+| 字段 | 类型 | 必填 | 说明 |
+| --- | --- | --- | --- |
+| name | string | 是 | Agent 名，在所属插件内唯一 |
+| whenToUse | string | 是 | 使用场景描述，指示主 Agent 何时应调度此 Agent，不能为空 |
+| body | string | 是 | Agent 的 system prompt 指令体；静态声明时来自 `agents.md` |
+| dispatchable | boolean | 否 | 是否可被主 Agent 作为子任务执行者调度，缺省为 `true` |
+
+## 依赖 SDK 的动态注册示例
+
+~~~js
+import { definePlugin } from '@bitclub.ai/opendesk-plugin-sdk';
+
+export default definePlugin({
+  id: 'team-agents',
+  capabilities: ['agent'],
+  setup(ctx) {
+    return ctx.agents.register({
+      name: 'code-reviewer',
+      whenToUse: 'Reviewing code changes and pull requests.',
+      dispatchable: true,
+      body: [
+        '# Reviewer',
+        '',
+        '你是团队插件贡献的代码审查员子 agent。',
+        '审查变更并输出按严重程度分级的评审结论，不修改代码。'
+      ].join('\n')
+    });
+  }
+});
+~~~
+
+## 不依赖 SDK 的动态注册示例
+
+~~~js
+export default {
+  id: 'team-agents',
+  capabilities: ['agent'],
+  setup(ctx) {
+    return ctx.agents.register({
+      name: 'code-reviewer',
+      whenToUse: 'Reviewing code changes and pull requests.',
+      dispatchable: true,
+      body: [
+        '# Reviewer',
+        '',
+        '你是团队插件贡献的代码审查员子 agent。',
+        '审查变更并输出按严重程度分级的评审结论，不修改代码。'
+      ].join('\n')
+    });
+  }
+};
+~~~
+
+`ctx.agents.register` 返回 PluginRegistration，行为与其他动态注册一致：随插件停用、卸载或重载自动释放。
+
+## 从目录批量注册
+
+Agent 通常以目录形式组织：一个目录对应一个 Agent，目录里放 `agents.md`（system prompt 指令体）和可选的 `agent.json`（元数据）。这种目录布局与 OpenDesk 的自定义子 Agent（custom agent）一致：
+
+~~~text
+team-agents/
+├── opendesk.plugin.json
+├── index.mjs
+└── agents/
+    ├── reviewer/
+    │   ├── agents.md      # 必需：Agent 的 system prompt 指令体
+    │   └── agent.json     # 可选：name / when_to_use / dispatchable
+    └── helper/
+        └── agents.md      # 缺省 agent.json 时按目录名与正文首行推断
+~~~
+
+有两种方式加载这样的目录，二者的目录解析规则完全一致。
+
+### ctx.agents.registerDirectory
+
+在 `setup(ctx)` 中扫描并注册目录，路径相对插件根目录（`opendesk.plugin.json` 所在目录）：
+
+~~~js
+export default {
+  id: 'team-agents',
+  capabilities: ['agent'],
+  setup(ctx) {
+    // 扫描 ./agents 下的一级子目录，注册其中所有含 agents.md 的 Agent
+    return ctx.agents.registerDirectory('./agents');
+  }
+};
+~~~
+
+`registerDirectory` 返回单个 PluginRegistration，释放时会一并移除本次扫描注册的全部 Agent。若目录中某个 Agent 无效（`agents.md` 为空、`agent.json` 类型非法、目录内出现同名 Agent 等），本次调用会整体回滚，不会留下"半套" Agent。
+
+需要根据 `ctx.options` 或运行环境决定加载哪些 Agent 目录时，使用这种方式：
+
+~~~js
+export default {
+  id: 'team-agents',
+  capabilities: ['agent'],
+  setup(ctx) {
+    const registrations = [ctx.agents.registerDirectory('./agents/core')];
+    if (ctx.options.enableExperimental) {
+      registrations.push(ctx.agents.registerDirectory('./agents/experimental'));
+    }
+    return async () => {
+      for (const registration of registrations.reverse()) await registration.dispose();
+    };
+  }
+};
+~~~
+
+### manifest resources.agents
+
+在 manifest 中静态声明，无需在 `setup(ctx)` 中写任何代码，由 PluginMgr 在 `setup` 之前直接加载：
+
+~~~json
+{
+  "schemaVersion": 1,
+  "id": "team-agents",
+  "entry": "./index.mjs",
+  "apiVersion": 1,
+  "capabilities": ["agent"],
+  "resources": {
+    "agents": ["./agents"]
+  }
+}
+~~~
+
+入口 `setup` 可以为空，但仍必须存在并导出合法插件对象。只提供静态资源的插件建议在入口中省略 `capabilities`，让宿主直接使用 manifest 的声明。
+
+### 两种方式的选择
+
+| 对比项 | resources.agents | ctx.agents.registerDirectory |
+| --- | --- | --- |
+| 声明位置 | `opendesk.plugin.json` 或 `package.json#opendesk` | 入口的 `setup(ctx)` |
+| 加载时机 | 在 `setup(ctx)` 之前由 PluginMgr 自动加载 | 执行 `setup(ctx)` 时 |
+| 条件控制 | 固定加载，不能读取 `ctx.options` 后决定 | 可根据 `ctx.options`、平台或其他运行时条件决定 |
+| 注销控制 | 没有单独 registration 句柄，由插件生命周期统一管理 | 返回 PluginRegistration，可提前调用 dispose |
+| 目录解析规则 | 相同 | 相同 |
+| capability | manifest/入口必须包含 agent | manifest/入口必须包含 agent |
+
+Agent 目录固定、随插件一起发布时优先使用 `resources.agents`；需要按配置条件加载不同目录时使用 `ctx.agents.registerDirectory`。同一个目录不要同时用两种方式加载，否则会因 Agent 同名而使插件激活失败。
+
+### 目录解析规则
+
+- 声明目录自身包含 `agents.md` 时，该目录代表一个 Agent；
+- 声明目录不直接包含 `agents.md` 时，只扫描它的一级子目录，并加载其中包含 `agents.md` 的目录；
+- 所有路径必须是相对插件根目录的路径且解析后位于插件根目录内，绝对路径、越过根目录的路径和越界符号链接都会被拒绝；
+- `agents.md` 必须存在且非空；
+- 声明的目录下找不到任何 Agent 时视为错误。
+
+可选 `agent.json` 提供元数据：
+
+~~~json
+{
+  "name": "code-reviewer",
+  "when_to_use": "Reviewing code changes and pull requests.",
+  "dispatchable": false
+}
+~~~
+
+缺失的字段按以下规则推断，与自定义子 Agent 的推断规则一致：
+
+| 字段 | 推断规则 |
+| --- | --- |
+| name | 取 agent 目录名 |
+| when_to_use | 取 `agents.md` 的第一行标题（去掉开头的 `#`），为空时回退到目录名 |
+| dispatchable | 缺省为 `true`，不会被推断为不可调度 |
+
+`agent.json` 中字段存在但类型非法（例如 `dispatchable` 不是布尔值）会直接导致插件激活失败，而不是静默忽略。
+
+## 命名空间与重名规则
+
+宿主注册 Agent 时以插件 id 作为作用域，Agent 的完整标识为 `<插件 id>:<Agent 名>`：
+
+- 不同插件可以定义同名 Agent，注册后 id 互不冲突（例如 `team-a:reviewer` 与 `team-b:reviewer`）；
+- 同一插件内每个 Agent 名只能出现一次；同名重复注册会使插件激活失败，其它已创建的注册项会一并回滚。
+
+## 可调度性（dispatchable）
+
+- `dispatchable: true` 的 Agent 会出现在主 Agent 的可调度候选列表中（system prompt 中的 `<agent>` frontmatter），主 Agent 可以按 `whenToUse` 描述选择它来执行子任务；
+- `dispatchable: false` 的 Agent 仍然注册并可通过完整 id 引用，但不会进入子任务候选列表。
+
+## 生命周期
+
+Agent 可以作为静态资源在 `setup(ctx)` 之前由 PluginMgr 加载，也可以在 `setup(ctx)` 中通过 `ctx.agents.register` 或 `ctx.agents.registerDirectory` 动态注册。插件被禁用、卸载或重新加载时，所有 Agent 会与插件的其他能力一起释放。重新加载后同一个 Agent 的完整 id 保持不变，因此已有任务对它的引用仍然有效。

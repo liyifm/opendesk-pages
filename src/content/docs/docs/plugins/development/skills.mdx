@@ -67,7 +67,7 @@ export default {
 
 ## 使用标准 SKILL.md 静态声明
 
-如果 Skill 已经以标准 `SKILL.md` 存在，更适合使用 manifest 静态声明（详见[插件结构概述](/docs/plugins/development/)中的 `contributions.skills` 解析规则）：
+如果 Skill 已经以标准 `SKILL.md` 存在，更适合使用 manifest 静态声明（详见[插件结构概述](/docs/plugins/development/)中的 `resources.skills` 解析规则）：
 
 ~~~json
 {
@@ -76,7 +76,7 @@ export default {
   "entry": "./index.mjs",
   "apiVersion": 1,
   "capabilities": ["skill"],
-  "contributions": {
+  "resources": {
     "skills": ["./skills"]
   }
 }
@@ -84,4 +84,4 @@ export default {
 
 静态声明与 SDK 无关。入口 `setup` 可以为空，但仍必须存在并导出合法插件对象。
 
-使用标准 `SKILL.md` 并希望连同脚本、模板、references 等资源原样发布时，优先使用 `contributions.skills`；Skill 内容需要按插件配置动态生成、需要条件注册，或只存在于代码字符串中时，使用 `ctx.skills.register`。同一个 Skill 不要同时使用两种方式注册，否则会因 contribution 名称冲突使插件激活失败。
+使用标准 `SKILL.md` 并希望连同脚本、模板、references 等资源原样发布时，优先使用 `resources.skills`；Skill 内容需要按插件配置动态生成、需要条件注册，或只存在于代码字符串中时，使用 `ctx.skills.register`。同一个 Skill 不要同时使用两种方式注册，否则会因 资源名称冲突使插件激活失败。
