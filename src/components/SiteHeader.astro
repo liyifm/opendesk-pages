@@ -135,18 +135,26 @@ const navItems = site.nav;
       };
       const syncActiveLinks = () => {
         const currentPath = normalizePath(window.location.href);
-        this.querySelectorAll('[data-nav-link]').forEach((link) => {
+        // 首轮收集每个导航链接的匹配目标路径。
+        const matches = [...this.querySelectorAll('[data-nav-link]')].map((link) => {
           const item = link.closest('.site-nav__item, .site-mobile-tabs__item');
           const activeTarget = link.dataset.navActive || link.href;
           const targetPath = link.dataset.navExternal === 'true' ? null : normalizePath(activeTarget);
-          const isActive = Boolean(
+          const isMatch = Boolean(
             currentPath &&
               targetPath &&
               (targetPath === '/'
                 ? currentPath === '/'
                 : currentPath === targetPath || currentPath.startsWith(`${targetPath}/`)),
           );
-
+          return { link, item, isMatch, targetPath };
+        });
+        // 最长前缀优先：/docs/dev/ 页面只高亮「开发文档」，避免同时命中「使用文档」/docs/。
+        const longestMatch = matches
+          .filter((m) => m.isMatch)
+          .sort((a, b) => b.targetPath.length - a.targetPath.length)[0];
+        matches.forEach(({ link, item, isMatch, targetPath }) => {
+          const isActive = isMatch && (!longestMatch || targetPath.length === longestMatch.targetPath.length);
           item?.classList.toggle('site-nav__item--active', isActive);
           item?.classList.toggle('site-mobile-tabs__item--active', isActive);
           if (isActive) {

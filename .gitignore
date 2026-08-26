@@ -5,3 +5,4 @@ package-lock.json
 .astro
 .DS_Store
 .claude
+/.opendesk

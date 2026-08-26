@@ -5,6 +5,7 @@ export const site = {
   nav: [
     { label: '首页', href: '/' },
     { label: '使用文档', href: '/docs/quickstart/cli/', activePath: '/docs/' },
+    { label: '开发文档', href: '/docs/dev/', activePath: '/docs/dev/' },
     { label: '场景概览', href: '/gallery/' },
     { label: '下载', href: '/download/', activePath: '/download/' },
   ],

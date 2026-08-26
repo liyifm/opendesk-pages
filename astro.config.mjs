@@ -3,6 +3,36 @@ import sitemap from '@astrojs/sitemap';
 import starlight from '@astrojs/starlight';
 import { defineConfig } from 'astro/config';
 
+// 旧开发文档链接（/docs/contribute、/docs/integration、/docs/plugins/development）跳转到新的 /docs/dev/ 路径。
+// 旧站点所有 URL 均带尾斜杠（trailingSlash: always），静态主机的非规范形式请求由服务器补斜杠后命中。
+const devDocMoves = [
+  ['contribute', 'dev'],
+  ['contribute/architecture', 'dev/architecture'],
+  ['contribute/howto', 'dev/howto'],
+  ['contribute/prepare', 'dev/prepare'],
+  ['contribute/cli', 'dev/cli'],
+  ['contribute/desktop', 'dev/desktop'],
+  ['contribute/config-format', 'dev/config-format'],
+  ['contribute/logging', 'dev/logging'],
+  ['contribute/node-api', 'dev/node-api'],
+  ['contribute/acp-server-api', 'dev/acp-server-api'],
+  ['contribute/opencode-server-api', 'dev/opencode-server-api'],
+  ['contribute/otel', 'dev/otel'],
+  ['integration/headless', 'dev/headless'],
+  ['plugins/development', 'dev/plugins'],
+  ['plugins/development/tool', 'dev/plugins/tool'],
+  ['plugins/development/mcp', 'dev/plugins/mcp'],
+  ['plugins/development/skills', 'dev/plugins/skills'],
+  ['plugins/development/hooks', 'dev/plugins/hooks'],
+  ['plugins/development/agents', 'dev/plugins/agents'],
+  ['plugins/development/browser', 'dev/plugins/browser'],
+  ['plugins/development/commands', 'dev/plugins/commands'],
+  ['plugins/development/debug-publish', 'dev/plugins/debug-publish'],
+];
+const redirects = Object.fromEntries(
+  devDocMoves.map(([from, to]) => [`/docs/${from}/`, `/docs/${to}/`]),
+);
+
 export default defineConfig({
   site: 'https://opendesk.matrix.openharmony.cn',
   // Production deploys at the domain root, so public page assets intentionally use root-absolute URLs.
@@ -10,6 +40,7 @@ export default defineConfig({
   devToolbar: {
     enabled: false,
   },
+  redirects,
   integrations: [
     starlight({
       title: 'OpenDesk',
@@ -28,8 +59,10 @@ export default defineConfig({
         Header: './src/components/starlight/Header.astro',
         Footer: './src/components/starlight/Footer.astro',
         TableOfContents: './src/components/starlight/TableOfContents.astro',
+        Sidebar: './src/components/starlight/Sidebar.astro',
       },
       sidebar: [
+        // ===== 使用文档（/docs/*）=====
         {
           label: '快速开始',
           items: [
@@ -89,45 +122,51 @@ export default defineConfig({
             { label: '插件使用', slug: 'docs/plugins' },
           ],
         },
+        // ===== 开发文档（/docs/dev/*）=====
         {
-          label: '开发者指南',
+          label: '架构与贡献',
           items: [
-            { label: '架构介绍', slug: 'docs/contribute/architecture' },
-            { label: '如何参与贡献', slug: 'docs/contribute/howto' },
-            { label: '准备开发环境', slug: 'docs/contribute/prepare' },
-            { label: 'OpenDesk Cli 开发上手', slug: 'docs/contribute/cli' },
-            { label: 'OpenDesk Desktop 开发上手', slug: 'docs/contribute/desktop' },
-            { label: '配置文件格式', slug: 'docs/contribute/config-format' },
-            {
-              label: '集成到其他平台',
-              items: [
-                { label: '无头模式', slug: 'docs/integration/headless' },
-                { label: 'Node 协议', slug: 'docs/contribute/node-api' },
-                { label: 'ACP 协议', slug: 'docs/contribute/acp-server-api' },
-                { label: 'OpenCode 协议', slug: 'docs/contribute/opencode-server-api' }
-              ],
-            },
-            {
-              label: '调试与观测',
-              items: [
-                { label: '使用日志系统', slug: 'docs/contribute/logging' },
-                { label: '通过 OTel 进行全链路监测', slug: 'docs/contribute/otel' }
-              ],
-            },
-            {
-              label: '插件开发指南',
-              items: [
-                { label: '插件结构概述', slug: 'docs/plugins/development' },
-                { label: '在插件中添加工具', slug: 'docs/plugins/development/tool' },
-                { label: '在插件中挂载 MCP', slug: 'docs/plugins/development/mcp' },
-                { label: '在插件中添加 Skills', slug: 'docs/plugins/development/skills' },
-                { label: '在插件中使用钩子', slug: 'docs/plugins/development/hooks' },
-                { label: '在插件中贡献子 Agent', slug: 'docs/plugins/development/agents' },
-                { label: '在插件中注入浏览器提示', slug: 'docs/plugins/development/browser' },
-                { label: '扩展自定义命令', slug: 'docs/plugins/development/commands' },
-                { label: '插件的调试与发布', slug: 'docs/plugins/development/debug-publish' },
-              ],
-            },
+            { label: '架构介绍', slug: 'docs/dev/architecture' },
+            { label: '如何参与贡献', slug: 'docs/dev/howto' },
+            { label: '准备开发环境', slug: 'docs/dev/prepare' },
+          ],
+        },
+        {
+          label: '开发上手',
+          items: [
+            { label: 'OpenDesk Cli 开发', slug: 'docs/dev/cli' },
+            { label: 'OpenDesk Desktop 开发', slug: 'docs/dev/desktop' },
+            { label: '配置文件格式', slug: 'docs/dev/config-format' },
+          ],
+        },
+        {
+          label: '集成到其他平台',
+          items: [
+            { label: '无头模式', slug: 'docs/dev/headless' },
+            { label: 'Node 协议', slug: 'docs/dev/node-api' },
+            { label: 'ACP 协议', slug: 'docs/dev/acp-server-api' },
+            { label: 'OpenCode 协议', slug: 'docs/dev/opencode-server-api' },
+          ],
+        },
+        {
+          label: '调试与观测',
+          items: [
+            { label: '使用日志系统', slug: 'docs/dev/logging' },
+            { label: '通过 OTel 进行全链路监测', slug: 'docs/dev/otel' },
+          ],
+        },
+        {
+          label: '插件开发指南',
+          items: [
+            { label: '插件结构概述', slug: 'docs/dev/plugins' },
+            { label: '在插件中添加工具', slug: 'docs/dev/plugins/tool' },
+            { label: '在插件中挂载 MCP', slug: 'docs/dev/plugins/mcp' },
+            { label: '在插件中添加 Skills', slug: 'docs/dev/plugins/skills' },
+            { label: '在插件中使用钩子', slug: 'docs/dev/plugins/hooks' },
+            { label: '在插件中贡献子 Agent', slug: 'docs/dev/plugins/agents' },
+            { label: '在插件中注入浏览器提示', slug: 'docs/dev/plugins/browser' },
+            { label: '扩展自定义命令', slug: 'docs/dev/plugins/commands' },
+            { label: '插件的调试与发布', slug: 'docs/dev/plugins/debug-publish' },
           ],
         },
       ],

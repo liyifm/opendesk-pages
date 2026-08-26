@@ -1,0 +1,32 @@
+---
+import MobileMenuFooter from 'virtual:starlight/components/MobileMenuFooter';
+import SidebarPersister from '@astrojs/starlight/components/SidebarPersister.astro';
+import SidebarSublist from '@astrojs/starlight/components/SidebarSublist.astro';
+import type { SidebarEntry } from '@astrojs/starlight/utils/routing/types';
+
+const { sidebar } = Astro.locals.starlightRoute;
+
+// 收集分组（含嵌套分组）内的所有链接路径，用于判断分组归属。
+function collectHrefs(entry: SidebarEntry): string[] {
+  if (entry.type === 'link') return [entry.href];
+  return entry.entries.flatMap(collectHrefs);
+}
+
+// 当前页面是否处于开发文档分区（/docs/dev/*）。
+const isDevSection = Astro.url.pathname.startsWith('/docs/dev/');
+
+// 使用文档与开发文档各自独立的导航：按顶层分组归属过滤侧边栏。
+const sectionSidebar = sidebar.filter((entry) => {
+  const hrefs = collectHrefs(entry);
+  const belongsToDev = hrefs.some((href) => href.startsWith('/docs/dev/'));
+  return isDevSection ? belongsToDev : !belongsToDev;
+});
+---
+
+<SidebarPersister>
+  <SidebarSublist sublist={sectionSidebar} />
+</SidebarPersister>
+
+<div class="md:sl-hidden">
+  <MobileMenuFooter />
+</div>

@@ -176,7 +176,7 @@ export default {
 | --- | --- | --- |
 | skills | string[] | Skill 目录的相对路径。目录可以直接包含 `SKILL.md`，也可以包含多个以 `SKILL.md` 为入口的一级子目录 |
 | mcpServers | object[] | MCP Server 定义；字段与后文 MCP 插件相同 |
-| agents | string[] | 子 Agent 目录的相对路径。目录可以直接包含 `agents.md`，也可以包含多个以 `agents.md` 为入口的一级子目录；详见[在插件中贡献子 Agent](/docs/plugins/development/agents/) |
+| agents | string[] | 子 Agent 目录的相对路径。目录可以直接包含 `agents.md`，也可以包含多个以 `agents.md` 为入口的一级子目录；详见[在插件中贡献子 Agent](/docs/dev/plugins/agents/) |
 
 `resources` 是 manifest 中的静态声明。`pluginmgr` 发现插件后，会先解析这些声明并注册 Skill、MCP Server 和子 Agent，再执行入口的 `setup(ctx)`。因此，插件只需要携带标准 Skill 目录、MCP Server 文件或 agent 目录，不必在 `setup(ctx)` 中重复调用 `ctx.skills.register`、`ctx.mcps.registerServer` 或 `ctx.agents.register`。
 
@@ -433,14 +433,14 @@ Hook 按插件激活顺序串行执行。默认 `failureMode: 'open'` 会记录�
 
 插件可以组合以下扩展能力，各能力的详细用法见对应章节：
 
-- [在插件中添加工具](/docs/plugins/development/tool/) — 把工具加入 Agent 可见工具集，支持参数 Schema、权限声明与 CLI/GUI 渲染器
-- [在插件中挂载 MCP](/docs/plugins/development/mcp/) — 注册本地 stdio 或远程 sse / streamableHttp MCP Server
-- [在插件中添加 Skills](/docs/plugins/development/skills/) — 注册可由用户或模型调用的 Skill 说明
-- [在插件中使用钩子](/docs/plugins/development/hooks/) — 在模型请求、工具调用、Skill 加载等节点插入逻辑
-- [在插件中贡献子 Agent](/docs/plugins/development/agents/) — 声明可由主 Agent 调度的子 Agent，支持 agents.md 目录与动态注册
-- [在插件中注入浏览器提示](/docs/plugins/development/browser/) — 为特定站点向 use-browser 注入文本提示与可触发的页面动作
-- [扩展自定义命令](/docs/plugins/development/commands/) — 向 TUI 命令系统注册命令
-- [插件的调试与发布](/docs/plugins/development/debug-publish/) — 配置、内置插件、安装与开发目录、校验与发布
+- [在插件中添加工具](/docs/dev/plugins/tool/) — 把工具加入 Agent 可见工具集，支持参数 Schema、权限声明与 CLI/GUI 渲染器
+- [在插件中挂载 MCP](/docs/dev/plugins/mcp/) — 注册本地 stdio 或远程 sse / streamableHttp MCP Server
+- [在插件中添加 Skills](/docs/dev/plugins/skills/) — 注册可由用户或模型调用的 Skill 说明
+- [在插件中使用钩子](/docs/dev/plugins/hooks/) — 在模型请求、工具调用、Skill 加载等节点插入逻辑
+- [在插件中贡献子 Agent](/docs/dev/plugins/agents/) — 声明可由主 Agent 调度的子 Agent，支持 agents.md 目录与动态注册
+- [在插件中注入浏览器提示](/docs/dev/plugins/browser/) — 为特定站点向 use-browser 注入文本提示与可触发的页面动作
+- [扩展自定义命令](/docs/dev/plugins/commands/) — 向 TUI 命令系统注册命令
+- [插件的调试与发布](/docs/dev/plugins/debug-publish/) — 配置、内置插件、安装与开发目录、校验与发布
 
 > Event（应用事件监听）能力当前文档暂未覆盖，后续补充。
 
