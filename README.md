@@ -25,7 +25,7 @@ Open `http://127.0.0.1:8093/` after the dev server starts. The dev server mounts
 
 | Route | Method | Purpose |
 | --- | --- | --- |
-| `/api/heartbeat` | POST | OpenDesk 设备心跳上报。`os`（windows/macos/harmonyos...）、`device_type`（设备类型）、`device_id`（设备标识）必填，body JSON 或 query 均可。服务端记录 `time`（收到时间）与 `ip`（CF-Connecting-IP），追加写入 Cloudflare D1 `heartbeats` 表（binding `opendesk-stats-db`）；`astro dev` 无 D1 binding，直接返回确认（不落库）。 |
+| `/api/heartbeat` | POST | OpenDesk 设备心跳上报。`os`（windows/macos/harmonyos...）、`device_type`（设备类型）、`device_id`（设备标识）必填，body JSON 或 query 均可。服务端记录 `time`（收到时间）与 `ip_hash`（来源 IP 按 `IP_HASH_SALT` 加盐 SHA-256，防库泄漏反查），追加写入 Cloudflare D1 `heartbeats` 表（binding `opendesk-stats-db`）；`astro dev` 无 D1 binding，直接返回确认（不落库）。 |
 | `/api/stats` | GET | 心跳统计（仅管理员）。返回全量/最近一天/最近七天的去重设备数与按 `device_type` 分组数量。 |
 
 ### Admin-only endpoints

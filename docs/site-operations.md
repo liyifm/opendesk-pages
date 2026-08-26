@@ -87,7 +87,7 @@ The site is deployed to Cloudflare Pages. Astro builds the static site into `dis
 
 ### Heartbeat storage (D1)
 
-`POST /api/heartbeat` appends device heartbeats as one row per call into the Cloudflare D1 database `opendesk-stats` (binding name `opendesk-stats-db`, table `heartbeats`: auto-increment `id`, `os`/`device_type`/`device_id` from the client, `time`/`ip` recorded server-side). Queries for "latest state per device" group by `device_id` with `MAX(time)`. The binding is configured in the Cloudflare dashboard (Settings → Bindings) for production; `wrangler.toml` additionally declares the same binding with a placeholder `database_id` so local `wrangler pages dev` and `wrangler d1` commands work against a local SQLite copy in `.wrangler/state`.
+`POST /api/heartbeat` appends device heartbeats as one row per call into the Cloudflare D1 database `opendesk-stats` (binding name `opendesk-stats-db`, table `heartbeats`: auto-increment `id`, `os`/`device_type`/`device_id` from the client, `time` and `ip_hash` recorded server-side). The client IP is salted-hashed (SHA-256 with the `IP_HASH_SALT` secret) before storage, so the raw IP is never persisted — same IP still yields the same hash for source-based aggregation. Queries for "latest state per device" group by `device_id` with `MAX(time)`. The binding is configured in the Cloudflare dashboard (Settings → Bindings) for production; `wrangler.toml` additionally declares the same binding with a placeholder `database_id` so local `wrangler pages dev` and `wrangler d1` commands work against a local SQLite copy in `.wrangler/state`.
 
 Apply schema changes locally with:
 
@@ -99,7 +99,7 @@ Table schema lives in `migrations/`. `astro dev` has no D1 binding, so heartbeat
 
 ### Statistics endpoint
 
-`GET /api/stats` aggregates `heartbeats`: total and last-1d/last-7d distinct device counts, plus per-`device_type` breakdowns (time-window filters use the server-written ISO `time`). The endpoint is admin-only: it requires `Authorization: Bearer <token>` matching `ADMIN_TOKEN`, otherwise 401 (or 503 when the token is unconfigured). `ADMIN_TOKEN` is a secret — set it in the Cloudflare dashboard (Settings → Variables and Secrets, type Secret); local `wrangler pages dev` reads it from `.dev.vars` (gitignored).
+`GET /api/stats` aggregates `heartbeats`: total and last-1d/last-7d distinct device counts, plus per-`device_type` breakdowns (time-window filters use the server-written ISO `time`). The endpoint is admin-only: it requires `Authorization: Bearer <token>` matching `ADMIN_TOKEN`, otherwise 401 (or 503 when the token is unconfigured). `ADMIN_TOKEN` and `IP_HASH_SALT` are secrets — set them in the Cloudflare dashboard (Settings → Variables and Secrets, type Secret); local `wrangler pages dev` reads them from `.dev.vars` (gitignored).
 
 Local verification (serves the production build *and* the Functions, so the API behaves as on Cloudflare):
 

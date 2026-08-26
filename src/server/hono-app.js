@@ -7,10 +7,18 @@ import { Hono } from 'hono'
 // /api/* 请求，而生产环境两种情况都会到达，保持两端行为一致。
 const helloHandler = (c) => c.json({ message: 'Hello from Hono on Cloudflare Pages!' })
 
+// IP 加盐哈希（SHA-256，盐取自 env.IP_HASH_SALT），防止库泄漏时反查真实 IP。
+// 同一 IP 生成相同哈希，可无损做来源维度的聚合；无 IP 或未配置盐时返回 null。
+const hashIp = async (ip, salt) => {
+  if (!ip || !salt) return null
+  const digest = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(`${salt}:${ip}`))
+  return [...new Uint8Array(digest)].map((b) => b.toString(16).padStart(2, '0')).join('')
+}
+
 // OpenDesk 设备心跳上报。
 // os（操作系统）、device_type（设备类型）、device_id（设备标识）必填，
-// body JSON 或 query 均可。服务端补充 time（收到时间戳）与 ip（请求来源 IP，
-// 生产环境取 CF-Connecting-IP，本地回退 x-forwarded-for），append 写入 D1
+// body JSON 或 query 均可。服务端补充 time（收到时间戳）与 ip_hash（来源 IP 的
+// 加盐哈希，生产环境取 CF-Connecting-IP，本地回退 x-forwarded-for），append 写入 D1
 //（heartbeats 表，binding: opendesk-stats-db）。
 // 在无 D1 binding 的环境（如 astro dev 的 vite dev server）优雅降级为纯确认。
 const heartbeatHandler = async (c) => {
@@ -34,16 +42,17 @@ const heartbeatHandler = async (c) => {
   }
 
   const time = new Date().toISOString()
-  const ip =
+  const rawIp =
     c.req.header('cf-connecting-ip') ??
     c.req.header('x-forwarded-for')?.split(',')[0]?.trim() ??
     null
+  const ipHash = await hashIp(rawIp, c.env?.IP_HASH_SALT)
 
   const db = c.env?.['opendesk-stats-db']
   if (db) {
     await db
-      .prepare('INSERT INTO heartbeats (os, device_type, device_id, time, ip) VALUES (?, ?, ?, ?, ?)')
-      .bind(os, deviceType, deviceId, time, ip)
+      .prepare('INSERT INTO heartbeats (os, device_type, device_id, time, ip_hash) VALUES (?, ?, ?, ?, ?)')
+      .bind(os, deviceType, deviceId, time, ipHash)
       .run()
   }
 
