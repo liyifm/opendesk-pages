@@ -10,4 +10,4 @@ pages_build_output_dir = "./dist"
 [[d1_databases]]
 binding = "opendesk-stats-db"
 database_name = "opendesk-stats"
-database_id = "00000000-0000-0000-0000-000000000000"
+database_id = "4147af83-785a-4ad3-9eaf-89e23a45a742"
