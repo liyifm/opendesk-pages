@@ -3,7 +3,7 @@ title: "插件结构概述"
 description: "了解 OpenDesk 插件的协议、入口、Manifest、PluginContext、生命周期与基础能力组合"
 ---
 
-OpenDesk 插件是在 OpenDesk 主进程中运行的受信任 Node.js 模块，由 `pluginmgr` 应用负责发现、安装、启停、校验和加载。插件可以增加 Tool、Hook、Skill、MCP Server、TUI Command、应用事件监听器和子 Agent，也可以把这些能力组合在同一个插件中。
+OpenDesk 插件是在 OpenDesk 主进程中运行的受信任 Node.js 模块，由 `pluginmgr` 应用负责发现、安装、启停、校验和加载。插件可以增加 Tool、Hook、Skill、MCP Server、TUI Command、应用事件监听器、子 Agent 和浏览器页面提示，也可以把这些能力组合在同一个插件中。
 
 本文对应插件 API v1。插件运行在宿主进程中，拥有与 OpenDesk 相同的本机权限；只安装可信来源的插件，并在发布前明确说明文件、网络、进程和凭据访问行为。能力声明、授权和完整性检查用于约束插件所提供能力的加载，不是操作系统级沙箱；安装第三方插件前仍应审查来源。
 
@@ -166,6 +166,7 @@ export default {
 | command | `ctx.commands.register` |
 | event | `ctx.events.onApplication` |
 | agent | `ctx.agents.register`、`ctx.agents.registerDirectory` 或 `resources.agents` |
+| browser | `ctx.browser.hint.register` |
 
 插件只能注册已声明且已经获准的能力。manifest 中的静态 Skill、MCP 或 Agent 资源也必须分别声明 `skill`、`mcp` 或 `agent`。
 
@@ -404,6 +405,7 @@ export default {
 | events.onApplication | function | 监听应用事件 |
 | agents.register | function | 注册单个子 Agent |
 | agents.registerDirectory | function | 扫描插件目录下的 agent 目录并批量注册子 Agent |
+| browser.hint.register | function | 为匹配的页面注册浏览器提示生成器 |
 
 每个 `register` 或 `on` 方法都返回 PluginRegistration。通常不需要手工调用 `dispose`，因为宿主会在插件退出时统一清理；只有插件需要提前撤销某一项注册时才主动调用。
 
@@ -423,7 +425,7 @@ discover
   -> setup(ctx)
 ~~~
 
-`setup` 失败会释放本次激活已创建的注册项。插件停用或宿主重载时，Hook、工具、Skill、MCP、命令、事件监听和子 Agent 都会随所属插件释放。
+`setup` 失败会释放本次激活已创建的注册项。插件停用或宿主重载时，Hook、工具、Skill、MCP、命令、事件监听、子 Agent 和浏览器提示都会随所属插件释放。
 
 Hook 按插件激活顺序串行执行。默认 `failureMode: 'open'` 会记录失败并继续主流程；安全或认证场景可以在注册 Hook 时指定 `failureMode: 'closed'`，让异常阻止对应操作。托管插件在 import 前检查安装内容完整性；手工和外部插件会标记为 unmanaged，不进行内容锁定。
 
@@ -436,6 +438,7 @@ Hook 按插件激活顺序串行执行。默认 `failureMode: 'open'` 会记录�
 - [在插件中添加 Skills](/docs/plugins/development/skills/) — 注册可由用户或模型调用的 Skill 说明
 - [在插件中使用钩子](/docs/plugins/development/hooks/) — 在模型请求、工具调用、Skill 加载等节点插入逻辑
 - [在插件中贡献子 Agent](/docs/plugins/development/agents/) — 声明可由主 Agent 调度的子 Agent，支持 agents.md 目录与动态注册
+- [在插件中注入浏览器提示](/docs/plugins/development/browser/) — 为特定站点向 use-browser 注入文本提示与可触发的页面动作
 - [扩展自定义命令](/docs/plugins/development/commands/) — 向 TUI 命令系统注册命令
 - [插件的调试与发布](/docs/plugins/development/debug-publish/) — 配置、内置插件、安装与开发目录、校验与发布
 

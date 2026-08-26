@@ -1,0 +1,274 @@
+---
+title: "在插件中注入浏览器提示"
+description: "通过 ctx.browser.hint.register 为特定站点向 use-browser 注入文本提示与可触发的页面动作"
+---
+
+Browser 能力让插件为特定网站向内置浏览器（`use-browser` 技能）注入页面提示（Browser Hints）。提示会出现在页面快照的最前面，用于告诉 Agent 这个站点的额外约束，或向它暴露一个可以一步完成的页面动作。
+
+典型用途：
+
+- 把「填入关键词 → 点击搜索按钮」这类多步操作压缩成一个动作，减少 Agent 的快照往返；
+- 声明站点特有的约束（例如某个搜索只对英文关键词返回有效结果），让 Agent 在操作前就知道；
+- 为登录态、地区限制、分页规则等页面语义补充说明。
+
+## 注册 API
+
+~~~js
+ctx.browser.hint.register(urlPrefix, generator);
+~~~
+
+| 参数 | 类型 | 说明 |
+| --- | --- | --- |
+| urlPrefix | string | 页面地址前缀，**不包含协议部分**，例如 `www.bing.com/search` |
+| generator | function | 提示生成器，签名为 `(context: BrowserContext) => BrowserHint[] \| Promise<BrowserHint[]>` |
+
+返回 PluginRegistration。同一个插件可以注册多个前缀，多个插件命中同一页面时提示会按插件激活顺序合并。
+
+`urlPrefix` 与页面地址在比较前都会去掉协议（`https://`、`//`）与结尾多余的 `/`，因此 `https://www.bing.com`、`//www.bing.com` 与 `www.bing.com` 等价。前缀为空字符串会导致注册失败，不会匹配所有页面。
+
+## BrowserContext
+
+生成器的唯一入参，由宿主在生成快照时构造，插件侧只读。
+
+| 字段 | 类型 | 说明 |
+| --- | --- | --- |
+| url | string | 完整地址，含协议，例如 `https://www.bing.com/search?q=x` |
+| domain | string | 域名，例如 `www.bing.com` |
+| address | string | 去掉协议后的地址，即与 `urlPrefix` 匹配的字段 |
+| title | string | 页面标题 |
+| dom | function | `() => Promise<string>`，读取页面原始 DOM（`documentElement.outerHTML`） |
+
+`dom()` 是按需拉取的：只依赖 URL 的生成器不调用它，就不会产生任何额外的页面通信。同一次快照内多次调用只求值一次。
+
+## Hint 类型
+
+### TextHint
+
+一段面向 Agent 的说明或约束。
+
+~~~js
+import { textHint } from '@bitclub.ai/opendesk-plugin-sdk';
+
+textHint('This site only returns useful results for English queries.');
+~~~
+
+不依赖 SDK 时直接构造对象：
+
+~~~js
+{ kind: 'text', content: 'This site only returns useful results for English queries.' }
+~~~
+
+`content` 必须是非空字符串。
+
+### ActionHint
+
+向 Agent 暴露一个页面内可执行的动作。Agent 通过浏览器的 `trigger` 工具调用它，宿主会在页面中把 `functionStr` 求值为函数对象，再以 `fn(args)` 形式执行。
+
+~~~js
+import { actionHint } from '@bitclub.ai/opendesk-plugin-sdk';
+
+actionHint(
+  'Search',
+  '在站内搜索：自动填入关键词并提交，一步到达搜索结果页',
+  { keyword: '搜索关键词' },
+  '(args) => { document.querySelector("#q").value = args.keyword; document.querySelector("#go").click(); }'
+);
+~~~
+
+不依赖 SDK 时直接构造对象：
+
+~~~js
+{
+  kind: 'action',
+  name: 'Search',
+  description: '在站内搜索：自动填入关键词并提交',
+  args: { keyword: '搜索关键词' },
+  functionStr: '(args) => { /* ... */ }'
+}
+~~~
+
+| 字段 | 类型 | 必填 | 说明 |
+| --- | --- | --- | --- |
+| name | string | 是 | 动作名，须匹配 `^[a-zA-Z][a-zA-Z0-9._-]*$`；Agent 用它作为 `trigger` 的 `action` |
+| description | string | 是 | 动作说明，指导 Agent 何时使用 |
+| args | object | 否 | 参数名到参数说明的映射，Agent 据此构造 `trigger` 的 `args` |
+| functionStr | string | 是 | 页面内可求值为函数的 JS 源码 |
+
+`functionStr` 的约定：
+
+- 求值结果必须是函数，否则触发时报错；
+- 接收一个参数对象，键名与 `args` 声明一致；
+- 可以是 async 函数，宿主会 await 其返回值；
+- 返回值经 JSON 往返后回传给 Agent，因此应当只包含可序列化的数据；
+- 在其中抛错会作为 `trigger` 的失败结果返回，Agent 可以据此改走常规的 `type` / `click` 流程。
+
+## 快照中的呈现
+
+命中的提示会按分类插入快照最前面：
+
+~~~text
+## Browser Hints
+
+### Text Hints
+
+- This site only returns useful results for English queries.
+
+### Action Hints
+
+Actions are only available in this page and should be invoked by the 'trigger' tool.
+
+- Search(keyword): 在站内搜索：自动填入关键词并提交，一步到达搜索结果页
+  - keyword: 搜索关键词
+
+- Page URL: https://www.bing.com/
+- Page Title: Search - Microsoft Bing
+- Viewport: 1280x800
+
+[Accessibility Snapshot]
+...
+~~~
+
+某一类提示不存在时，对应的小节标题也不会输出；页面没有命中任何提示时，快照与未安装插件时完全一致。
+
+提示在以下场合都会出现：
+
+- Agent 调用 `snapshot` 工具；
+- Agent 调用 `click`、`navigate`、`type`、`tabs` 等控制类工具并传入 `snapshot: true`；
+- 用户在任务的浏览器标签或浏览器应用中手动执行「导出 Snapshot」。
+
+提示每次都实时重新生成，不会缓存上一次快照的结果，因此页面跳转与插件热重载都不会留下过期动作。
+
+## Agent 如何触发动作
+
+Agent 使用浏览器的 `trigger` 工具：
+
+~~~text
+trigger({ action: "Search", args: { keyword: "OpenHarmony" }, snapshot: true })
+~~~
+
+| 参数 | 说明 |
+| --- | --- |
+| action | 动作名，来自快照的 Action Hints 列表 |
+| args | 参数对象，键名与动作声明的参数一致 |
+| tabId | 可选，在指定标签页触发（会先切换到该标签页），缺省为当前活动标签页 |
+| snapshot | 可选，触发后是否自动获取快照 |
+
+动作只在匹配的页面上可用。Agent 请求当前页面不存在的动作时，工具会返回失败并列出该页面可用的动作签名。
+
+## 完整示例
+
+以下插件为必应注册一条英文检索约束和一个搜索动作。`makeSearchFunction` 生成的动作绕过框架的受控输入（用原型上的 value setter 赋值后派发事件），并按「点按钮 → 提交表单 → Enter 键」三级回退提交。
+
+~~~js
+import { actionHint, definePlugin, textHint } from '@bitclub.ai/opendesk-plugin-sdk';
+
+function makeSearchFunction(inputSelectors, buttonSelectors) {
+  return `async (args) => {
+    const keyword = args && typeof args.keyword === 'string' ? args.keyword.trim() : '';
+    if (!keyword) throw new Error('keyword is required');
+
+    const pick = (selectors) => {
+        for (const selector of selectors) {
+            for (const element of document.querySelectorAll(selector)) {
+                const rect = element.getBoundingClientRect();
+                if (rect.width > 0 && rect.height > 0 && !element.disabled) return element;
+            }
+        }
+        return null;
+    };
+
+    const input = pick(${JSON.stringify(inputSelectors)});
+    if (!input) throw new Error('search input not found on this page');
+
+    input.focus();
+    const setter = Object.getOwnPropertyDescriptor(Object.getPrototypeOf(input), 'value');
+    if (setter && setter.set) setter.set.call(input, keyword);
+    else input.value = keyword;
+    input.dispatchEvent(new Event('input', { bubbles: true }));
+    input.dispatchEvent(new Event('change', { bubbles: true }));
+    await new Promise((resolve) => setTimeout(resolve, 120));
+
+    const button = pick(${JSON.stringify(buttonSelectors)});
+    if (button) {
+        button.click();
+        return { keyword, submittedBy: 'button' };
+    }
+    if (input.form) {
+        input.form.requestSubmit ? input.form.requestSubmit() : input.form.submit();
+        return { keyword, submittedBy: 'form' };
+    }
+    for (const type of ['keydown', 'keypress', 'keyup']) {
+        input.dispatchEvent(
+            new KeyboardEvent(type, { key: 'Enter', code: 'Enter', keyCode: 13, which: 13, bubbles: true })
+        );
+    }
+    return { keyword, submittedBy: 'enter' };
+}`;
+}
+
+const BING_SEARCH = actionHint(
+  'Search',
+  '在必应中搜索：自动填入关键词并提交，一步到达搜索结果页',
+  { keyword: '搜索关键词（英文）' },
+  makeSearchFunction(
+    ['#sb_form_q', 'textarea[name="q"]', 'input[name="q"]'],
+    ['#sb_form_go', 'label#search_icon', 'button[type="submit"]']
+  )
+);
+
+const BING_ENGLISH_ONLY = textHint(
+  'This Bing instance only returns useful results for English queries. Always translate keywords into English before searching.'
+);
+
+export default definePlugin({
+  id: 'site-hints',
+  capabilities: ['browser'],
+  setup(ctx) {
+    ctx.browser.hint.register('www.bing.com', () => [BING_ENGLISH_ONLY, BING_SEARCH]);
+    ctx.browser.hint.register('cn.bing.com', () => [BING_ENGLISH_ONLY, BING_SEARCH]);
+  }
+});
+~~~
+
+不依赖 SDK 的版本把 `definePlugin` 去掉、直接导出对象，并用字面量构造 hint 即可，注册 API 完全相同。
+
+## 根据页面内容决定提示
+
+生成器可以是异步的，并按需读取 DOM：
+
+~~~js
+ctx.browser.hint.register('example.com', async (context) => {
+  const dom = await context.dom();
+  if (!dom.includes('data-paywall')) return [];
+  return [textHint('This article is behind a paywall; ask the user before attempting to bypass it.')];
+});
+~~~
+
+返回空数组表示本次不提供任何提示。
+
+## 错误隔离
+
+Browser Hints 是附加信息，不会影响快照本身：
+
+- 生成器抛错、返回非数组，或返回结构非法的 hint 时，宿主记录一条 `plugin.browser_hint_failed` 诊断并跳过该生成器；
+- 其他插件的提示与快照正文照常输出；
+- 诊断可在插件中心的插件详情或 CLI `plugins status` 中查看。
+
+结构校验规则：`kind` 必须是 `text` 或 `action`；TextHint 的 `content` 非空；ActionHint 的 `name` 合法、`description` 与 `functionStr` 非空、`args` 为字符串到字符串的映射。
+
+## 能力声明与生命周期
+
+manifest 或入口的 `capabilities` 必须包含 `browser`，否则 `ctx.browser.hint.register` 会抛出 `plugin.capability_not_declared:browser` 并使插件激活失败。
+
+~~~json
+{
+  "schemaVersion": 1,
+  "id": "site-hints",
+  "displayName": "Site Hints",
+  "entry": "./index.mjs",
+  "apiVersion": 1,
+  "capabilities": ["browser"]
+}
+~~~
+
+Browser 能力没有对应的 manifest 静态资源声明，只能在 `setup(ctx)` 中动态注册。插件被禁用、卸载或重新加载时，其注册的提示会随插件一起释放，之后的快照不再包含它们。插件中心的插件详情会列出该插件注册的全部 `urlPrefix`。

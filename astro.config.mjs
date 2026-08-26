@@ -123,6 +123,7 @@ export default defineConfig({
                 { label: '在插件中添加 Skills', slug: 'docs/plugins/development/skills' },
                 { label: '在插件中使用钩子', slug: 'docs/plugins/development/hooks' },
                 { label: '在插件中贡献子 Agent', slug: 'docs/plugins/development/agents' },
+                { label: '在插件中注入浏览器提示', slug: 'docs/plugins/development/browser' },
                 { label: '扩展自定义命令', slug: 'docs/plugins/development/commands' },
                 { label: '插件的调试与发布', slug: 'docs/plugins/development/debug-publish' },
               ],
