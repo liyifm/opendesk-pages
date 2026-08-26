@@ -16,8 +16,8 @@ const hashIp = async (ip, salt) => {
 }
 
 // OpenDesk 设备心跳上报。
-// os（操作系统）、device_type（设备类型）、device_id（设备标识）必填，
-// body JSON 或 query 均可。服务端补充 time（收到时间戳）与 ip_hash（来源 IP 的
+// os（操作系统）、device_type（设备类型）、device_id（设备标识）、client_type（客户端类型）
+// 必填，body JSON 或 query 均可。服务端补充 time（收到时间戳）与 ip_hash（来源 IP 的
 // 加盐哈希，生产环境取 CF-Connecting-IP，本地回退 x-forwarded-for），append 写入 D1
 //（heartbeats 表，binding: opendesk-stats-db）。
 // 在无 D1 binding 的环境（如 astro dev 的 vite dev server）优雅降级为纯确认。
@@ -25,20 +25,23 @@ const heartbeatHandler = async (c) => {
   let os
   let deviceType
   let deviceId
+  let clientType
   try {
     const body = await c.req.json()
     if (typeof body.os === 'string') os = body.os
     if (typeof body.device_type === 'string') deviceType = body.device_type
     if (typeof body.device_id === 'string') deviceId = body.device_id
+    if (typeof body.client_type === 'string') clientType = body.client_type
   } catch {
     // 无 body 或非 JSON 时退回 query 参数
   }
   os = os ?? c.req.query('os')
   deviceType = deviceType ?? c.req.query('device_type')
   deviceId = deviceId ?? c.req.query('device_id')
+  clientType = clientType ?? c.req.query('client_type')
 
-  if (!os || !deviceType || !deviceId) {
-    return c.json({ error: 'os, device_type and device_id are required' }, 400)
+  if (!os || !deviceType || !deviceId || !clientType) {
+    return c.json({ error: 'os, device_type, device_id and client_type are required' }, 400)
   }
 
   const time = new Date().toISOString()
@@ -51,12 +54,14 @@ const heartbeatHandler = async (c) => {
   const db = c.env?.['opendesk-stats-db']
   if (db) {
     await db
-      .prepare('INSERT INTO heartbeats (os, device_type, device_id, time, ip_hash) VALUES (?, ?, ?, ?, ?)')
-      .bind(os, deviceType, deviceId, time, ipHash)
+      .prepare(
+        'INSERT INTO heartbeats (os, device_type, device_id, client_type, time, ip_hash) VALUES (?, ?, ?, ?, ?, ?)',
+      )
+      .bind(os, deviceType, deviceId, clientType, time, ipHash)
       .run()
   }
 
-  return c.json({ ok: true, os, device_type: deviceType, device_id: deviceId, time })
+  return c.json({ ok: true, os, device_type: deviceType, device_id: deviceId, client_type: clientType, time })
 }
 
 // 管理员鉴权：校验 Authorization: Bearer <token>（或 x-admin-token 头）与
