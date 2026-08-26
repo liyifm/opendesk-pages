@@ -8,7 +8,7 @@ This repository contains the OpenDesk website and documentation site.
 - Starlight renders the documentation pages under `/docs/`.
 - MDX is enabled for documentation and content pages.
 - Pagefind is generated during production builds for local site search.
-- GitHub Actions deploys the built `dist/` artifact to GitHub Pages.
+- Cloudflare Pages serves the `dist/` build and runs Pages Functions (Hono) under `functions/`.
 
 The previous Jekyll site layout and deployment flow have been removed. Do not add `_config.yml`, `Gemfile`, `_layouts`, `_includes`, or branch-based Pages deployment back to this repository.
 
@@ -19,6 +19,8 @@ corepack enable
 corepack pnpm install
 corepack pnpm dev --host 127.0.0.1 --port 8093
 ```
+
+Since the site uses `trailingSlash: always`, API paths must end with a slash in dev (`/api/heartbeat/`); the production Functions accept both forms. Do not change `trailingSlash` to fix this — the production URL scheme depends on it.
 
 The development server does not include the production Pagefind index. Run a production build and preview when testing search.
 
@@ -64,8 +66,6 @@ The old Jekyll site had several mechanisms that are easy to miss during the Astr
 | `jekyll-feed` | `src/pages/feed.xml.ts` |
 | Minimal Mistakes copy script | Starlight Expressive Code copy buttons |
 | `404.html` | `src/pages/404.astro` |
-| Custom domain | `public/CNAME` |
-| GitHub Pages static passthrough | `public/.nojekyll` |
 | Search experience | Starlight Pagefind production index |
 | Static assets under `assets/` | Stable files under `public/assets/` |
 
@@ -78,41 +78,49 @@ corepack pnpm check:links
 
 `pnpm check:links` catches missing local pages, images, scripts, styles, and generated assets referenced by the built HTML.
 
-## GitHub Pages Deployment
+## Deployment
 
-The deployment workflow is `.github/workflows/deploy.yml`.
+The site is deployed to Cloudflare Pages. Astro builds the static site into `dist/`, and Cloudflare Pages additionally executes the Functions in `functions/`:
 
-It runs on pushes to `main` or `master` and performs:
+- All `/api/*` requests route through the Hono application in `functions/api/[[route]].js`.
+- The Hono app is exported through `handle(app)` from `hono/cloudflare-pages`, with `.basePath('/api')`.
 
-1. `actions/setup-node` using `.nvmrc`.
-2. `corepack enable`.
-3. `pnpm install --frozen-lockfile`.
-4. `pnpm build`.
-5. `pnpm check:links`.
-6. Upload of `dist/` through `actions/upload-pages-artifact`.
-7. Deployment through `actions/deploy-pages`.
+### Heartbeat storage (D1)
 
-Repository settings required on `liyifm/opendesk-pages`:
+`POST /api/heartbeat` appends device heartbeats as one row per call into the Cloudflare D1 database `opendesk-stats` (binding name `opendesk-stats-db`, table `heartbeats`: auto-increment `id`, `os`/`device_type`/`device_id` from the client, `time`/`ip` recorded server-side). Queries for "latest state per device" group by `device_id` with `MAX(time)`. The binding is configured in the Cloudflare dashboard (Settings → Bindings) for production; `wrangler.toml` additionally declares the same binding with a placeholder `database_id` so local `wrangler pages dev` and `wrangler d1` commands work against a local SQLite copy in `.wrangler/state`.
 
-- GitHub Actions enabled.
-- GitHub Pages source set to `GitHub Actions`.
-- Workflow permissions allow Pages deployment through `pages: write` and `id-token: write`.
-- Custom domain set to `opendesk.matrix.openharmony.cn`, matching `public/CNAME`.
+Apply schema changes locally with:
 
-`public/.nojekyll` is kept so GitHub Pages serves Astro assets exactly as generated.
+```bash
+corepack pnpm exec wrangler d1 migrations apply opendesk-stats --local
+```
 
-## Personal Preview Deployment
+Table schema lives in `migrations/`. `astro dev` has no D1 binding, so heartbeat calls there return a confirmation without persisting (the code degrades gracefully when `c.env['opendesk-stats-db']` is absent).
 
-The production branch should keep:
+### Statistics endpoint
+
+`GET /api/stats` aggregates `heartbeats`: total and last-1d/last-7d distinct device counts, plus per-`device_type` breakdowns (time-window filters use the server-written ISO `time`). The endpoint is admin-only: it requires `Authorization: Bearer <token>` matching `ADMIN_TOKEN`, otherwise 401 (or 503 when the token is unconfigured). `ADMIN_TOKEN` is a secret — set it in the Cloudflare dashboard (Settings → Variables and Secrets, type Secret); local `wrangler pages dev` reads it from `.dev.vars` (gitignored).
+
+Local verification (serves the production build *and* the Functions, so the API behaves as on Cloudflare):
+
+```bash
+corepack pnpm build
+corepack pnpm check:links
+corepack pnpm pages:dev
+```
+
+Two equivalent ways to publish:
+
+1. **Git integration (recommended)**: connect the repository in the Cloudflare Pages dashboard. Cloudflare runs `pnpm build` and serves `dist/`.
+2. **CLI**: authenticate with `wrangler login`, then run `corepack pnpm pages:deploy`.
+
+`wrangler.toml` declares `pages_build_output_dir = "./dist"` so Wrangler knows which directory to upload. The custom domain `opendesk.matrix.openharmony.cn` is mapped to the production deployment in the dashboard (production branch: `main`).
+
+## Preview Deployments
+
+Cloudflare Pages automatically creates a preview deployment with a unique `*.pages.dev` URL for every pull request and non-production branch, so no per-branch config changes are needed.
+
+Keep the production branch on:
 
 - `site: 'https://opendesk.matrix.openharmony.cn'` in `astro.config.mjs`;
-- `public/CNAME` with `opendesk.matrix.openharmony.cn`.
-
-For temporary personal previews such as `https://zhaohernando-code.github.io/`, use a throwaway deployment branch and change only the preview branch:
-
-1. Set `site` in `astro.config.mjs` to the preview domain.
-2. Remove `public/CNAME`.
-3. Run `corepack pnpm build` and `corepack pnpm check:links`.
-4. Push that temporary branch to the preview Pages repository.
-
-Do not merge preview-domain config or CNAME removal back into the production site branch.
+- the custom domain mapped to the production deployment in the dashboard.

@@ -2,6 +2,7 @@ import mdx from '@astrojs/mdx';
 import sitemap from '@astrojs/sitemap';
 import starlight from '@astrojs/starlight';
 import { defineConfig } from 'astro/config';
+import honoDevServer from '@hono/vite-dev-server';
 
 // 旧开发文档链接（/docs/contribute、/docs/integration、/docs/plugins/development）跳转到新的 /docs/dev/ 路径。
 // 旧站点所有 URL 均带尾斜杠（trailingSlash: always），静态主机的非规范形式请求由服务器补斜杠后命中。
@@ -37,6 +38,17 @@ export default defineConfig({
   site: 'https://opendesk.matrix.openharmony.cn',
   // Production deploys at the domain root, so public page assets intentionally use root-absolute URLs.
   trailingSlash: 'always',
+  vite: {
+    // 开发环境把 Hono app 挂进 Vite 服务器，使 `astro dev` 能直接处理 /api/*。
+    // 注意不能用插件的 base 选项（会覆盖 Vite base 导致页面资源前缀错乱），
+    // 这里用 exclude 把非 /api 路径交还给 Astro，/api 前缀请求原样交给 Hono app。
+    plugins: [
+      honoDevServer({
+        entry: 'src/server/hono-dev-server-entry.js',
+        exclude: [/^\/(?!api\/)/],
+      }),
+    ],
+  },
   devToolbar: {
     enabled: false,
   },

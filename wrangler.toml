@@ -1,0 +1,13 @@
+# https://developers.cloudflare.com/workers/wrangler/configuration/
+name = "opendesk-pages"
+compatibility_date = "2026-08-26"
+pages_build_output_dir = "./dist"
+
+# 生产环境已通过 Cloudflare 控制台绑定（Settings → Bindings，
+# 变量名 opendesk-stats-db，数据库 opendesk-stats）。
+# 本地开发由 wrangler.toml 提供同名绑定，用占位 database_id 即可
+# （本地模拟不需要真实 id，数据落在 .wrangler/state）。
+[[d1_databases]]
+binding = "opendesk-stats-db"
+database_name = "opendesk-stats"
+database_id = "00000000-0000-0000-0000-000000000000"

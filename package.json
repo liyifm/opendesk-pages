@@ -11,7 +11,9 @@
     "dev": "astro dev",
     "build": "astro build",
     "check:links": "node scripts/check-internal-links.mjs",
-    "preview": "astro preview"
+    "preview": "astro preview",
+    "pages:dev": "wrangler pages dev",
+    "pages:deploy": "pnpm build && wrangler pages deploy"
   },
   "dependencies": {
     "@astrojs/mdx": "^6.0.2",
@@ -19,7 +21,12 @@
     "@astrojs/sitemap": "^3.7.3",
     "@astrojs/starlight": "^0.39.3",
     "astro": "^6.4.4",
+    "hono": "^4.13.4",
     "sharp": "^0.35.3"
   },
-  "packageManager": "pnpm@11.5.2+sha512.71c631e382066efc25625d5cf029075de07b61b37f6e27350fbd84b1bda5864c8c1967adc280776b45c30a715c0359a3be08fef42d5bb09e2b99029979692916"
+  "packageManager": "pnpm@11.5.2+sha512.71c631e382066efc25625d5cf029075de07b61b37f6e27350fbd84b1bda5864c8c1967adc280776b45c30a715c0359a3be08fef42d5bb09e2b99029979692916",
+  "devDependencies": {
+    "@hono/vite-dev-server": "^0.26.1",
+    "wrangler": "^4.125.0"
+  }
 }
