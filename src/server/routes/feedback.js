@@ -61,7 +61,7 @@ const submitHandler = async (c) => {
   return c.json({ ok: true, id, type, attachments: attachments.length, ...(contact ? { contact } : {}) })
 }
 
-// /api/feedback/list（仅管理员）：返回已提交反馈列表，按时间倒序；附件只含文件名，不返回数据。
+// /api/feedback/list（仅管理员）：返回已提交反馈列表，按时间倒序；附件含 attachment_id 与 filename，不返回文件数据。
 const listHandler = async (c) => {
   const db = c.env?.['opendesk-stats-db']
   if (!db) return c.json({ error: 'statistics require D1; unavailable in this environment' }, 503)
@@ -73,13 +73,13 @@ const listHandler = async (c) => {
       .prepare('SELECT id, type, content, contact, time FROM feedback ORDER BY id DESC LIMIT ?')
       .bind(limit)
       .all(),
-    db.prepare('SELECT feedback_id, filename FROM feedback_attachments ORDER BY id').all(),
+    db.prepare('SELECT id, feedback_id, filename FROM feedback_attachments ORDER BY id').all(),
   ])
 
   const byFeedback = new Map()
   for (const a of attachments) {
     if (!byFeedback.has(a.feedback_id)) byFeedback.set(a.feedback_id, [])
-    byFeedback.get(a.feedback_id).push(a.filename)
+    byFeedback.get(a.feedback_id).push({ attachment_id: a.id, filename: a.filename })
   }
 
   return c.json({
@@ -95,9 +95,43 @@ const listHandler = async (c) => {
   })
 }
 
+// 生成 Content-Disposition，兼容 ASCII 与 Unicode 文件名（RFC 5987 filename*）。
+const buildDisposition = (filename) => {
+  const name = filename || 'attachment'
+  const ascii = name.replace(/[^\x20-\x7E]/g, '_').replace(/["\\]/g, '_')
+  const encoded = encodeURIComponent(name)
+  return `attachment; filename="${ascii}"; filename*=UTF-8''${encoded}`
+}
+
+// /api/feedback/attachment/:id（仅管理员）：下载附件原始文件（BLOB），校验管理员 token。
+const attachmentHandler = async (c) => {
+  const db = c.env?.['opendesk-stats-db']
+  if (!db) return c.json({ error: 'statistics require D1; unavailable in this environment' }, 503)
+
+  const attachmentId = Number(c.req.param('id'))
+  if (!Number.isInteger(attachmentId) || attachmentId <= 0) {
+    return c.json({ error: 'invalid attachment id' }, 400)
+  }
+
+  const row = await db
+    .prepare('SELECT filename, content_type, data FROM feedback_attachments WHERE id = ?')
+    .bind(attachmentId)
+    .first()
+  if (!row) return c.json({ error: 'attachment not found' }, 404)
+
+  const buf = row.data instanceof Uint8Array ? row.data : new Uint8Array(row.data)
+  return c.body(buf, 200, {
+    'Content-Type': row.content_type || 'application/octet-stream',
+    'Content-Disposition': buildDisposition(row.filename),
+    'Cache-Control': 'private, no-store',
+  })
+}
+
 export const register = (app) => {
   app.post('/feedback/submit', submitHandler)
   app.post('/feedback/submit/', submitHandler)
   app.get('/feedback/list', adminGuard, listHandler)
   app.get('/feedback/list/', adminGuard, listHandler)
+  app.get('/feedback/attachment/:id', adminGuard, attachmentHandler)
+  app.get('/feedback/attachment/:id/', adminGuard, attachmentHandler)
 }

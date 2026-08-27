@@ -28,7 +28,8 @@ Open `http://127.0.0.1:8093/` after the dev server starts. The dev server mounts
 | `/api/heartbeat` | POST | OpenDesk 设备心跳上报。`os`（windows/macos/harmonyos...）、`device_type`（设备类型）、`device_id`（设备标识）、`client_type`（客户端类型，如 desktop-app/cli）必填，body JSON 或 query 均可。服务端记录 `time`（收到时间）与 `ip_hash`（来源 IP 按 `IP_HASH_SALT` 加盐 SHA-256，防库泄漏反查），追加写入 Cloudflare D1 `heartbeats` 表（binding `opendesk-stats-db`）；`astro dev` 无 D1 binding，直接返回确认（不落库）。 |
 | `/api/stats` | GET | 心跳统计（仅管理员）。返回全量/最近一天/最近七天的去重设备数与按 `device_type` 分组数量。 |
 | `/api/feedback/submit` | POST | 提交用户反馈。`multipart/form-data`：`type`（`feature`\|`bug`，必填）、`content`（必填）、`contact`（可选，联系方式）、`attachments`（可选，最多 5 个、单个 ≤1MB）。主记录写入 `feedback` 表，附件以 BLOB 写入 `feedback_attachments` 表。 |
-| `/api/feedback/list` | GET | 反馈列表（仅管理员）。按时间倒序，附件仅返回文件名（不返回文件数据）。可选 `?limit=`（默认 50，上限 200）。 |
+| `/api/feedback/list` | GET | 反馈列表（仅管理员）。按时间倒序，附件返回 `{ attachment_id, filename }` 对象数组（不返回文件数据）。可选 `?limit=`（默认 50，上限 200）。 |
+| `/api/feedback/attachment/:id` | GET | 下载反馈附件（仅管理员）。按附件 `id` 返回原始文件 BLOB（`Content-Type` 为上传时的 MIME，并带 `Content-Disposition` 触发下载），需管理员 token 校验；附件不存在返回 404。 |
 
 ### API code layout
 
