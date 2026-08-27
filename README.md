@@ -27,6 +27,26 @@ Open `http://127.0.0.1:8093/` after the dev server starts. The dev server mounts
 | --- | --- | --- |
 | `/api/heartbeat` | POST | OpenDesk 设备心跳上报。`os`（windows/macos/harmonyos...）、`device_type`（设备类型）、`device_id`（设备标识）、`client_type`（客户端类型，如 desktop-app/cli）必填，body JSON 或 query 均可。服务端记录 `time`（收到时间）与 `ip_hash`（来源 IP 按 `IP_HASH_SALT` 加盐 SHA-256，防库泄漏反查），追加写入 Cloudflare D1 `heartbeats` 表（binding `opendesk-stats-db`）；`astro dev` 无 D1 binding，直接返回确认（不落库）。 |
 | `/api/stats` | GET | 心跳统计（仅管理员）。返回全量/最近一天/最近七天的去重设备数与按 `device_type` 分组数量。 |
+| `/api/feedback/submit` | POST | 提交用户反馈。`multipart/form-data`：`type`（`feature`\|`bug`，必填）、`content`（必填）、`contact`（可选，联系方式）、`attachments`（可选，最多 5 个、单个 ≤1MB）。主记录写入 `feedback` 表，附件以 BLOB 写入 `feedback_attachments` 表。 |
+| `/api/feedback/list` | GET | 反馈列表（仅管理员）。按时间倒序，附件仅返回文件名（不返回文件数据）。可选 `?limit=`（默认 50，上限 200）。 |
+
+### API code layout
+
+Hono 路由按路径拆分在 `src/server/` 下，每个文件只负责自己的路由：
+
+```
+src/server/
+├── hono-app.js              # 组装：createApi() 挂载各路由模块
+├── hono-dev-server-entry.js # dev server 入口
+├── lib/
+│   ├── ip-hash.js           # hashIp / clientIp
+│   └── auth.js              # adminGuard（管理员鉴权）
+└── routes/
+    ├── hello.js             # GET  /api/hello
+    ├── heartbeat.js         # POST /api/heartbeat
+    ├── stats.js             # GET  /api/stats（admin）
+    └── feedback.js          # POST /api/feedback
+```
 
 ### Admin-only endpoints
 

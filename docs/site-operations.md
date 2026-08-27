@@ -97,6 +97,10 @@ corepack pnpm exec wrangler d1 migrations apply opendesk-stats --local
 
 Table schema lives in `migrations/`. `astro dev` has no D1 binding, so heartbeat calls there return a confirmation without persisting (the code degrades gracefully when `c.env['opendesk-stats-db']` is absent).
 
+### Feedback endpoint
+
+`POST /api/feedback/submit` accepts `multipart/form-data` with `type` (`feature`/`bug`), `content`, optional `contact`, and optional `attachments` (up to 5 files, 1 MB each). The feedback record goes into the `feedback` table (`type`/`content`/`contact`/`time`/`ip_hash`), attachment bytes into `feedback_attachments` (`feedback_id` FK, `filename`, `content_type`, `size`, `data` BLOB). Attachments are stored in D1 for now; if volume grows, migrate the blob column to R2 and keep only metadata in D1. Schema lives in `migrations/0003_create_feedback.sql` (already applied to both local and remote). `GET /api/feedback/list` (admin-only) returns the feedback list newest-first with attachment filenames only, optionally paginated via `?limit=`.
+
 ### Statistics endpoint
 
 `GET /api/stats` aggregates `heartbeats`: total and last-1d/last-7d distinct device counts, plus per-`device_type` breakdowns (time-window filters use the server-written ISO `time`). The endpoint is admin-only: it requires `Authorization: Bearer <token>` matching `ADMIN_TOKEN`, otherwise 401 (or 503 when the token is unconfigured). `ADMIN_TOKEN` and `IP_HASH_SALT` are secrets — set them in the Cloudflare dashboard (Settings → Variables and Secrets, type Secret); local `wrangler pages dev` reads them from `.dev.vars` (gitignored).
