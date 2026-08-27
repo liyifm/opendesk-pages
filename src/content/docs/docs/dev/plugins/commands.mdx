@@ -1,70 +1,296 @@
 ---
 title: "扩展自定义命令"
-description: "通过 ctx.commands.register 向 OpenDesk TUI 命令系统注册自定义命令"
+description: "通过 ctx.commands.register 向 OpenDesk 注册纯文本或结构化参数命令"
 ---
 
-Command 注册到 OpenDesk TUI 命令系统。
+Command 可以把插件能力暴露为一个可直接执行的命令。注册后的命令可以从以下入口调用：
 
-## PluginCommandDefinition 参数
+- CLI：`opendesk plugins run <命令名> [参数...]`
+- TUI：输入 `/命令名 [参数...]`
+- GUI：在聊天输入框输入 `/命令名 [参数...]`，命令会出现在 `/` 补全列表中
+
+Command 支持两种参数模式：
+
+- **纯文本模式**：不声明 `args`，命令后的全部内容作为一个 `string` 传给回调；不做参数类型转换或校验。
+- **结构化模式**：声明 `args(command)`，使用 Commander 风格的 `argument()`、`option()` 和
+  `requiredOption()` 定义参数；OpenDesk 解析并校验后，把结构化对象传给回调。
+
+## 命名规则
+
+插件只填写本地命令名。名称必须是小写 kebab-case，只能包含小写字母、数字和 `-`，并且必须以字母开头：
+
+```text
+deploy
+deploy-production
+```
+
+以下名称无效：
+
+```text
+Deploy          # 含大写字母
+deploy_status   # 含下划线
+team.deploy     # 含点号
+```
+
+OpenDesk 会自动为命令增加插件 ID 命名空间。例如插件 ID 为 `release-tools`、本地名称为 `deploy` 时，
+完整命令名是：
+
+```text
+release-tools.deploy
+```
+
+插件不要在 `name` 中重复填写 `release-tools.` 前缀。
+
+## CommandDefinition
 
 | 字段 | 类型 | 必填 | 说明 |
 | --- | --- | --- | --- |
-| name | string | 是 | Command 名；注册后由插件 id 限定命名空间 |
-| description | string | 是 | 命令说明 |
-| execute | function | 是 | 接收原始参数字符串和 PluginCommandContext |
+| `name` | `string` | 是 | 小写 kebab-case 的本地命令名 |
+| `description` | `string` | 是 | 命令说明，会显示在命令列表和补全菜单中 |
+| `args` | `(command) => void` | 否 | 结构化参数定义；省略时使用纯文本模式 |
+| `execute` | `function` | 是 | 参数解析成功后执行的回调 |
 
-PluginCommandContext：
+### PluginCommandContext
 
 | 字段 | 类型 | 说明 |
 | --- | --- | --- |
-| taskId | string，可选 | 当前活动任务 |
-| workspace | string，可选 | TUI 当前工作空间 |
-| abort | AbortSignal | 当前任务停止信号 |
+| `taskId` | `string`，可选 | TUI/GUI 当前活动任务 ID；独立 CLI 命令没有活动任务时为空 |
+| `workspace` | `string`，可选 | 当前工作空间路径 |
+| `abort` | `AbortSignal` | 当前任务或命令的停止信号 |
 
-`execute` 可以返回 `undefined`、`string`，或包含可选 `title` 与必填 `output` 的对象。
+`execute` 可以返回 `undefined`、`string`，或包含可选 `title` 与必填 `output` 的对象：
 
-## 依赖 SDK 的 Command 示例
+```ts
+type PluginCommandResult =
+    | void
+    | string
+    | { title?: string; output: string };
+```
 
-~~~js
+CLI 默认只输出字符串或 `output`。TUI/GUI 会把 `title` 作为展示标题；`title` 不属于命令的实际输出内容。
+
+## 纯文本模式
+
+省略 `args` 即可注册纯文本命令：
+
+```ts
 import { definePlugin } from '@bitclub.ai/opendesk-plugin-sdk';
 
 export default definePlugin({
-  id: 'workspace-commands',
-  capabilities: ['command'],
-  setup(ctx) {
-    return ctx.commands.register({
-      name: 'where',
-      description: 'Show the current workspace',
-      execute(args, context) {
-        return {
-          title: 'Workspace',
-          output: context.workspace || 'No active workspace'
-        };
-      }
-    });
-  }
+    id: 'text-commands',
+    capabilities: ['command'],
+    setup(ctx) {
+        return ctx.commands.register({
+            name: 'echo',
+            description: '回显命令后的全部文本',
+            execute(args, context) {
+                return {
+                    title: '命令输入',
+                    output: JSON.stringify(
+                        {
+                            text: args,
+                            workspace: context.workspace ?? null
+                        },
+                        null,
+                        2
+                    )
+                };
+            }
+        });
+    }
 });
-~~~
+```
 
-## 不依赖 SDK 的 Command 示例
+调用：
 
-~~~js
+```bash
+opendesk plugins run text-commands.echo hello "OpenDesk command"
+```
+
+```text
+/text-commands.echo hello "OpenDesk command"
+```
+
+纯文本回调接收的是一段字符串，不会自动得到参数数组，也不会检查参数数量、类型或选项名称。需要这些
+能力时，应使用结构化模式。
+
+## 结构化模式
+
+在 `args(command)` 中使用与 OpenDesk 主 CLI 相同的 Commander 参数语法：
+
+- `argument('<name>')`：必填位置参数；
+- `argument('[name]')`：可选位置参数；
+- `argument('<names...>')` 或 `argument('[names...]')`：可变长位置参数，必须是最后一个位置参数；
+- `option('--name <value>')`：带值选项；
+- `option('--force')`：boolean 开关；
+- `requiredOption('--token <value>')`：必须提供的选项。
+
+```ts
+import { definePlugin } from '@bitclub.ai/opendesk-plugin-sdk';
+
+export default definePlugin({
+    id: 'release-tools',
+    capabilities: ['command'],
+    setup(ctx) {
+        return ctx.commands.register({
+            name: 'deploy',
+            description: '部署项目',
+            args(command) {
+                command
+                    .argument('<environment>', '目标环境')
+                    .argument('[targets...]', '可选部署目标')
+                    .requiredOption('--owner <name>', '发布负责人')
+                    .option('-r, --repeat <count>', '生成条目数量', {
+                        type: 'number',
+                        defaultValue: 1
+                    })
+                    .option('-f, --force', '强制部署')
+                    .option('--format <format>', '输出格式', {
+                        choices: ['text', 'json'],
+                        defaultValue: 'text'
+                    });
+            },
+            execute(args, context) {
+                const targets = Array.isArray(args.targets) ? args.targets.map(String) : [];
+                const repeat = Number(args.repeat);
+                const entries = Array.from({ length: repeat }, (_, index) => ({
+                    sequence: index + 1,
+                    environment: args.environment,
+                    target: targets[index % Math.max(targets.length, 1)] ?? 'default',
+                    owner: args.owner,
+                    force: args.force === true
+                }));
+
+                return {
+                    title: '部署结果',
+                    output: JSON.stringify(
+                        {
+                            ...args,
+                            workspace: context.workspace ?? null,
+                            entries
+                        },
+                        null,
+                        2
+                    )
+                };
+            }
+        });
+    }
+});
+```
+
+调用：
+
+```bash
+opendesk plugins run release-tools.deploy production windows linux --owner Alice --repeat 3 --force --format json
+```
+
+回调会收到扁平的结构化参数对象：
+
+```ts
+{
+    environment: 'production',
+    targets: ['windows', 'linux'],
+    owner: 'Alice',
+    repeat: 3,
+    force: true,
+    format: 'json'
+}
+```
+
+`type: 'number'` 会把命令行文本转换为 `number`；`choices` 限制允许的值。普通 boolean 选项未提供时
+为 `false`，声明的默认值会在解析时自动写入结果。
+
+## 解析和错误处理
+
+结构化命令的参数定义在插件注册时创建，实际输入在每次执行时使用独立的 Commander 实例解析。CLI 已经
+提供参数数组；TUI/GUI 会先把输入文本按引号拆分，再交给同一个解析器。因此三种入口共享同一套参数
+规则。
+
+以下情况会导致解析失败：
+
+- 缺少必填位置参数；
+- 缺少 `requiredOption()`；
+- 未知选项或选项缺少值；
+- 数字参数不是有限数字；
+- `choices` 不包含输入值；
+- 参数定义中的字段名重复或 Option flags 冲突。
+
+解析失败时不会调用 `execute`：
+
+- CLI 将错误和 usage 输出到终端，并以非零状态结束；
+- TUI 在文本页显示错误和 usage；
+- GUI 通过通知显示错误，并保留输入内容以便修改后重试。
+
+结构化命令支持：
+
+```bash
+opendesk plugins run release-tools.deploy --help
+```
+
+`--help` 会输出自动生成的 usage 和参数说明，不会调用插件回调。
+
+OpenDesk 的全局参数应放在 `plugins` 之前：
+
+```bash
+opendesk --workspace D:/project plugins run release-tools.deploy production --owner Alice
+```
+
+进入插件命令名之后的参数由插件命令解析。若插件需要传入与 OpenDesk 全局参数同名的选项，可以使用 `--`
+明确结束 OpenDesk 参数：
+
+```bash
+opendesk --workspace D:/project plugins run release-tools.deploy production --owner Alice -- --workspace staging
+```
+
+## 不依赖 SDK
+
+插件入口不要求必须导入 SDK。只要运行时导出的对象符合同一契约，也可以直接注册纯文本或结构化命令：
+
+```js
 export default {
-  id: 'workspace-commands',
-  capabilities: ['command'],
-  setup(ctx) {
-    return ctx.commands.register({
-      name: 'where',
-      description: 'Show the current workspace',
-      execute(args, context) {
-        return {
-          title: 'Workspace',
-          output: context.workspace || 'No active workspace'
-        };
-      }
-    });
-  }
+    id: 'plain-commands',
+    capabilities: ['command'],
+    setup(ctx) {
+        return ctx.commands.register({
+            name: 'deploy',
+            description: '使用结构化参数部署项目',
+            args(command) {
+                command
+                    .argument('<environment>', '目标环境')
+                    .option('--dry-run', '只检查，不实际部署')
+                    .option('--count <number>', '部署数量', {
+                        type: 'number',
+                        defaultValue: 1
+                    });
+            },
+            execute(args) {
+                return `environment=${args.environment}, dryRun=${args.dryRun}, count=${args.count}`;
+            }
+        });
+    }
 };
-~~~
+```
 
-命令注册后由插件 `id` 限定命名空间，避免与其他插件或内置命令冲突。通过 `setup` 返回的清理函数或 registration 的 `dispose` 可以提前移除命令；插件停用、重载或宿主退出时，宿主会统一释放所有注册项。
+不依赖 SDK 时没有编译期类型检查，但参数语法、校验和回调行为与 SDK 版本相同。
+
+## 注册和释放
+
+`ctx.commands.register()` 返回 `PluginRegistration`。插件停用、重载或宿主退出时，OpenDesk 会自动释放
+注册项；如果需要提前移除命令，可以保存返回值并调用：
+
+```ts
+const registration = ctx.commands.register({
+    name: 'temporary',
+    description: '临时命令',
+    execute: () => 'ok'
+});
+
+await registration.dispose();
+```
+
+通过 CLI 查看当前已加载的命令：
+
+```bash
+opendesk plugins commands
+```
