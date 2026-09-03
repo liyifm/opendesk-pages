@@ -1,0 +1,399 @@
+---
+title: "在插件中开发消息渠道"
+description: "在插件中实现 Channel：消息收发、扫码/参数登录、多账号、媒体与结构化交互（权限审批 / askUser 卡片）"
+---
+
+import VersionNote from '../../../../../components/VersionNote.astro';
+
+<VersionNote since="0.3.6" />
+
+通过 `ctx.channels.register`，插件可以把第三方 IM 平台（微信、飞书、Zalo 等）接入 OpenDesk，作为消息渠道（Channel）。渠道负责平台侧的登录、连接与收发消息；OpenDesk 侧的配对、allowlist、群组策略与消息路由由 `channelmgr` 统一处理。
+
+渠道接入后，用户可以在渠道中与 Agent 对话：入站消息会投递到 Agent，Agent 的回复经渠道发回原会话。渠道声明 `interactive` 能力后，权限审批与 askUser 提问还能以结构化交互卡片（如飞书确认卡片）的形式下发到用户侧。
+
+内置的 `feishu` 与 `weixin` 插件就是完整的 Channel 实现，可以作为参考。
+
+## 能力声明
+
+manifest 与入口对象都需要声明 `channel` capability：
+
+~~~json
+{
+  "schemaVersion": 1,
+  "id": "my-channel",
+  "displayName": "My Channel",
+  "entry": "./index.mjs",
+  "apiVersion": 1,
+  "capabilities": ["channel"]
+}
+~~~
+
+在 `setup(ctx)` 中创建 Channel 实例并调用 `ctx.channels.register(channel)` 注册：
+
+~~~js
+import { definePlugin } from '@bitclub.ai/opendesk-plugin-sdk';
+import { MyChannel } from './my-channel.mjs';
+
+export default definePlugin({
+  id: 'my-channel',
+  capabilities: ['channel'],
+  setup(ctx) {
+    const channel = new MyChannel();
+    return ctx.channels.register(channel);
+  }
+});
+~~~
+
+`ctx.channels.register` 返回 PluginRegistration；插件停用、卸载或宿主重载时，注册的渠道会随插件一起释放。渠道 id（`ChannelMeta.id`）全局唯一，与另一个插件冲突会导致插件激活失败。
+
+## Channel 接口
+
+Channel 是一个实现了以下契约的类实例：
+
+| 成员 | 类型 | 必填 | 说明 |
+| --- | --- | --- | --- |
+| meta | ChannelMeta | 是 | 渠道元数据：id、label、description、aliases |
+| capabilities | ChannelCapabilities | 是 | 渠道能力：会话形态、媒体、主题回复、结构化交互 |
+| configSchema | object | 否 | 非敏感配置的 JSON Schema，OpenDesk 据此渲染配置 UI |
+| setChannelRuntimeContext | function | 是 | OpenDesk 注入运行时上下文，实现者自行保存 |
+| listAccounts | async function | 是 | 列出已登录/已配置的账号 |
+| supportLoginWithQr | boolean | 是 | 是否支持扫码登录；为 true 时必须实现两个 QR 方法 |
+| getAccountLoginQr | function | 视能力 | 发起扫码登录，返回二维码会话 |
+| loginAccountWithQrWait | function | 视能力 | 轮询等待扫码结果，成功返回账号 |
+| getAccountLoginParams | function | 否 | 参数登录的表单字段描述，据此渲染登录表单 |
+| loginAccountWithParams | function | 视能力 | 用表单值登录，成功返回账号 |
+| checkAccountStatus | function | 是 | 主动检查账号连接是否正常（如 token 是否过期） |
+| logoutAccount | function | 是 | 登出并清理该账号的持久化凭证 |
+| start | async function | 是 | 启动账号的长连接（WebSocket/轮询/Webhook 订阅） |
+| stop | function | 是 | 停止账号的连接并清理资源 |
+| reload | function | 否 | 配置热更新入口；未实现则执行 stop + start |
+| sendOutboundMessage | async function | 是 | 发送消息到目标，返回平台消息 id 作为回执 |
+| sendInteraction | async function | 视能力 | 发送结构化交互请求；`interactive: true` 时必须实现 |
+
+### ChannelMeta
+
+| 字段 | 类型 | 说明 |
+| --- | --- | --- |
+| id | string | 渠道唯一标识，全局唯一 |
+| label | string \| object | 面向用户的渠道名称；支持 `{ en, zh }` 本地化对象 |
+| description | string | 渠道描述，展示在渠道管理中 |
+| aliases | string[] | 渠道别名 |
+| icon | string | 图标（可选） |
+
+### ChannelCapabilities
+
+| 字段 | 类型 | 说明 |
+| --- | --- | --- |
+| chatTypes | array | 支持的会话形态：`direct`（私聊）、`group`（群聊） |
+| media | boolean | 是否支持媒体收发；缺省 false |
+| threading | boolean | 是否支持主题回复（thread） |
+| interactive | boolean | 是否支持结构化用户交互（权限审批 / askUser 卡片） |
+
+## 生命周期
+
+OpenDesk 对渠道实例的调用顺序：
+
+~~~text
+define(channel)
+  -> setChannelRuntimeContext(ctx)      // 注入运行时上下文
+  -> listAccounts()                     // 枚举已配置账号
+  -> 逐个账号 start(account)            // 建立长连接
+  -> 登录新账号 -> start(newAccount)
+  -> 登出账号   -> stop(accountId) + logoutAccount(accountId)
+  -> 配置变更   -> reload(config) 或 stop + start
+  -> 停用/卸载  -> stop(所有账号)
+~~~
+
+`setChannelRuntimeContext` 可能在登录与启动之前被调用多次（OpenDesk 会在每次启动账号时重新注入带 `accountId` 的上下文）。实现应幂等保存 ctx；多账号场景下，各账号的 start 收到的上下文带有各自的 `accountId`。
+
+### 账号管理
+
+凭证由渠道自己持久化，OpenDesk 不存储平台凭证。渠道通常把凭证写入 `ctx.dataDir`（OpenDesk 为每个渠道准备的专属数据目录），例如 `ctx.dataDir/accounts/<accountId>.json`。
+
+- `listAccounts` 从持久化存储读取并返回 `{ accountId, accountName }` 列表；
+- `checkAccountStatus(accountId)` 返回 `{ ok, message }`，OpenDesk 据此展示账号健康状态；
+- `logoutAccount(accountId)` 删除该账号的持久化凭证。
+
+### 扫码登录
+
+`supportLoginWithQr = true` 时实现两个方法：
+
+- `getAccountLoginQr()` 向平台发起扫码会话，返回 `{ qrUrl, sessionKey, expiresAt? }`。`qrUrl` 可以是二维码图片地址或二维码内容字符串，OpenDesk UI 据此渲染二维码；
+- `loginAccountWithQrWait(session, onProgress?)` 轮询等待扫码结果。轮询期间通过 `onProgress?.('等待扫码...')`、`onProgress?.('已扫码，请在手机上确认')` 等回调更新 UI 进度；扫码确认后持久化凭证并返回 `{ accountId, accountName }`，超时或失败时抛错。
+
+### 参数登录
+
+`getAccountLoginParams()` 返回表单字段描述 `{ name, displayName, required, type?: 'text' | 'password' }`；`loginAccountWithParams(values)` 用表单值登录。渠道可以同时支持扫码与参数登录，也可以只支持其中一种。
+
+## 运行时上下文（ChannelRuntimeContext）
+
+`setChannelRuntimeContext` 注入的 ctx 是渠道与 OpenDesk 交互的唯一通道：
+
+| 成员 | 类型 | 说明 |
+| --- | --- | --- |
+| channelId | string | 渠道 id |
+| accountId | string | 注入该上下文时对应的账号（多账号区分用） |
+| config | object | OpenDesk 侧维护的非敏感配置（只读） |
+| dataDir | string | 渠道专属数据目录（`<opendesk>/channels/<channelId>/`） |
+| resolvePath | function | 将相对路径解析到 dataDir 内 |
+| dispatch | function | 投递入站消息，OpenDesk 执行配对/allowlist/群组策略后决定是否路由到 Agent |
+| dispatchInteraction | function | 回传用户对交互卡片的操作 |
+| setStatus | function | 上报连接状态（连接/断开/错误） |
+| emit | function | 向 OpenDesk 发送扩展事件（如扫码过期、需要重新授权） |
+| fetch | function | 系统级 fetch，继承 OpenDesk 的代理配置 |
+| logger | object | 带渠道前缀的日志器（info/warn/error/debug） |
+
+## 入站消息
+
+长连接收到新消息后，构造 `ChannelInboundMessage` 并调用 `ctx.dispatch(message)`：
+
+| 字段 | 类型 | 说明 |
+| --- | --- | --- |
+| messageId | string | 平台消息 id，OpenDesk 用于去重；无唯一 id 的平台可不填 |
+| accountId | string | 消息所属账号（多账号时须显式声明） |
+| chatType | string | `direct` 或 `group` |
+| sender | object | `{ id, name? }`，私聊场景为对端用户 |
+| group | object | 仅 `group` 时必填：`{ id, name? }` |
+| text | string | 消息文本 |
+| media | array | 媒体附件 |
+| replyToMessageId | string | 引用回复的源消息 id |
+| threadId | string | 主题回复场景的 thread id |
+| timestamp | number | 消息时间戳 |
+| raw | unknown | 平台原始事件对象，透传调试用 |
+
+媒体附件 `{ path?, url?, contentType?, fileName? }`：入站方向，渠道负责把远端媒体下载到本地后填 `path`，OpenDesk 读取该文件交给 Agent；`contentType` 建议填实际 MIME（如 `image/jpeg`），避免 Agent 按扩展名误判。
+
+投递是异步的：`await ctx.dispatch(inbound)` 等 OpenDesk 完成策略判断与路由，渠道不应在 dispatch 返回前清理消息相关状态。
+
+## 出站消息
+
+实现 `sendOutboundMessage(message)` 发送 Agent 的回复：
+
+~~~js
+await channel.sendOutboundMessage({
+  to: { chatType: 'direct', recipientId: 'user_123' },
+  accountId: 'bot_001',
+  message: { text: '你好，有什么可以帮你？' }
+});
+~~~
+
+- `to.chatType` 由 OpenDesk 根据入站时记录的会话形态推断（`direct` 填 `recipientId`，`group` 需同时填 `groupId`）；
+- `accountId` 指定用哪个账号发送（对应 `listAccounts` 返回的 `accountId`）；
+- `message.text` 为文本；`message.media` 出站时由 OpenDesk 提供本地 `path` 或远程 `url`，渠道负责上传/转换；
+- 返回 `{ messageId? }` 作为平台侧发送成功的回执。
+
+## 结构化交互（interactive）
+
+渠道声明 `capabilities.interactive: true` 并实现 `sendInteraction` 后，OpenDesk 会把权限审批与 askUser 提问构造为 `ChannelInteractionRequest` 下发，渠道渲染为用户可见的交互 UI（如飞书确认卡片）；用户在渠道侧点击后，渠道把结果经 `ctx.dispatchInteraction(event)` 回传。
+
+`ChannelInteractionRequest`：
+
+| 字段 | 类型 | 说明 |
+| --- | --- | --- |
+| interactionId | string | 唯一交互 id，回调通过它关联回 pending 的请求 |
+| kind | string | `approval`（权限审批）或 `askUser`（向用户提问） |
+| to | object | 出站目标（同 `sendOutboundMessage`） |
+| accountId | string | 目标账号 |
+| expiresAt | number | 过期时间（epoch ms），到期未响应视为取消 |
+| payload | object | 审批或提问的具体内容 |
+
+`payload` 两种形态：
+
+- `approval`：`{ prompt, tool?, requests, confirmLabel?, cancelLabel? }`，`requests` 为被请求授权的权限列表；
+- `askUser`：`{ questions: [{ question, header, options, multiple? }] }`，`options` 为 `{ label, description }` 列表。
+
+用户操作经 `dispatchInteraction(event)` 回传：`{ kind, interactionId, accountId?, operator, decision?, answers?, cancelled?, raw? }`。`approval` 事件携带 `decision: 'allow' | 'deny'`；`askUser` 事件携带 `answers: { 问题索引: 选中的 option label 数组 }`；用户取消（点取消按钮、卡片超时）时 `cancelled: true`。
+
+渠道不实现 `sendInteraction` 或 `interactive` 不为 true 时，OpenDesk 不向 Agent 挂载相关交互工具，权限请求自动拒绝、askUser 返回取消，避免出现无人响应的悬挂。
+
+## 完整示例
+
+一个使用长轮询收消息、扫码登录、凭证自管的简化渠道：
+
+~~~js
+import fs from 'node:fs';
+import path from 'node:path';
+
+export class DemoChannel {
+  // 元数据与能力声明
+  meta = {
+    id: 'demo',
+    label: { en: 'Demo IM', zh: '示例渠道' },
+    description: 'A minimal demo channel',
+    aliases: ['demo-im']
+  };
+  capabilities = { chatTypes: ['direct', 'group'], media: false };
+  supportLoginWithQr = true;
+
+  constructor() {
+    this._ctx = null;
+    this._controllers = new Map(); // accountId -> AbortController
+    this._accounts = {};           // 演示用内存账号表；生产应持久化到 ctx.dataDir
+  }
+
+  // 运行时上下文：保存即可，后续所有操作从这里取 ctx
+  setChannelRuntimeContext(ctx) {
+    this._ctx = ctx;
+  }
+
+  // ── 账号管理 ───────────────────────────────────────────────────────────
+
+  listAccounts() {
+    return Object.entries(this._accounts).map(([accountId, data]) => ({
+      accountId,
+      accountName: data.accountName || accountId
+    }));
+  }
+
+  checkAccountStatus(accountId) {
+    return this._accounts[accountId]
+      ? { ok: true, message: 'logged in' }
+      : { ok: false, message: 'not logged in' };
+  }
+
+  logoutAccount(accountId) {
+    delete this._accounts[accountId];
+  }
+
+  // ── 扫码登录 ───────────────────────────────────────────────────────────
+
+  async getAccountLoginQr() {
+    const ctx = this._ctx;
+    const resp = await ctx.fetch('https://demo.example/api/qr', { method: 'POST' });
+    const data = await resp.json();
+    return { qrUrl: data.qr_url, sessionKey: data.session_key };
+  }
+
+  async loginAccountWithQrWait(session, onProgress) {
+    const ctx = this._ctx;
+    const deadline = Date.now() + 5 * 60 * 1000;
+    while (Date.now() < deadline) {
+      const resp = await ctx.fetch(
+        `https://demo.example/api/qr/status?key=${session.sessionKey}`
+      );
+      const status = await resp.json();
+      if (status.confirmed) {
+        const accountId = status.account_id || 'default';
+        this._accounts[accountId] = { token: status.token, accountName: status.name };
+        onProgress?.('登录成功');
+        return { accountId, accountName: status.name };
+      }
+      onProgress?.(status.scanned ? '已扫码，请在手机上确认' : '等待扫码...');
+      await new Promise((resolve) => setTimeout(resolve, 2000));
+    }
+    throw new Error('demo: QR login timeout');
+  }
+
+  getAccountLoginParams() {
+    return [];
+  }
+
+  // ── 运行生命周期 ───────────────────────────────────────────────────────
+
+  async start(account) {
+    const accountId = account.accountId;
+    const ctx = this._ctx;
+    if (this._controllers.has(accountId)) return; // 已在运行
+
+    const controller = new AbortController();
+    this._controllers.set(accountId, controller);
+    ctx.setStatus({ online: true, statusText: '连接中' }, accountId);
+
+    const loop = async () => {
+      while (!controller.signal.aborted) {
+        try {
+          const resp = await ctx.fetch('https://demo.example/api/getupdates', {
+            method: 'POST',
+            body: JSON.stringify({ token: this._accounts[accountId].token }),
+            signal: controller.signal
+          });
+          const data = await resp.json();
+          for (const msg of data.messages) {
+            await this._handleIncoming(accountId, msg);
+          }
+          ctx.setStatus({ online: true, statusText: '已连接' }, accountId);
+        } catch (err) {
+          if (controller.signal.aborted) break;
+          ctx.setStatus({ online: false, statusText: '重连中', error: err?.message }, accountId);
+          await new Promise((resolve) => setTimeout(resolve, 2000));
+        }
+      }
+      this._controllers.delete(accountId);
+    };
+    loop().catch((err) => {
+      ctx.setStatus({ online: false, statusText: '连接异常', error: err?.message }, accountId);
+      this._controllers.delete(accountId);
+    });
+  }
+
+  async _handleIncoming(accountId, msg) {
+    const ctx = this._ctx;
+    const groupId = msg.group_id;
+    const inbound = {
+      messageId: msg.message_id,
+      accountId,
+      chatType: groupId ? 'group' : 'direct',
+      sender: { id: msg.sender_id },
+      group: groupId ? { id: groupId } : undefined,
+      text: msg.text || '',
+      timestamp: msg.create_time_ms || Date.now(),
+      raw: msg
+    };
+    await ctx.dispatch(inbound);
+  }
+
+  async stop(accountId) {
+    const controller = this._controllers.get(accountId);
+    if (controller) {
+      controller.abort();
+      this._controllers.delete(accountId);
+    }
+  }
+
+  // ── 出站 ───────────────────────────────────────────────────────────────
+
+  async sendOutboundMessage(message) {
+    const ctx = this._ctx;
+    const account = this._accounts[message.accountId];
+    if (!account) throw new Error(`demo: account ${message.accountId} not configured`);
+    const resp = await ctx.fetch('https://demo.example/api/send', {
+      method: 'POST',
+      body: JSON.stringify({
+        token: account.token,
+        to: message.to.recipientId,
+        text: message.message?.text || ''
+      })
+    });
+    if (!resp.ok) throw new Error(`demo: send failed with HTTP ${resp.status}`);
+    const result = await resp.json();
+    return { messageId: result.message_id };
+  }
+}
+~~~
+
+配套入口：
+
+~~~js
+import { definePlugin } from '@bitclub.ai/opendesk-plugin-sdk';
+import { DemoChannel } from './demo-channel.mjs';
+
+export default definePlugin({
+  id: 'demo',
+  displayName: { en: 'Demo IM', zh: '示例渠道' },
+  capabilities: ['channel'],
+  setup(ctx) {
+    return ctx.channels.register(new DemoChannel());
+  }
+});
+~~~
+
+## 注意事项
+
+- **凭证自管**：平台 token、密钥等敏感凭证由渠道持久化到 `ctx.dataDir`，OpenDesk 不读取、不存储。不要在 `meta`、`capabilities` 或 `ChannelAccount` 中暴露凭证。
+- **多账号**：一个渠道实例可以管理多个账号。入站消息、`setStatus`、`emit` 都应显式携带 `accountId`，避免多账号状态串线；`setStatus`/`emit` 支持通过第二个参数指定账号。
+- **网络请求**：使用 `ctx.fetch` 而非全局 fetch，自动继承 OpenDesk 的代理配置；请求应带超时并监听 `abort` 信号，配合 `stop` 优雅退出长轮询。
+- **去重与忽略**：对平台可能重复推送的消息做去重（如维护已见 messageId 集合）；自己发出的消息、生成中的占位消息应在入站侧过滤。
+- **媒体**：入站媒体先下载到本地再填 `path`；下载失败时可以附占位文本（如 `[图片]`），避免纯媒体消息被静默丢弃。
+- **状态上报**：连接建立、断开、认证失败时应调用 `ctx.setStatus` 更新账号状态；认证类错误（401/token 失效）建议停止重连并上报错误，而不是无限重试。
+- **交互超时**：`sendInteraction` 的请求带 `expiresAt`，渠道应按时结算（用户未响应按取消处理），并把超时事件经 `dispatchInteraction` 回传，避免 OpenDesk 侧 pending 悬挂。
+- **互斥与只读**：渠道的配置（`ctx.config`）由 OpenDesk 侧维护并在 `applications.channelmgr.<channelId>` 下展示；渠道对配置为只读，改配置应引导用户在渠道管理 UI 中完成。

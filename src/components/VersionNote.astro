@@ -1,0 +1,34 @@
+---
+/**
+ * 版本提示徽章：标记文档页介绍的功能从哪个 OpenDesk 版本开始支持。
+ *
+ * 用法（MDX）：
+ *   import VersionNote from '../../…/components/VersionNote.astro';
+ *   <VersionNote since="0.3.6" />
+ */
+interface Props {
+  /** 功能开始支持的版本号，如 "0.3.6" */
+  since: string;
+}
+
+const { since } = Astro.props;
+---
+
+<span class="version-note">从 OpenDesk {since} 版本开始支持</span>
+
+<style>
+  .version-note {
+    display: inline-flex;
+    align-items: center;
+    margin: 0.35rem 0 1.1rem;
+    padding: 0.2rem 0.7rem;
+    border: 1px solid color-mix(in srgb, var(--sl-color-accent) 40%, transparent);
+    border-radius: 999px;
+    background: color-mix(in srgb, var(--sl-color-accent) 10%, var(--sl-color-bg));
+    color: var(--sl-color-text-accent);
+    font-size: 0.85rem;
+    font-weight: 600;
+    letter-spacing: 0.02em;
+    line-height: 1.5;
+  }
+</style>
