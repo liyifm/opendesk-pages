@@ -3,7 +3,25 @@ title: "在插件中添加工具"
 description: "在插件中注册 Agent 可见工具：参数 Schema、权限声明、增量结果、取消信号与 CLI/GUI 渲染器"
 ---
 
-Tool 会加入 Agent 可见工具集，最终名称由插件 `id` 和 Tool `name` 共同限定。参数必须使用 Zod 4 对象 Schema；普通对象、JSON Schema、字符串或只模拟 `toJSONSchema` 的对象都会在插件激活时被拒绝。
+Tool 会加入 Agent 可见工具集。每个插件拥有一个独立 Toolset，模型侧最终名称由插件 `id` 和 Tool `name` 共同限定。参数必须使用 Zod 4 对象 Schema；普通对象、JSON Schema、字符串或只模拟 `toJSONSchema` 的对象都会在插件激活时被拒绝。
+
+## 命名与 Toolset
+
+传给 `ctx.tools.register()` 的 `name` 是插件内的本地名。OpenDesk 会为每个插件创建名为 `plugin-{pluginId}` 的独立 Toolset，Toolset 内部和插件中心都保留本地名；Host 注册表与模型请求使用限定名以隔离不同插件。
+
+以插件 `greeting-tools` 注册本地 Tool `greet` 为例：
+
+| 位置 | 名称 |
+| --- | --- |
+| 插件中心 | `greet` |
+| Toolset | `plugin-greeting-tools` |
+| Toolset 内部 | `greet` |
+| Host 注册表、`tool.definition` | `greeting-tools-greet` |
+| 模型请求、ToolCall、执行阶段 Hook | `plugin-greeting-tools-greet` |
+
+不同插件可以注册相同本地名，因为它们位于不同 Toolset。插件 `team-a` 与 `team-b` 都注册 `inspect` 时，模型侧名称分别是 `plugin-team-a-inspect` 和 `plugin-team-b-inspect`。同一插件中，两个 Tool 名经过规范化后相同会导致第二次注册失败，插件激活过程中已经创建的注册项会一起回滚。
+
+进入模型名称的插件 id 和 Tool 名只保留字母、数字、`_` 与 `-`；其他连续字符替换为 `-`，首尾分隔符会移除。因此不要依赖空格、点或斜杠区分两个 Tool 名。
 
 ## ToolDefinition 参数
 
@@ -55,7 +73,7 @@ ToolRenderContext 字段：
 
 | 字段 | 类型 | 说明 |
 | --- | --- | --- |
-| tool | string | 完整 Tool 名 |
+| tool | string | 模型侧最终 Tool 名；插件 Tool 包含 `plugin-{pluginId}-` 前缀 |
 | callId | string | 本次调用 id |
 | status | pending、running、success、error | 调用状态 |
 | args | unknown | 调用参数 |
@@ -120,7 +138,7 @@ export default definePlugin({
 
 ## 不依赖 SDK 的 Tool 示例
 
-无 SDK Tool 仍需 Zod 4：
+无 SDK Tool 仍需 Zod 4。`zod` 是宿主映射依赖：插件自带版本时优先使用自己的版本，否则回退到 OpenDesk 内置版本；通过 ZIP/TGZ 安装时不会为它单独创建插件本地副本。
 
 ~~~json
 {
