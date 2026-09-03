@@ -438,7 +438,7 @@ Hook 按插件激活顺序串行执行。默认 `failureMode: 'open'` 会记录�
 - [在插件中添加工具](/docs/dev/plugins/tool/) — 把工具加入 Agent 可见工具集，支持参数 Schema、权限声明与 CLI/GUI 渲染器
 - [在插件中挂载 MCP](/docs/dev/plugins/mcp/) — 注册本地 stdio 或远程 sse / streamableHttp MCP Server
 - [在插件中添加 Skills](/docs/dev/plugins/skills/) — 注册可由用户或模型调用的 Skill 说明
-- [在插件中使用钩子](/docs/dev/plugins/hooks/) — 在模型请求、工具调用、Skill 加载等节点插入逻辑
+- [在插件中使用钩子](/docs/dev/plugins/hooks/) — 在模型请求、会话审查、Skill 生命周期和工具调用等节点插入逻辑
 - [在插件中贡献子 Agent](/docs/dev/plugins/agents/) — 声明可由主 Agent 调度的子 Agent，支持 agents.md 目录与动态注册
 - [在插件中注入浏览器提示](/docs/dev/plugins/browser/) — 为特定站点向 use-browser 注入文本提示与可触发的页面动作
 - [在插件中开发消息渠道](/docs/dev/plugins/channels/) — 接入 IM 平台收发消息，支持扫码/参数登录与结构化交互（权限审批 / askUser 卡片）

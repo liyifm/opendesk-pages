@@ -1,6 +1,6 @@
 ---
 title: "在插件中使用钩子"
-description: "通过 ctx.hooks.on 在模型请求、工具调用、Skill 加载、Shell 执行与权限询问等节点插入插件逻辑"
+description: "通过 ctx.hooks.on 在模型请求、任务审查、Skill 生命周期、工具调用与权限询问等节点插入插件逻辑"
 ---
 
 使用 `ctx.hooks.on(name, callback, options)` 注册 Hook。callback 接收只读语义的 input 和可修改的 output；通过修改 output 改变后续行为，不需要返回值。
@@ -24,8 +24,10 @@ options 目前只有 `failureMode`：
 | --- | --- | --- |
 | 对话 | `chat.headers` | 在当前模型请求前追加或改写 HTTP Header |
 | 对话 | `chat.params` | 在当前模型请求前调整推理强度和最大输出 token |
+| 任务 | `task.review` | 主任务进入会话审查阶段时提供本次审查范围内的可见对话 |
 | 技能 | `skill.load.before` | Agent 明确加载某个 Skill 时触发，可拒绝加载 |
 | 技能 | `skill.load.after` | 某个 Skill 成功加载后触发，仅用于观测和审计 |
+| 技能 | `skill.list.after` | SkillMgr 首次加载用户提供的本地 Skill 列表或列表变化后触发 |
 | 技能 | `skill.install.before` | 用户 Skill 安装前触发，可拒绝安装 |
 | 技能 | `skill.install.after` | 用户 Skill 安装成功后触发，仅用于观测和审计 |
 | 工具 | `tool.definition` | 调整工具在模型侧可见的描述和参数 Schema |
@@ -39,7 +41,7 @@ options 目前只有 `failureMode`：
 
 JavaScript 插件注册未知 Hook 名时会在 `setup` 阶段失败。`chat.headers` 和 `chat.params` 共享 `PluginChatRequestInput`，但使用独立输出对象并依次执行。单个 Hook 回调失败时，只回滚该 Hook 的修改；`chat.headers` 不会改写模型参数，`chat.params` 也不会改写 Header。
 
-## 对话相关
+## 模型请求与任务审查
 
 ### chat.headers
 
@@ -82,6 +84,38 @@ ctx.hooks.on('chat.params', (input, output) => {
     output.reasoningEffort = 'high';
   }
   output.maxCompletionTokens = 8192;
+});
+~~~
+
+### task.review
+
+主任务进入 AIKernel 的 Task Review 生命周期时触发。自动审查会在任务达到空闲审查阈值时触发，用户也可以手动触发 Task Review。同一个主任务可能多次进入审查；任务不需要处于 stopped 状态，因此不要把该 Hook 当作“一次会话只执行一次”的关闭事件。
+
+Input：
+
+| 字段 | 类型 | 说明 |
+| --- | --- | --- |
+| taskId | string | 被审查的主任务 id |
+| messages | readonly object[] | 本次审查范围内、经过过滤的可见对话 |
+
+`messages` 中每一项包含：
+
+| 字段 | 类型 | 说明 |
+| --- | --- | --- |
+| role | user 或 assistant | 消息角色 |
+| content | string | 去除首尾空白后的纯文本内容 |
+
+自动审查只提供当前审查范围内的消息；手动 Task Review 当前从会话起点开始审查。插件不会收到子任务和内部任务的审查事件。消息列表只保留非内部的用户文本和 Assistant 的可见文本，不包含空消息、reasoning、工具调用、工具结果以及其他内部消息。
+
+该 Hook 的 Output 为空，输入及消息项都是只读快照。插件可以据此更新自己的审计、索引或统计数据，但不能修改会话内容或 Task Review 的后续行为。会话内容可能包含敏感信息，只处理业务所需字段，并避免无条件记录完整消息正文。
+
+~~~js
+ctx.hooks.on('task.review', ({ taskId, messages }) => {
+  console.info('Reviewing conversation', {
+    taskId,
+    messageCount: messages.length,
+    roles: messages.map((message) => message.role)
+  });
 });
 ~~~
 
@@ -128,6 +162,47 @@ ctx.hooks.on('skill.load.before', (input, output) => {
 ~~~js
 ctx.hooks.on('skill.load.after', (input) => {
   console.info('Loaded Skill', input.bundleName, input.skillName);
+});
+~~~
+
+### skill.list.after
+
+SkillMgr 首次完成用户提供的本地 Skill 列表加载后触发，并在安装、删除、启用、禁用或刷新这些 Skill 后再次触发。每次通知都提供当时的完整列表快照，而不是只提供发生变化的单个 Skill。
+
+Input：
+
+| 字段 | 类型 | 说明 |
+| --- | --- | --- |
+| skills | readonly object[] | 用户提供的本地 Skill 列表 |
+
+`skills` 中每一项包含：
+
+| 字段 | 类型 | 说明 |
+| --- | --- | --- |
+| name | string | Skill 名称 |
+| directory | string | Skill 所在目录的绝对路径 |
+| source | installed、config 或 mounted | Skill 来源；三种来源保持独立，插件可以按需过滤 |
+| enabled | boolean | Skill 当前最终是否启用 |
+
+列表不包含内置的 Application、Soul Skill，也不包含插件通过 `resources.skills` 或 `ctx.skills.register` 贡献的 Skill。`source` 的含义如下：
+
+| source | 说明 |
+| --- | --- |
+| installed | 由 SkillMgr 安装并管理的用户 Skill |
+| config | 从用户配置的本地 Skill 目录扫描到的 Skill |
+| mounted | 从挂载目录发现的 Skill |
+
+该 Hook 的 Output 为空，`skills` 数组及其中的每一项都是只读快照。需要长期保存或重组数据时，应先复制所需字段。
+
+`skill.list.after` 是变化通知，不是查询接口，也不会向晚注册的回调补发之前的快照。插件需要在 SkillMgr 首次加载前完成激活才能收到初始通知；如果插件在运行中安装或启用，则会从下一次列表变化开始收到通知，重启 OpenDesk 也会产生新的初始通知。
+
+~~~js
+ctx.hooks.on('skill.list.after', ({ skills }) => {
+  const enabledConfigSkills = skills
+    .filter((skill) => skill.source === 'config' && skill.enabled)
+    .map(({ name, directory }) => ({ name, directory }));
+
+  console.info('Enabled config Skills', enabledConfigSkills);
 });
 ~~~
 
@@ -264,8 +339,8 @@ Output：
 
 ~~~js
 ctx.hooks.on('tool.validate.before', (input, output) => {
-  if (typeof input.args === 'object' && input.args && 'path' in input.args) {
-    const args = input.args;
+  if (typeof output.args === 'object' && output.args && 'path' in output.args) {
+    const args = output.args;
     args.path = args.path.replace(/^~\//, process.env.HOME + '/');
   }
 });
@@ -311,7 +386,7 @@ Input：
 
 | 字段 | 类型 | 说明 |
 | --- | --- | --- |
-| tool | string | 完整 Tool 名 |
+| tool | string | 模型侧最终 Tool 名；适用于所有 Tool，插件 Tool 为 `plugin-{pluginId}-{本地名}` |
 | taskId | string | 当前任务 |
 | callId | string | Tool 调用 id |
 | workspace | string，可选 | 当前工作空间 |
