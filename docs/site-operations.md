@@ -101,6 +101,15 @@ Table schema lives in `migrations/`. `astro dev` has no D1 binding, so heartbeat
 
 `POST /api/feedback/submit` accepts `multipart/form-data` with `type` (`feature`/`bug`), `content`, optional `contact`, and optional `attachments` (up to 5 files, 1 MB each). The feedback record goes into the `feedback` table (`type`/`content`/`contact`/`time`/`ip_hash`), attachment bytes into `feedback_attachments` (`feedback_id` FK, `filename`, `content_type`, `size`, `data` BLOB). Attachments are stored in D1 for now; if volume grows, migrate the blob column to R2 and keep only metadata in D1. Schema lives in `migrations/0003_create_feedback.sql` (already applied to both local and remote). `GET /api/feedback/list` (admin-only) returns the feedback list newest-first with attachments as `{ attachment_id, filename }` objects (no file bytes), optionally paginated via `?limit=`. `GET /api/feedback/attachment/:id` (admin-only, token-checked) streams the attachment BLOB back by attachment `id` with the original `Content-Type` and a `Content-Disposition` header that triggers a download; returns 404 if the id does not exist.
 
+### Account proxy
+
+`/api/account/*` is a reverse proxy to an external account service. The backend base URL is read from the `OPENDESK_ACCOUNT_ENDPOINT` environment variable (configured in Cloudflare dashboard → Settings → Environment variables). The `/api/account` prefix is stripped and the remaining path is appended to the endpoint:
+
+- `OPENDESK_ACCOUNT_ENDPOINT=http://124.220.55.7/api/` + request `/api/account/v1` → backend `http://124.220.55.7/api/v1`.
+- Method, headers, body, and query string are forwarded as-is.
+
+Returns `502 {"error":"OPENDESK_ACCOUNT_ENDPOINT is not configured"}` when the variable is missing. Locally, `wrangler pages dev` reads it from `.dev.vars` (gitignored); `astro dev` reads it from `process.env` as a fallback.
+
 ### Statistics endpoint
 
 `GET /api/stats` aggregates `heartbeats`: total and last-1d/last-7d distinct device counts, plus per-`device_type` breakdowns (time-window filters use the server-written ISO `time`). The endpoint is admin-only: it requires `Authorization: Bearer <token>` matching `ADMIN_TOKEN`, otherwise 401 (or 503 when the token is unconfigured). `ADMIN_TOKEN` and `IP_HASH_SALT` are secrets — set them in the Cloudflare dashboard (Settings → Variables and Secrets, type Secret); local `wrangler pages dev` reads them from `.dev.vars` (gitignored).
