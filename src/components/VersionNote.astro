@@ -5,6 +5,9 @@
  * 用法（MDX）：
  *   import VersionNote from '../../…/components/VersionNote.astro';
  *   <VersionNote since="0.3.6" />
+ *
+ * 标注页面局部特性时传入默认 slot 说明对象（注意自带的间隔标点）：
+ *   <VersionNote since="0.3.6">通配符与正则表达式匹配：</VersionNote>
  */
 interface Props {
   /** 功能开始支持的版本号，如 "0.3.6" */
@@ -14,7 +17,7 @@ interface Props {
 const { since } = Astro.props;
 ---
 
-<span class="version-note">从 OpenDesk {since} 版本开始支持</span>
+<span class="version-note"><slot />从 OpenDesk {since} 版本开始支持</span>
 
 <style>
   .version-note {

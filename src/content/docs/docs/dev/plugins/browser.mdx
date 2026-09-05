@@ -3,6 +3,8 @@ title: "在插件中注入浏览器提示"
 description: "通过 ctx.browser.hint.register 为特定站点向 use-browser 注入文本提示与可触发的页面动作"
 ---
 
+import VersionNote from '../../../../../components/VersionNote.astro';
+
 Browser 能力让插件为特定网站向内置浏览器（`use-browser` 技能）注入页面提示（Browser Hints）。提示会出现在页面快照的最前面，用于告诉 Agent 这个站点的额外约束，或向它暴露一个可以一步完成的页面动作。
 
 典型用途：
@@ -14,17 +16,27 @@ Browser 能力让插件为特定网站向内置浏览器（`use-browser` 技能�
 ## 注册 API
 
 ~~~js
-ctx.browser.hint.register(urlPrefix, generator);
+ctx.browser.hint.register(pattern, generator);
 ~~~
 
 | 参数 | 类型 | 说明 |
 | --- | --- | --- |
-| urlPrefix | string | 页面地址前缀，**不包含协议部分**，例如 `www.bing.com/search` |
+| pattern | string \| RegExp | 页面地址匹配模式，**不包含协议部分**，支持前缀、通配符与正则三种写法，见下文 |
 | generator | function | 提示生成器，签名为 `(context: BrowserContext) => BrowserHint[] \| Promise<BrowserHint[]>` |
 
-返回 PluginRegistration。同一个插件可以注册多个前缀，多个插件命中同一页面时提示会按插件激活顺序合并。
+返回 PluginRegistration。同一个插件可以注册多个 pattern，多个插件命中同一页面时提示会按插件激活顺序合并。
 
-`urlPrefix` 与页面地址在比较前都会去掉协议（`https://`、`//`）与结尾多余的 `/`，因此 `https://www.bing.com`、`//www.bing.com` 与 `www.bing.com` 等价。前缀为空字符串会导致注册失败，不会匹配所有页面。
+pattern 与页面地址在比较前都会去掉协议（`https://`、`//`）与结尾多余的 `/`，因此 `https://www.bing.com`、`//www.bing.com` 与 `www.bing.com` 等价。pattern 归一化后为空字符串会导致注册失败，不会匹配所有页面。
+
+地址 pattern 支持三种写法：
+
+<VersionNote since="0.3.6">通配符与正则表达式匹配：</VersionNote>
+
+- **字符串不含 `*`**：按前缀匹配，且前缀必须结束在 `/`、`?`、`#` 或地址末尾的边界上——`www.bing.com` 命中 `www.bing.com/search?q=x`，但不会命中 `www.bing.com.evil.com` 或 `www.bing.com/searchx`；
+- **字符串含 `*`**：按通配符整体匹配路径，`*` 匹配单个路径段（不含 `/`），`**` 跨任意段（中段的 `/**/` 允许匹配零段），query 与 hash 不参与匹配，例如 `www.example.com/repo/*/issues`、`*.example.com/docs/**`；
+- **RegExp**：直接对去协议后的完整地址（含 query）做正则匹配，例如 `/^www\.example\.com\/wiki(\/.*)?$/`；带 `g` / `y` 标志时宿主会自动剥离，避免多次快照间 `lastIndex` 残留。
+
+非法 pattern（空字符串、类型不支持等）会在注册时立即抛出 `plugin.browser_hint_url_prefix_invalid` 使插件激活失败，而不是等到快照阶段才出错。
 
 ## BrowserContext
 
@@ -34,7 +46,7 @@ ctx.browser.hint.register(urlPrefix, generator);
 | --- | --- | --- |
 | url | string | 完整地址，含协议，例如 `https://www.bing.com/search?q=x` |
 | domain | string | 域名，例如 `www.bing.com` |
-| address | string | 去掉协议后的地址，即与 `urlPrefix` 匹配的字段 |
+| address | string | 去掉协议后的地址，即地址匹配 pattern 的作用对象 |
 | title | string | 页面标题 |
 | dom | function | `() => Promise<string>`，读取页面原始 DOM（`documentElement.outerHTML`） |
 
@@ -226,6 +238,14 @@ export default definePlugin({
   setup(ctx) {
     ctx.browser.hint.register('www.bing.com', () => [BING_ENGLISH_ONLY, BING_SEARCH]);
     ctx.browser.hint.register('cn.bing.com', () => [BING_ENGLISH_ONLY, BING_SEARCH]);
+    // 通配符：* 匹配单段、** 跨段，整体匹配路径，query 与 hash 不参与
+    ctx.browser.hint.register('*.bing.com/images/*', () => [
+      textHint('Image search results are ranked by relevance, not recency.')
+    ]);
+    // 正则：对去协议后的完整地址（含 query）做正则匹配
+    ctx.browser.hint.register(/^www\.bing\.com\/maps(\/.*)?$/, () => [
+      textHint('Prefer the dedicated trigger action over manual click steps on map pages.')
+    ]);
   }
 });
 ~~~
@@ -254,6 +274,8 @@ Browser Hints 是附加信息，不会影响快照本身：
 - 其他插件的提示与快照正文照常输出；
 - 诊断可在插件中心的插件详情或 CLI `plugins status` 中查看。
 
+地址 pattern 的编译发生在注册阶段，与上述快照期隔离不同：非法 pattern 会直接使插件激活失败（见「注册 API」），保证不会在每次快照时反复出错。
+
 结构校验规则：`kind` 必须是 `text` 或 `action`；TextHint 的 `content` 非空；ActionHint 的 `name` 合法、`description` 与 `functionStr` 非空、`args` 为字符串到字符串的映射。
 
 ## 能力声明与生命周期
@@ -271,4 +293,4 @@ manifest 或入口的 `capabilities` 必须包含 `browser`，否则 `ctx.browse
 }
 ~~~
 
-Browser 能力没有对应的 manifest 静态资源声明，只能在 `setup(ctx)` 中动态注册。插件被禁用、卸载或重新加载时，其注册的提示会随插件一起释放，之后的快照不再包含它们。插件中心的插件详情会列出该插件注册的全部 `urlPrefix`。
+Browser 能力没有对应的 manifest 静态资源声明，只能在 `setup(ctx)` 中动态注册。插件被禁用、卸载或重新加载时，其注册的提示会随插件一起释放，之后的快照不再包含它们。插件中心的插件详情会列出该插件注册的全部地址 pattern。
