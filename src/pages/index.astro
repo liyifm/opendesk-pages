@@ -1,18 +1,14 @@
 ---
 import ChannelsSection from '../components/home/ChannelsSection.astro';
-import CliSection from '../components/home/CliSection.astro';
 import GallerySection from '../components/home/GallerySection.astro';
 import HomeHero from '../components/home/HomeHero.astro';
-import HomePager from '../components/home/HomePager.astro';
 import WorkflowSection from '../components/home/WorkflowSection.astro';
 import SiteLayout from '../layouts/SiteLayout.astro';
 ---
 
-<SiteLayout frontmatter={{ title: 'OpenDesk', variant: 'landing', hideFooter: true }}>
+<SiteLayout frontmatter={{ title: 'OpenDesk', variant: 'landing' }}>
   <HomeHero />
   <WorkflowSection />
   <ChannelsSection />
   <GallerySection />
-  <CliSection />
-  <HomePager />
 </SiteLayout>

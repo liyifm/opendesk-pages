@@ -9,10 +9,12 @@ const channels = [
 ];
 ---
 
-<section id="channels" class="home-section home-showcase snap-page">
-  <div class="home-showcase__copy">
+<section id="channels" class="home-section">
+  <div class="home-section__header">
     <h2><span class="title-line">离开电脑</span><span class="title-line">也能安排电脑工作</span></h2>
     <p>通过飞书、微信等渠道，你可以在手机上唤起 OpenDesk。它不只是回复消息，而是替你回到电脑环境里查找、处理和发送结果。</p>
+  </div>
+  <div class="home-showcase">
     <div class="home-channel-list">
       {
         channels.map(([name, body]) => (
@@ -23,10 +25,10 @@ const channels = [
         ))
       }
     </div>
-  </div>
-  <div class="home-phone-panel" aria-label="手机扫码连接飞书">
-    <div class="home-phone-shot">
-      <Image src={phoneScanning} alt="手机扫码连接飞书" />
+    <div class="home-phone-panel" aria-label="手机扫码连接飞书">
+      <div class="home-phone-shot">
+        <Image src={phoneScanning} alt="手机扫码连接飞书" />
+      </div>
     </div>
   </div>
 </section>
