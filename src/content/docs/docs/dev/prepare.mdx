@@ -171,6 +171,31 @@ $ npm run start
 
 ### 构建 Windows 安装包所需的依赖
 
+Windows 下的安装包为 `.msi` 格式，通过 Electron Forge 的 `maker-wix` 插件构建。请先完成上文第 1–5 节并确认 `npm run start` 可以正常运行，再按下面的步骤补充打包环境。
+
+#### 安装 Wix3 Toolset
+
+1. 下载并安装 [Wix3 Toolset](https://github.com/wixtoolset/wix3/releases/tag/wix3141rtm)（v3.14）；
+2. 将 WiX 的 `bin` 目录添加到环境变量 `PATH` 中。默认安装路径为 `C:\Program Files (x86)\WiX Toolset v3.14\bin`，如果你修改了安装路径，那么按你自己的情况配置。
+
+配置完成后重新打开命令行窗口，运行 `candle -?` 能正常输出帮助信息即说明配置成功。
+
+> `npm run make` 还会调用 WiX 同目录下的 `SDK` 与 .NET Framework 自带的 `csc.exe` 编译器构建安装引导程序，Windows 10/11 通常已随系统就绪。若 WiX 安装在非默认路径，也可以通过环境变量 `WIX_BIN_DIR`、`WIX_SDK_DIR` 显式指定。
+
+#### 构建安装包
+
+在 bash 或 cmd 中运行下面的命令即可：
+
+```shell
+npm run package
+npm run make
+```
+
+构建好的安装包会保存在 `out/make/wix` 中，其中：
+
+- `out/make/wix/x64/opendesk.msi` — MSI 格式安装包；
+- `out/make/wix/x64/OpenDesk-<版本号>-Setup.exe` — 基于 MSI 的安装引导程序（bootstrapper）。
+
 ### 构建 MacOS 安装包所需的依赖
 
 ### 构建 HarmonyOS (HAP) 安装包所需的依赖

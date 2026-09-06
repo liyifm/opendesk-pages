@@ -1,0 +1,259 @@
+---
+title: "通过 Langfuse 实现智能体业务数据的全链路监测"
+description: "在 OpenDesk GUI 和 CLI 中配置 Langfuse 链路追踪，观测 LLM 请求、工具调用等 Agent 业务数据"
+---
+
+OpenDesk 内置了 [Langfuse](https://langfuse.com/) 链路追踪支持，用于观测 LLM 请求、工具调用等 Agent 业务数据。本文介绍 Langfuse 的基本概念、Langfuse 服务（官方云服务或本地自托管）的准备方式，以及如何在 OpenDesk 的 GUI 和 CLI 两种形态中启用和配置 Langfuse 上报。
+
+## Langfuse 是什么
+
+Langfuse 是一个开源的 LLM 工程平台，专注于 AI 应用的可观测性与分析，核心能力包括：
+
+- **链路追踪 (Tracing)**：将一次 Agent 执行记录为一条 Trace，内部的模型请求、工具调用等环节以 Observation（观察）的形式组织成观察树，其中模型请求称为 Generation，工具调用称为 Tool Observation
+- **成本与延迟分析**：自动按模型统计 Token 用量、费用与耗时
+- **评估与数据集**：支持对 Trace 打分评估、构建评测数据集
+- **Prompt 管理**：集中管理和版本化 Prompt
+
+Langfuse 提供官方云服务，也支持 Docker 自托管，数据可以完全留在本地。
+
+OpenDesk 的 Langfuse 支持构建在 OpenTelemetry 之上：整个进程只创建一个 OTel `NodeTracerProvider`，Langfuse 通过 `@langfuse/otel` 提供的 `LangfuseSpanProcessor` 从中消费属于自己的数据。Langfuse 数据与普通 OTel Span 通过过滤器自动隔离——两者可以同时启用、同时上报，同一份数据不会重复进入对方的后端。
+
+## 准备 Langfuse 服务
+
+### 方式一：使用 Langfuse Cloud 云服务
+
+注册并登录 [Langfuse Cloud](https://cloud.langfuse.com)，创建 Organization 和 Project，然后在 **Project Settings → API Keys** 中生成一对 API Key：`pk-lf-` 开头的公钥和 `sk-lf-` 开头的私钥。
+
+### 方式二：通过 Docker 自托管
+
+Langfuse 官方推荐使用 Docker Compose 部署（使用 Postgres 作为存储后端）：
+
+```bash
+git clone https://github.com/langfuse/langfuse.git
+cd langfuse
+docker compose up -d
+```
+
+启动后访问 Langfuse UI：`http://localhost:3000`，按引导完成管理员账号注册并创建项目，同样在 **Project Settings → API Keys** 中生成 API Key。
+
+:::note[📷 截图占位]
+**待补充截图**：Langfuse 项目设置中的 **API Keys** 页面（展示 Public Key `pk-lf-...` 与 Secret Key `sk-lf-...` 的生成入口）。
+建议路径：`src/assets/images/langfuse/api-keys.png`
+:::
+
+### 验证服务运行状态
+
+Langfuse 提供健康检查端点，云服务和自托管服务均可访问：
+
+```bash
+curl https://cloud.langfuse.com/api/public/health
+# {"status":"OK","version":"4.30.0"}
+```
+
+:::tip[自托管服务请替换为你的部署地址]
+下文配置中的 `base_url` 均指 Langfuse 服务的**根地址**（如 `https://cloud.langfuse.com` 或 `http://localhost:3000`），不需要拼接 `/api/public/...` 等路径，OpenDesk 会自动使用正确的上报接口。
+:::
+
+## 在 OpenDesk 中配置 Langfuse
+
+Langfuse 的配置存储在 `setting.json` 的 `telemetry.langfuse` 下。OpenDesk 将 Langfuse 与 OpenTelemetry 统一在同一套 **遥测设置** 界面中，通过协议类型区分。当前 OpenDesk Cli 和桌面版均支持 Langfuse 的配置。
+
+### 在 OpenDesk 桌面端中配置
+
+在 OpenDesk 桌面端中，通过 **设置 → 遥测设置** 即可配置端点，无需手动编辑 JSON。
+
+**操作步骤：**
+
+1. 打开 OpenDesk 桌面端，在左下角工具栏中点击设置图标，进入 **设置** 界面
+2. 选择 **通用设置**，向下翻页，找到位于底部的 **遥测设置**
+3. 点击 **添加端点**，将 **协议** 切换为 `Langfuse`，表单会切换为 Langfuse 字段：
+   - **服务地址**：Langfuse 服务根地址（如 `https://cloud.langfuse.com`），留空时默认使用官方云服务
+   - **公钥 / 私钥**：粘贴项目 API Key
+   - **导出模式**：`batched`（批量）或 `immediate`（立即），见下方字段说明
+4. 开启 **启用此端点** 并保存，配置即时生效，无需重启应用
+
+:::note[📷 截图占位]
+**待补充截图**：桌面端 **设置 → 通用设置 → 遥测设置** 中，协议切换为 `Langfuse` 后的端点表单（服务地址、公钥、私钥、导出模式等字段）。
+建议路径：`src/assets/images/langfuse/guiconfig.png`
+:::
+
+与 OTel 一样，配置变更时 OpenDesk 会热重载遥测 SDK——先关闭旧端点并刷新待发送的数据，再根据新配置重新初始化。整个过程无需重启。
+
+### 在 OpenDesk Cli 中配置
+
+启动 OpenDesk Cli 后输入 `/config` 进入配置页面，选择 **遥测设置** 打开：
+
+- 按 `+ 添加端点` 新增端点，协议选择 `langfuse`
+- 填写服务地址、公钥、私钥、导出模式和批量发送参数
+- 选择已有端点可编辑或删除
+- 保存后自动热重载
+
+:::note[📷 截图占位]
+**待补充截图**：CLI `/config` → **遥测设置** 中协议选择 `langfuse` 的新增/编辑端点表单。
+建议路径：`src/assets/images/langfuse/cliconfig.png`
+:::
+
+### 直接编辑 setting.json 添加配置
+
+在 OpenDesk 配置目录下编辑 `setting.json`，添加 `telemetry.langfuse` 字段：
+
+```json
+{
+  "telemetry": {
+    "langfuse": {
+      "endpoints": [
+        {
+          "name": "Langfuse 云服务",
+          "protocol": "langfuse",
+          "enabled": true,
+          "base_url": "https://cloud.langfuse.com",
+          "public_key": "pk-lf-...",
+          "secret_key": "sk-lf-...",
+          "export_mode": "batched",
+          "flush_at": 50,
+          "flush_interval_seconds": 5
+        }
+      ],
+      "environment": "development",
+      "max_payload_chars": 20000
+    }
+  }
+}
+```
+
+端点字段说明：
+
+| 字段 | 说明 | 默认值 |
+| --- | --- | --- |
+| `name` | 端点名称，用于在界面中标识 | 空字符串 |
+| `protocol` | 遥测协议，Langfuse 端点固定为 `langfuse` | `langfuse` |
+| `enabled` | 是否启用此端点 | `false` |
+| `base_url` | Langfuse 服务根地址，末尾多余的 `/` 会被自动去除 | 为空时使用 `https://cloud.langfuse.com` |
+| `public_key` | 项目公钥（`pk-lf-` 开头） | 空字符串 |
+| `secret_key` | 项目私钥（`sk-lf-` 开头） | 空字符串 |
+| `export_mode` | 导出模式：`batched`（批量）或 `immediate`（逐条立即发送） | `batched` |
+| `flush_at` | `batched` 模式下批量发送前累计的 Span 数量 | `50` |
+| `flush_interval_seconds` | `batched` 模式下批量发送的最长等待秒数 | `5` |
+
+`environment` 与 `max_payload_chars` 是所有端点共享的配置（当前仅支持通过 `setting.json` 或环境变量设置，不在 GUI/TUI 界面中展示）：
+
+| 字段 | 说明 | 默认值 |
+| --- | --- | --- |
+| `environment` | 运行环境标识，附加到每条 Langfuse 数据上，便于在 UI 中区分开发、生产等环境 | `development` |
+| `max_payload_chars` | 单个字符串字段（输入、输出、工具结果等）的最大字符数，超出部分截断 | `20000` |
+
+:::caution[公钥与私钥必须成对填写]
+端点只有在 `enabled` 为 `true` 且公钥、私钥均非空时才会被初始化，否则该端点会被跳过，也不会上报数据。
+:::
+
+### 通过环境变量配置
+
+除了配置文件，Langfuse 还支持通过环境变量注入端点，适合 CI、容器化部署等场景：
+
+| 环境变量 | 含义 |
+| --- | --- |
+| `LANGFUSE_ENABLED` | 是否启用环境变量端点（`true`/`1`/`on`/`yes`） |
+| `LANGFUSE_BASE_URL` | 环境变量端点的 Langfuse 服务地址 |
+| `LANGFUSE_PUBLIC_KEY` | 环境变量端点的项目公钥 |
+| `LANGFUSE_SECRET_KEY` | 环境变量端点的项目私钥 |
+| `LANGFUSE_EXPORT_MODE` | 环境变量端点的导出模式（`immediate`/`batched`） |
+| `LANGFUSE_FLUSH_AT` | 环境变量端点批量发送前累计的 Span 数量 |
+| `LANGFUSE_FLUSH_INTERVAL` | 环境变量端点批量发送的最长等待秒数 |
+| `LANGFUSE_TRACING_ENVIRONMENT` | 运行环境标识，优先级高于 `LANGFUSE_ENVIRONMENT` |
+| `LANGFUSE_ENVIRONMENT` | 运行环境标识 |
+| `LANGFUSE_MAX_PAYLOAD_CHARS` | 单个字符串字段的最大字符数 |
+
+```bash
+export LANGFUSE_ENABLED=true
+export LANGFUSE_BASE_URL=http://localhost:3000
+export LANGFUSE_PUBLIC_KEY=pk-lf-...
+export LANGFUSE_SECRET_KEY=sk-lf-...
+opendesk
+```
+
+环境变量端点与配置文件端点同时生效：当 `LANGFUSE_ENABLED=true` 且公钥、私钥齐全时，OpenDesk 会创建一个名为 `environment` 的独立端点。`LANGFUSE_ENABLED=false` 只禁用环境变量端点，不会关闭配置文件端点。若环境变量端点与文件端点的 `base_url + public_key` 完全相同，则只会初始化一次。
+
+:::note[OpenDesk 自己解析环境变量]
+上表中的变量均由 OpenDesk 解析后**显式传参**给 Langfuse SDK，因此 SDK 自带的同名环境变量回退（如 `LANGFUSE_BASEURL` 等拼写变体）不会生效，行为以本表为准。此外，Langfuse SDK 自身还支持少量 OpenDesk 未透传的变量（如 `LANGFUSE_TIMEOUT`、`LANGFUSE_RELEASE`、`LANGFUSE_MEDIA_UPLOAD_ENABLED`），它们若存在于进程环境中仍可能被 SDK 直接读取，但不属于 OpenDesk 支持范围，行为随 SDK 版本变化，建议优先使用上表中的变量。
+:::
+
+### Langfuse 与 OpenTelemetry 端点的数据隔离
+
+Langfuse 与 OTel 遥测相互独立，可以同时启用。两类数据在共享的 OTel Provider 内通过 Span 过滤器自动隔离：
+
+- Langfuse SDK 创建的 Observation（Agent 业务数据）只会进入 Langfuse 端点
+- 普通 OTel Span（`llm.http_request`、`hook.*`、`startup.*` 等技术细节）只会进入 OTLP 端点
+
+因此同一份数据不会重复上报到两类后端，也不会出现 Langfuse 端点收到 OTLP 格式数据的情况。两类遥测各自覆盖的内容见下节。
+
+## Langfuse 中的数据结构
+
+在 OpenDesk 中，Langfuse 只记录 **Agent 业务语义**的数据（对话回合、模型请求、工具调用），不记录启动耗时、HTTP 请求细节等底层技术操作（这些属于 OTel 的覆盖范围，参见 [OTel 全链路监测](/docs/dev/otel/#span-层级与覆盖范围)）。
+
+一次 Agent 对话回合在 Langfuse 中形成如下观察树：
+
+```
+task.turn                              Trace：一个对话回合
+└── session.llm.ai.streamText          Observation：AI SDK 流式调用
+    └── session.llm.ai.streamText.doStream
+        ├── LLM.__call                 Generation：一次模型请求
+        └── <tool name>                Tool Observation：一次工具调用
+```
+
+- **`task.turn`（Trace）**：记录回合的任务输入、最终输出、工作区路径、模型与 Provider、执行结果
+- **`session.llm.ai.streamText` / `doStream`**：表达 AI SDK 流式调用的调用层次
+- **`LLM.__call`（Generation）**：记录模型输入、输出、模型名称和 Token 用量
+- **工具 Observation**：记录工具名、参数、结果、状态和调用 ID
+
+所有输入、输出字段受 `max_payload_chars` 限制，超长内容会被截断；每条数据都带有 `environment` 环境标识。
+
+:::note[使用 myagent Provider 时的行为]
+当任务实际使用的模型 Provider 为 `myagent` 时，OpenDesk 不会记录自己的 `LLM.__call` Generation，以避免与下游 OpenCode 生成的模型数据重复；`task.turn` Trace 和工具 Observation 仍会正常记录。
+:::
+
+## 在 Langfuse 中查看 Trace
+
+配置完成后，启动 OpenDesk 并与 Agent 对话。每个对话回合都会作为一条 Trace 上报到 Langfuse。
+
+1. 打开 Langfuse UI（云服务为 `https://cloud.langfuse.com`，自托管默认为 `http://localhost:3000`）
+2. 进入项目的 **Traces** 页面，可按 `Environment`（如 `development`）过滤
+3. 点击任意一条 Trace 查看完整的观察树：展开 `LLM.__call` 可查看模型输入输出与 Token 用量，展开工具 Observation 可查看工具参数与结果
+4. 在 **Cost Analytics** 等面板中按模型、时间维度统计 Token 消耗与费用
+
+:::note[📷 截图占位]
+**待补充截图**：Langfuse UI 中的 Trace 详情页，展示 `task.turn → session.llm.ai.streamText → doStream → LLM.__call / 工具` 的观察树。
+建议路径：`src/assets/images/langfuse/trace-hierarchy.png`
+:::
+
+## 当前限制
+
+以下限制来自当前遥测架构的实现，排查数据缺失时可作参考：
+
+1. 任务命名、终止判断等辅助请求通过 `LLM.ask()` 发出，只产生 OTel Span，**不会**在 Langfuse 中产生 Generation
+2. Langfuse 当前没有实现通用技术操作（Operation）插桩，因此 `hook.*` 耗时、HTTP 请求等技术细节只存在于 OTel 中
+3. 任务命名采用异步并发方式启动，可能早于当前 `task.turn` Trace 建立，这类请求的数据不属于任何 Trace
+
+## 常见问题
+
+**Q: 配置了端点但 Langfuse 中看不到数据？**
+
+1. 确认 Langfuse 服务可访问：`curl https://cloud.langfuse.com/api/public/health`（自托管请替换为你的服务地址）
+2. 确认公钥与私钥成对且来自同一项目；`base_url` 填写的是服务根地址，不要拼接 `/api/public` 等路径
+3. 检查 OpenDesk 日志中是否有 `Langfuse tracing endpoint initialized` 输出
+4. 确认端点的启用开关已打开，可以在桌面端/Cli 的遥测设置界面中查看
+
+**Q: 遥测设置里的协议应该选哪个？**
+
+关注 Agent 业务语义（模型请求、工具调用、Token 用量、费用分析）选 **Langfuse**；关注进程启动耗时、HTTP 请求细节、Hook 耗时等工程技术指标，或需要接入 Jaeger 等 OTLP 后端，选 **OpenTelemetry**。两者可以同时启用、互不重复。
+
+**Q: 能否同时上报到多个 Langfuse 项目？**
+
+可以。在 `endpoints` 数组中配置多个端点即可，每个端点创建独立的 `LangfuseSpanProcessor`。`base_url + public_key` 完全相同的端点只会初始化一次。
+
+**Q: `batched` 和 `immediate` 导出模式如何选择？**
+
+`batched` 按 `flush_at` 数量和 `flush_interval_seconds` 时间攒批上传，网络开销小，是默认推荐；`immediate` 逐条立即发送，实时性最好，适合调试和低流量场景。
+
+**Q: 配置后需要重启吗？**
+
+GUI 和 TUI 中保存配置后会自动触发热重载，无需重启。但如果直接手动修改 `setting.json`，则需要重启 OpenDesk 才能生效。

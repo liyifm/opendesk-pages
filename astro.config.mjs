@@ -165,6 +165,7 @@ export default defineConfig({
           items: [
             { label: '使用日志系统', slug: 'docs/dev/logging' },
             { label: '通过 OTel 进行全链路监测', slug: 'docs/dev/otel' },
+            { label: '通过 Langfuse 进行全链路监测', slug: 'docs/dev/langfuse' },
           ],
         },
         {

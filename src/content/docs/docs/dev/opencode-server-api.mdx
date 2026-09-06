@@ -19,7 +19,7 @@ opendesk serve --mode opencode --port 4096 --hostname 127.0.0.1
 
 | 参数 | 默认值 | 说明 |
 | --- | --- | --- |
-| `--mode <mode>` | `opencode` | 当前真正实现 `opencode`。`acp` 只打印“暂未实现”并退出。 |
+| `--mode <mode>` | `opencode` | 支持 `opencode` 与 `acp` 两种模式。`acp` 模式详见 [通过 ACP 协议使用 OpenDesk](/docs/dev/acp-server-api/)。 |
 | `--port <port>` | `4096` | HTTP 监听端口。 |
 | `--hostname <hostname>` | `127.0.0.1` | HTTP 监听地址。 |
 | `--cors <origins>` | 未设置 | 允许的跨域源，逗号分隔。不设置时允许 `*`。 |
@@ -1098,7 +1098,7 @@ true
 
 | 类别 | 已实现 | 占位或未实现 |
 | --- | --- | --- |
-| 启动 | `serve --mode opencode` | `--mode acp` |
+| 启动 | `serve --mode opencode` | `--mode acp`（已独立实现，见 [ACP 协议](/docs/dev/acp-server-api/)，不属于 opencode 兼容范围） |
 | 认证 | Basic Auth、`auth_token` query | OAuth |
 | 事件 | `/event`、`/global/event` SSE | WebSocket 事件 |
 | 配置 | `/config`、`/global/config`、`/config/providers` | opencode 全量配置语义 |

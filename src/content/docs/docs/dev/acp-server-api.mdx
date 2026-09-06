@@ -1,4 +1,225 @@
 ---
 title: "通过 ACP 协议使用 OpenDesk"
-description: ""
+description: "OpenDesk ACP (Agent Client Protocol) 服务模式的启动方式、协议能力、会话管理、模型切换与权限交互说明"
 ---
+
+OpenDesk 实现了 [Agent Client Protocol (ACP)](https://agentclientprotocol.org/) 的 **Agent 侧**（服务端）。ACP 是一个类似 LSP 的开放协议，用于标准化代码编辑器等客户端与 AI Agent 之间的通信。与 OpenCode 模式不同，ACP 模式**不走网络端口**：客户端将 OpenDesk 以子进程方式启动，通过 **stdin/stdout** 交换 NDJSON 格式的 JSON-RPC 消息。
+
+本文基于协议版本 **v1**（`@agentclientprotocol/sdk` 1.3.0），只描述 OpenDesk 当前真实实现的接口。
+
+:::note[想直接在 VS Code 中使用？]
+如果只想在编辑器里使用 OpenDesk 而不关心协议细节，请阅读 [在 VS Code 中通过 ACP 连接 OpenDesk](/docs/quickstart/vscode/)，那里有完整的图形化配置步骤。本文面向集成开发者和 ACP 客户端作者。
+:::
+
+## ACP 模式与 OpenCode 模式的关系
+
+`opendesk serve` 支持两种服务模式，面向不同的接入场景：
+
+| | ACP 模式 | OpenCode 模式 |
+| --- | --- | --- |
+| 启动命令 | `opendesk serve --mode acp` | `opendesk serve --mode opencode` |
+| 传输方式 | stdio（子进程 stdin/stdout） | HTTP + SSE（网络端口） |
+| 进程模型 | 客户端拉起 OpenDesk 子进程 | OpenDesk 常驻服务，客户端主动连接 |
+| 认证 | 无需认证（本地子进程） | HTTP Basic Auth |
+| 适用场景 | 编辑器/IDE 集成（VS Code、Zed 等） | 远程调用、OpenCode 兼容客户端 |
+
+两种模式共享同一个 AI Kernel：任务系统、工具、技能、MCP 与权限体系完全一致。
+
+## 启动 ACP 服务
+
+```shell
+opendesk serve --mode acp
+```
+
+启动后进程会初始化 AI Kernel，然后通过 stdin/stdout 等待协议消息，**不会输出任何多余内容到 stdout**（这是协议要求，多余的 stdout 输出会破坏 JSON-RPC 消息流）。启动日志、插件告警等杂散输出会被自动重定向到 stderr，并带有 `[acp stdout redirected]` 前缀。
+
+### 命令行参数
+
+| 参数 | 默认值 | 说明 |
+| --- | --- | --- |
+| `--mode acp` | `opencode` | 必填，选择 ACP 模式 |
+| `--model <alias>` | 无 | 锁定所有 ACP 会话使用的模型别名（须为已配置的 chat 模型，否则启动失败并退出）。指定后客户端无法通过 `session/set_model` 切换模型 |
+| `--config-directory <path>` | 默认配置目录 | 指定 OpenDesk 应用数据目录 |
+
+:::caution[仅 OpenCode 模式支持的参数]
+`--port`、`--hostname`、`--cors`、`--password`、`--username` 只作用于 OpenCode 模式的 HTTP 服务器，在 ACP 模式下会被忽略——ACP 模式没有网络监听，也不需要认证。
+:::
+
+### 手动验证
+
+在终端中直接运行 `opendesk serve --mode acp`，如果光标停住、没有报错输出，说明服务已就绪（ACP 客户端接入后消息会在 stdin/stdout 中流动）。按 `Ctrl+C` 退出。
+
+:::note[📷 截图占位]
+**待补充图片**：ACP 模式架构示意图——VS Code / Zed 等 ACP 客户端通过子进程 stdin/stdout（NDJSON JSON-RPC）与 OpenDesk Agent 进程通信，图中标注 `initialize` → `session/new` → `session/prompt` → `session/update` 的消息流。
+建议路径：`src/assets/images/dev/acp/architecture.png`
+:::
+
+## 协议能力（initialize）
+
+OpenDesk 在 `initialize` 响应中声明以下能力：
+
+```json
+{
+  "protocolVersion": 1,
+  "agentInfo": { "name": "opendesk", "title": "OpenDesk" },
+  "agentCapabilities": {
+    "loadSession": false,
+    "promptCapabilities": {
+      "image": false,
+      "audio": false,
+      "embeddedContext": true
+    },
+    "sessionCapabilities": {
+      "close": {},
+      "list": {}
+    }
+  }
+}
+```
+
+- **协议版本协商**：客户端请求的 `protocolVersion` 与 OpenDesk 一致时原样返回，否则返回 OpenDesk 支持的版本（当前为 `1`）
+- **`loadSession: false`**：不支持恢复历史会话，每次连接后需通过 `session/new` 创建新会话
+- **`image/audio: false`**：prompt 中的图片、音频内容会被丢弃（转成占位文本）
+- **`embeddedContext: true`**：接受内嵌 resource 内容块（见下文转换规则）
+- **`sessionCapabilities`**：支持 `session/list` 与 `session/close`
+- **`authenticate`**：接受请求但无需认证，直接返回成功
+
+## 会话管理
+
+### session/new
+
+创建新会话。**`cwd` 必须是绝对路径**，否则返回 invalid params 错误。
+
+```json
+{ "cwd": "D:/Projects/demo" }
+```
+
+响应返回 `sessionId`（UUID）、当前模式状态（`modes`）与模型状态（`models`）。
+
+**模型解析优先级**（新会话的初始模型）：
+
+1. 启动参数 `--model` 锁定的模型
+2. ACP 自身持久化的默认模型（`<配置目录>/servers/acp/state.json`，若仍存在于当前模型列表中）
+3. OpenDesk 全局默认模型（`setting.json` 的 `default_model`）
+4. 模型列表中的第一个 chat 模型
+
+ACP 的默认模型单独存储在 `servers/acp/state.json`，与 OpenDesk 全局配置分离，避免 ACP 会话中的模型切换影响桌面版/CLI 的默认选择；存储的模型失效时会自动清理并回退。
+
+### session/prompt
+
+向会话提交一轮对话。同一会话内的 prompt **串行执行**：新的 prompt 会等待上一轮完成后才开始。
+
+prompt 是 `ContentBlock` 数组，OpenDesk 按以下规则转换为纯文本：
+
+| ContentBlock 类型 | 处理方式 |
+| --- | --- |
+| `text` | 原样保留 |
+| `resource_link` | 转为 `Referenced resource: <标题>\n<uri>` 引用文本 |
+| `resource`（文本） | 转为 `Embedded resource: <uri>\n<内容>` |
+| `resource`（二进制） | 丢弃，仅保留占位说明 |
+| `image` / `audio` | 丢弃（当前不支持多模态输入） |
+
+prompt 必须至少包含一段文本，否则返回 invalid params。
+
+响应返回 `stopReason`：
+
+- `end_turn`——正常结束
+- `cancelled`——用户通过 `session/cancel` 取消，或任务被主动停止
+
+### session/cancel
+
+通知（notification），无需响应。停止该会话正在执行的轮次，进行中的 prompt 会以 `cancelled` 结束。
+
+### session/set_mode
+
+切换执行模式。OpenDesk 主 Agent 暴露以下模式：
+
+| 模式 ID | 说明 |
+| --- | --- |
+| `standard` | 标准模式（默认），敏感操作需确认 |
+| `plan` | 计划模式，先制定计划再执行 |
+| `solo` | 效率模式，减少确认打断 |
+| `readonly` | 只读模式，仅允许读取类操作 |
+| `unlimited` | 完全放开权限 |
+
+切换成功后，OpenDesk 会推送 `current_mode_update` 通知客户端更新 UI。此外，Plan 模式下 Agent 完成计划等待确认时，也会主动触发模式切换（见[交互式表单](#交互式表单elicitation)）。
+
+### session/set_model
+
+切换会话模型（ACP 中的 unstable 扩展方法）。`modelId` 必须是已配置的 **chat 模型别名**，否则返回 invalid params。切换成功后会持久化为 ACP 默认模型，供后续新会话使用。
+
+若启动时指定了 `--model`，模型被锁定：请求切换到其它模型会返回 invalid params 错误（`model is locked to: <alias>`），只有切换到锁定模型本身才是空操作成功。
+
+### session/list 与 session/close
+
+- `session/list`：列出当前进程内存活的会话，可按 `cwd` 过滤，按更新时间倒序，返回 `sessionId`、`cwd`、`title`（任务名）、`updatedAt`
+- `session/close`：停止会话任务、清理状态并移除会话。对不存在的 `sessionId` 会返回 resource not found 错误
+
+## 会话更新通知（session/update）
+
+一轮对话期间，OpenDesk 将任务产物流式转换为 `session/update` 通知推送给客户端：
+
+| sessionUpdate 类型 | 内容 |
+| --- | --- |
+| `agent_message_chunk` | Agent 回复文本（流式增量） |
+| `agent_thought_chunk` | Agent 思考/推理文本（流式增量） |
+| `user_message_chunk` | 用户消息回显。用于对齐部分客户端（如 vscode-acp）的轮次边界处理 |
+| `tool_call` | 工具调用开始，含标题、kind、状态、位置与原始参数 |
+| `tool_call_update` | 工具调用状态或结果更新（`pending` → `in_progress` → `completed`/`failed`） |
+| `current_mode_update` | 当前执行模式变化 |
+
+工具调用的 `kind` 由工具名推断：包含 `read`/`extract` → `read`，`write`/`edit`/`patch` → `edit`，`grep`/`glob`/`search` → `search`，`bash`/`zsh`/`powershell`/`shell` → `execute`，`fetch`/`web` → `fetch`，`delete`/`remove` → `delete`，`move`/`rename` → `move`，`think`/`plan` → `think`，`mode` → `switch_mode`，其余为 `other`。`locations` 从工具参数的 `path`/`filePath`/`cwd`（或 URL）中提取，便于客户端定位受影响文件。
+
+每条更新都附带 `_meta.opendesk` 扩展字段，供需要精确对齐 OpenDesk 内部消息结构的客户端使用：
+
+```json
+{
+  "sessionUpdate": "tool_call",
+  "_meta": {
+    "opendesk": {
+      "blockId": "msg_01:3:tool_call",
+      "messageId": "msg_01",
+      "partIndex": 3,
+      "partType": "tool_call",
+      "toolCallId": "msg_01:3:0:ReadFile",
+      "toolCallIndex": 0
+    }
+  }
+}
+```
+
+## 权限请求（session/request_permission）
+
+与桌面版/CLI 一致，OpenDesk 在执行文件写入、命令执行等敏感操作前会发起权限确认。ACP 模式下通过标准的 `session/request_permission` 请求发给客户端，提供三个选项：
+
+| optionId | 行为 |
+| --- | --- |
+| `allow_once` | 仅允许本次操作 |
+| `allow_always` | 允许本次并按资源路径前缀记住授权（记住的范围显示在选项名称中） |
+| `reject_once` | 拒绝本次 |
+
+客户端返回 `cancelled`（例如用户关闭弹窗或发送 `session/cancel`）时按拒绝处理。工具信息中包含 `title`（如 `WriteFile: 写入 文件`）、`kind`、`locations` 与 `rawInput`（含待授权的资源列表和可记住的前缀选项），客户端可以直接渲染。
+
+:::note[📷 截图占位]
+**待补充截图**：VS Code 中 OpenDesk 的权限请求弹窗（含 Allow once / Always allow / Reject 三个按钮）。
+建议路径：`src/assets/images/dev/acp/permission-prompt.png`
+:::
+
+## 交互式表单（elicitation）
+
+除了权限确认，OpenDesk 还有两类需要用户参与的交互，均优先使用 ACP 的 **elicitation**（表单）能力，客户端不支持时自动降级为 `session/request_permission` 逐项询问：
+
+- **AskUser**：Agent 向用户提出选择题/表单问题（例如需要用户在多个方案间做出选择时）
+- **退出计划模式（ExitPlanMode）**：Plan 模式下 Agent 提交计划等待用户确认，确认后可一键切换到 `standard`（标准模式执行）或 `solo`（效率模式执行），OpenDesk 随后推送 `current_mode_update`
+
+:::note[📷 截图占位]
+**待补充截图**：VS Code 中 Plan 模式的计划确认表单（展示计划摘要与"标准模式执行 / 效率模式执行 / 保持计划"选项）。
+建议路径：`src/assets/images/dev/acp/exit-plan-mode.png`
+:::
+
+## 已知限制
+
+- **不支持 loadSession**：断开连接后会话即丢失，无法跨连接恢复历史会话
+- **不支持多模态输入**：prompt 中的图片、音频会被丢弃；如需让 Agent 看图，可改用文件路径引用
+- **无工具产出渲染**：受 ACP 协议限制，客户端通常无法展示 diff、终端输出等富内容，只显示工具调用的标题与状态
+- **会话保存在进程内存**：`session/list` 只能看到当前进程创建的会话，与桌面版/CLI 的任务列表不互通
