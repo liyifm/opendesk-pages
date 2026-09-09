@@ -1,6 +1,8 @@
 ---
 import { getCollection, render } from 'astro:content';
+import DownloadCard from '../../components/DownloadCard.astro';
 import SiteLayout from '../../layouts/SiteLayout.astro';
+import { toDownloadItem } from '../../lib/releases';
 
 export async function getStaticPaths() {
   const notes = await getCollection('releaseNotes');
@@ -13,6 +15,10 @@ export async function getStaticPaths() {
 
 const { note } = Astro.props;
 const { Content } = await render(note);
+const downloadItem = toDownloadItem(note);
+const hasDownloads = Boolean(
+  downloadItem && (downloadItem.cli || downloadItem.windows || downloadItem.harmonyos || downloadItem.macos),
+);
 
 const formatDate = new Intl.DateTimeFormat('zh-CN', {
   year: 'numeric',
@@ -33,6 +39,15 @@ const categoryLabels: Record<string, string> = {
       <span>{categoryLabels[note.data.category] ?? note.data.category}</span>
     </p>
     <h1>{note.data.title}</h1>
+    {
+      hasDownloads && downloadItem && (
+        <DownloadCard
+          item={downloadItem}
+          variant={note.data.category === 'stable-release' ? 'stable' : 'nightly'}
+          compact
+        />
+      )
+    }
     <Content />
   </article>
 </SiteLayout>

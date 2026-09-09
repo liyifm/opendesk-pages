@@ -25,7 +25,7 @@ summary: "支持本地文件检索、终端工具、内嵌 Shell、Skill 管理�
 - 通过 `!` 进入内嵌 Shell 模式，在不离开 OpenDesk 的同时快速执行终端命令;
 - 支持复杂任务的自主规划和子任务拆分，尽可能缩减上下文窗口使用的前提下提升任务完成能力;
 - 通过 `skill` 子命令，自然语言提示等多种方式安装，修改和删除 Skills;
-- 支持 [微信](/channels/weixin)和[飞书](/channels/weixin) 扫码一键接入;
+- 支持 [微信](/channels/weixin/)和[飞书](/channels/feishu/) 扫码一键接入;
 
 为了评估 OpenDesk 相对于业界智能体的能力，我们在 0.2.0 版本完成了对 [TerminalBench 2.0](https://www.tbench.ai/) 的适配，在使用 glm-5 量化版本的情况下，得分在 *50(±2)* 左右，处于业界 top 水准。后续我们会适配 [SWE Bench](https://www.swebench.com/), 进一步评估 OpenDesk 在复杂项目开发场景下的能力。
 

@@ -12,6 +12,7 @@ const version = latestStable?.data.version ?? '';
 const windowsUrl = downloads?.windows?.url ?? '';
 const macosUrl = downloads?.macos?.url ?? '';
 const harmonyosUrl = downloads?.harmonyos?.url ?? '';
+const latestNoteUrl = latestStable ? `/news/${latestStable.id.replace(/\.mdx?$/, '')}/` : '/news/';
 ---
 
 <section class="home-hero">
@@ -24,12 +25,12 @@ const harmonyosUrl = downloads?.harmonyos?.url ?? '';
     <div class="home-hero__actions">
       <a
         class="home-cta"
-        href="/download"
+        href="/download/"
         data-download-btn
         data-windows={windowsUrl}
         data-macos={macosUrl}
         data-harmonyos={harmonyosUrl}
-        data-fallback="/download"
+        data-fallback="/download/"
         data-version={version}
       >
         <span class="home-cta__icon" aria-hidden="true">
@@ -45,7 +46,17 @@ const harmonyosUrl = downloads?.harmonyos?.url ?? '';
         </span>
       </a>
       <div class="home-hero__links">
-        <a href="/download">
+        <a href={latestNoteUrl}>
+          <svg aria-hidden="true" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+            <polyline points="14 2 14 8 20 8"/>
+            <line x1="16" y1="13" x2="8" y2="13"/>
+            <line x1="16" y1="17" x2="8" y2="17"/>
+          </svg>
+          版本介绍
+        </a>
+        <span aria-hidden="true">·</span>
+        <a href="/download/">
           <svg aria-hidden="true" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
             <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
             <polyline points="7 10 12 15 17 10"/>

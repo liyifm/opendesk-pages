@@ -385,12 +385,19 @@ img {
   font-size: 14px;
 }
 
-.release-article h1 + h1 {
+.release-article > h1:not(:first-of-type) {
   display: none;
+}
+
+.release-article > article {
+  margin-bottom: 40px;
 }
 
 .download-page {
   max-width: 1100px;
+}
+
+:root {
   --download-stable: #14866d;
   --download-stable-deep: #0a5b4e;
   --download-stable-soft: #e8f6f0;
@@ -830,7 +837,7 @@ img {
   flex: 0 0 auto;
 }
 
-:root[data-theme="dark"] .download-page {
+:root[data-theme="dark"] {
   --download-stable: #63d1b4;
   --download-stable-deep: #9fe2d0;
   --download-stable-soft: rgba(99, 209, 180, 0.14);

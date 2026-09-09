@@ -20,9 +20,10 @@ interface DownloadItem {
 interface Props {
   item?: DownloadItem;
   variant: 'stable' | 'nightly';
+  compact?: boolean;
 }
 
-const { item, variant } = Astro.props;
+const { item, variant, compact = false } = Astro.props;
 const isNightly = variant === 'nightly';
 
 const formatDate = new Intl.DateTimeFormat('zh-CN', {
@@ -41,18 +42,20 @@ const isHapFile = (url: string) => /\.hap(\?|$)/i.test(url);
 
 {
   item ? (
-    <article class="download-card">
-      <header class="download-card__header">
-        <div>
-          <h2 class="download-card__version">OpenDesk {item.version}</h2>
-          <p class="download-card__date">{formatDate.format(item.date)}发布</p>
-        </div>
-        <span class="download-card__badge download-card__badge--stable">
-          {isNightly ? '每日构建' : '稳定版'}
-        </span>
-      </header>
+    <article class:list={[!compact && 'download-card']}>
+      {!compact && (
+        <header class="download-card__header">
+          <div>
+            <h2 class="download-card__version">OpenDesk {item.version}</h2>
+            <p class="download-card__date">{formatDate.format(item.date)}发布</p>
+          </div>
+          <span class="download-card__badge download-card__badge--stable">
+            {isNightly ? '每日构建' : '稳定版'}
+          </span>
+        </header>
+      )}
 
-      <p class="download-card__summary">{item.summary}</p>
+      {!compact && <p class="download-card__summary">{item.summary}</p>}
 
       {item.cli && (
         <div class="download-cli">
@@ -111,9 +114,11 @@ const isHapFile = (url: string) => /\.hap(\?|$)/i.test(url);
         </p>
       )}
 
-      <footer class="download-card__links">
-        <a href={item.noteUrl}>查看版本说明 →</a>
-      </footer>
+      {!compact && (
+        <footer class="download-card__links">
+          <a href={item.noteUrl}>查看版本说明 →</a>
+        </footer>
+      )}
     </article>
   ) : (
     <article class="download-card">
@@ -125,3 +130,49 @@ const isHapFile = (url: string) => /\.hap(\?|$)/i.test(url);
     </article>
   )
 }
+
+<script>
+  const writeClipboardText = async (text: string) => {
+    if (navigator.clipboard?.writeText) {
+      await navigator.clipboard.writeText(text);
+      return;
+    }
+
+    const textarea = document.createElement('textarea');
+    textarea.value = text;
+    textarea.setAttribute('readonly', '');
+    textarea.style.position = 'fixed';
+    textarea.style.opacity = '0';
+    document.body.append(textarea);
+    textarea.select();
+    document.execCommand('copy');
+    textarea.remove();
+  };
+
+  const setupCopyButtons = () => {
+    document.querySelectorAll<HTMLButtonElement>('[data-copy-text]').forEach((button) => {
+      if (button.dataset.copyReady === 'true') return;
+      button.dataset.copyReady = 'true';
+
+      button.addEventListener('click', async () => {
+        const text = button.dataset.copyText;
+        if (!text) return;
+
+        const originalLabel = button.textContent ?? '复制';
+        try {
+          await writeClipboardText(text);
+          button.textContent = '已复制';
+        } catch {
+          button.textContent = '复制失败';
+        }
+
+        window.setTimeout(() => {
+          button.textContent = originalLabel;
+        }, 2000);
+      });
+    });
+  };
+
+  setupCopyButtons();
+  document.addEventListener('astro:page-load', setupCopyButtons);
+</script>
