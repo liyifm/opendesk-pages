@@ -1,0 +1,195 @@
+---
+title: "通过插件进行外观定制"
+description: "通过 ctx.appearance 自定义应用标题、描述与左上角 Logo，能力逐步开放中"
+---
+
+import VersionNote from '../../../../../components/VersionNote.astro';
+
+外观能力让插件自定义 OpenDesk 的应用外观。该能力正在逐步开放，当前提供 `setAppTitle`、`setAppDescription` 与 `setAppLogo` 三个 API，作用于 GUI 左上角的侧边栏品牌区（应用标题、标题下方的描述与 Logo）。
+
+<VersionNote since="0.3.7" />
+
+典型用途：
+
+- 品牌化定制：企业内部分发时把应用标题、描述与 Logo 替换为自有品牌；
+- 场景化外观：为不同的交付形态配置不同的品牌标识。
+
+## 注册 API
+
+### setAppTitle(title)
+
+~~~js
+// 字符串：所有语言显示同一文案
+ctx.appearance.setAppTitle('My Custom App');
+
+// 本地化映射：按界面语言显示对应译名
+ctx.appearance.setAppTitle({ zh: '我的桌面', en: 'MyDesk' });
+~~~
+
+| 参数 | 类型 | 说明 |
+| --- | --- | --- |
+| title | string \| object | 新的应用标题。字符串形式所有语言共用；对象形式键为 BCP 47 语言标签（解析时取主语言标签匹配，如 `zh-CN` 匹配 `zh`），值为对应语言的文案 |
+
+返回 PluginRegistration。设置后 GUI 左上角的应用标题会替换默认的 "OpenDesk"，已打开的窗口立即热更新，无需重启。
+
+### setAppDescription(description)
+
+~~~js
+ctx.appearance.setAppDescription({ zh: '一站式工作台', en: 'All-in-one workbench' });
+~~~
+
+参数形式与语言解析规则与 `setAppTitle` 完全一致。设置后 GUI 左上角标题下方的描述文案会替换默认标语（"一站式智慧办公空间"），同样随界面语言即时切换。
+
+本地化映射的匹配规则与插件 `displayName` 一致：优先取与界面语言同主语言的条目，无匹配时回退到注册输入的第一项。界面切换语言后标题与描述会按新语言即时重新解析，无需重新激活插件。
+
+### setAppLogo(logoPath)
+
+~~~js
+// 单图形式：所有主题使用同一 Logo
+ctx.appearance.setAppLogo('./assets/logo.png');
+
+// 主题变体形式：暗色/亮色主题分别指定，缺省一侧复用另一侧
+ctx.appearance.setAppLogo({
+  dark: './assets/logo-dark.png',
+  light: './assets/logo-light.png'
+});
+~~~
+
+| 参数 | 类型 | 说明 |
+| --- | --- | --- |
+| logoPath | string \| object | 相对插件根目录（manifest 所在目录）的图片路径。对象形式支持 `dark` / `light` 两个键，至少提供其一，缺省一侧复用另一侧的图 |
+
+Logo 文件的约束：
+
+- 必须是相对路径，解析后不能越出插件根目录（符号链接指向目录外同样会被拒绝）；
+- 支持 png / jpg / jpeg / svg / webp / gif / ico；
+- 单个文件不超过 2MB。
+
+宿主在注册时一次性完成路径解析、文件校验，并把文件转换为 data URL 交给界面，渲染进程不需要访问插件目录。非法输入会在注册时立即抛错，使插件激活失败：
+
+| 错误码 | 触发条件 |
+| --- | --- |
+| `plugin.appearance_logo_path_invalid` | 路径为空、非字符串或绝对路径（`:absolute`）、越出插件根目录（`:outside_root`）、文件不存在或不是普通文件（`:not_found`）；主题变体对象内单侧路径错误同样抛出 |
+| `plugin.appearance_logo_variants_invalid` | 主题变体对象为空、包含 dark/light 之外的键，或键值不是非空字符串 |
+| `plugin.appearance_logo_format_unsupported` | 扩展名不在支持列表内 |
+| `plugin.appearance_logo_too_large` | 文件超过 2MB |
+
+`setAppTitle` / `setAppDescription` 的文案为空、映射值非法或超过 64 字符时分别抛出 `plugin.appearance_title_invalid` 与 `plugin.appearance_title_too_long`。
+
+## 生效规则
+
+- 同一字段后设置者生效：多个插件都修改标题时，后激活插件的值胜出；字符串与对象形式可以互相覆盖，整体替换；
+- 释放返回的 PluginRegistration、插件被禁用/卸载/重载时，外观回退到默认值；先设置者被释放时，后设置者的值继续生效；
+- 标题与描述按界面语言解析并在切换语言后即时更新；Logo 主题变体按当前主题选用，切换主题即时跟随；
+- 单图形式的 Logo 不随明暗主题切换；主题变体形式缺省的一侧复用另一侧，均未设置时回退按主题自动切换的默认 Logo；
+- 标题、描述与 Logo 互相独立，可单独设置。
+
+## 完整示例：appearance-demo 内置插件
+
+OpenDesk 0.3.7 起内置了演示插件 `appearance-demo`（源码位于仓库的 `resources/plugins/appearance-demo/`）。它激活时把应用标题替换为本地化映射形式的 "我的桌面 / MyDesk"（随界面语言显示）、把描述替换为自定义文案、Logo 替换为下面这枚渐变星芒图标；在插件中心停用它即可观察外观回退到默认值，重新启用后再次生效。
+
+目录结构：
+
+~~~text
+appearance-demo/
+├── opendesk.plugin.json
+├── index.mjs
+└── assets/
+    └── logo.svg
+~~~
+
+opendesk.plugin.json：
+
+~~~json
+{
+  "schemaVersion": 1,
+  "id": "appearance-demo",
+  "displayName": {
+    "en": "Appearance Demo",
+    "zh": "外观定制演示"
+  },
+  "description": {
+    "en": "Demonstrates the appearance capability: customizes the app title, description, and top-left logo",
+    "zh": "演示 appearance 能力：自定义应用标题、描述与左上角 Logo"
+  },
+  "version": "0.1.0",
+  "entry": "./index.mjs",
+  "apiVersion": 1,
+  "capabilities": ["appearance"]
+}
+~~~
+
+index.mjs：
+
+~~~js
+// 展示名称等静态元数据统一声明在 opendesk.plugin.json，入口只保留运行时字段。
+// 标题与描述支持本地化映射，界面切换语言后按新语言即时生效；
+// 也接受单一字符串形式（如 'MyDesk'），或通过插件配置的 appTitle/appDescription 覆盖默认值。
+const DEFAULT_APP_TITLE = { zh: '我的桌面', en: 'MyDesk' };
+const DEFAULT_APP_DESCRIPTION = { zh: '外观定制演示插件驱动的工作台', en: 'Workbench powered by the appearance demo' };
+const DEFAULT_LOGO_PATH = './assets/logo.svg';
+
+function readTextOption(options, key, fallback) {
+  const value = options ? options[key] : undefined;
+  return typeof value === 'string' && value.trim() ? value.trim() : fallback;
+}
+
+export default {
+  id: 'appearance-demo',
+  setup(ctx) {
+    const appTitle = readTextOption(ctx.options, 'appTitle', DEFAULT_APP_TITLE);
+    const appDescription = readTextOption(ctx.options, 'appDescription', DEFAULT_APP_DESCRIPTION);
+    const logoPath = readTextOption(ctx.options, 'logoPath', DEFAULT_LOGO_PATH);
+
+    // Logo 是相对插件根目录的路径，宿主在注册时读取并转换为界面可直接使用的 data URL；
+    // setAppLogo 也支持 { dark: './logo-dark.svg', light: './logo-light.svg' } 的主题变体形式；
+    // 各调用返回的 PluginRegistration 在插件停用或重载时由宿主统一释放，外观随之回退默认
+    ctx.appearance.setAppTitle(appTitle);
+    ctx.appearance.setAppDescription(appDescription);
+    ctx.appearance.setAppLogo(logoPath);
+  }
+};
+~~~
+
+assets/logo.svg —— 自定义 Logo 素材，圆角渐变底上的白色星芒：
+
+![外观定制演示插件的自定义 Logo：渐变圆角方块与白色星芒](../../../../../assets/images/dev/plugins/appearance-demo/logo.svg)
+
+~~~svg
+<svg xmlns="http://www.w3.org/2000/svg" width="64" height="64" viewBox="0 0 64 64">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#34d399"/>
+      <stop offset="1" stop-color="#0ea5e9"/>
+    </linearGradient>
+  </defs>
+  <rect x="2" y="2" width="60" height="60" rx="16" fill="url(#bg)"/>
+  <path d="M32 13l5.2 13.8L51 32l-13.8 5.2L32 51l-5.2-13.8L13 32l13.8-5.2z" fill="#ffffff"/>
+  <circle cx="46" cy="18" r="3.5" fill="#ffffff" opacity="0.9"/>
+</svg>
+~~~
+
+注意事项：
+
+- 内置插件的元数据只允许声明在 `opendesk.plugin.json`，入口不要重复声明 `capabilities` 等字段，否则激活时会与 manifest 冲突；
+- 不依赖 SDK 的版本去掉 `definePlugin`、直接默认导出对象即可，注册 API 完全相同；
+- 想改用 PNG 等位图素材，把文件放进插件目录并把 `setAppLogo` 的参数改为相对路径即可，格式约束见上文。
+
+## 验证步骤
+
+1. 启动 OpenDesk（开发模式 `npm start` 或安装版），左上角出现「我的桌面」（英文界面为 "MyDesk"）标题、自定义描述与渐变星芒 Logo，即说明插件已激活；
+2. 打开插件中心，找到「外观定制演示」插件，详情中可见 `appearance` 能力；
+3. 停用该插件：标题、描述与 Logo 立即回退为默认的 OpenDesk 外观，无需重启；
+4. 重新启用：自定义外观再次生效；
+5. 切换界面语言（或在设置中切换明暗主题并使用主题变体 Logo）：品牌区即时跟随，无需重新激活插件。
+
+## 能力声明与授权
+
+manifest 或入口的 `capabilities` 必须包含 `appearance`，否则调用 `ctx.appearance` 下的 API 会抛出 `plugin.capability_not_declared:appearance` 并使插件激活失败；用户未在插件中心授予该能力时，插件会保持停用状态。
+
+## 当前边界
+
+- 外观目前只作用于 GUI 左上角的侧边栏品牌区，不影响窗口标题、托盘、任务栏图标或安装包信息；
+- CLI / TUI 不受该能力影响；
+- 品牌区为单行显示：超长的标题或描述会以省略号截断，不会遮挡右侧的主题切换与折叠按钮；
+- 更多外观自定义项（主题色、启动画面等）会陆续开放，API 会保持在 `ctx.appearance` 命名空间下扩展。

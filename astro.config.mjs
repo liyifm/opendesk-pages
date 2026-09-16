@@ -179,6 +179,7 @@ export default defineConfig({
             { label: '在插件中贡献子 Agent', slug: 'docs/dev/plugins/agents' },
             { label: '在插件中注入浏览器提示', slug: 'docs/dev/plugins/browser' },
             { label: '在插件中开发消息渠道', slug: 'docs/dev/plugins/channels' },
+            { label: '通过插件进行外观定制', slug: 'docs/dev/plugins/appearance' },
             { label: '扩展自定义命令', slug: 'docs/dev/plugins/commands' },
             { label: '插件的调试与发布', slug: 'docs/dev/plugins/debug-publish' },
           ],

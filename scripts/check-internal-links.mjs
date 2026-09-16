@@ -1,8 +1,10 @@
 import { readdir, readFile, stat } from 'node:fs/promises';
 import { join, relative } from 'node:path';
+import { fileURLToPath } from 'node:url';
 
 const root = new URL('../dist/', import.meta.url);
-const rootPath = root.pathname;
+// fileURLToPath 把 file: URL 转成平台原生路径；URL.pathname 在 Windows 上会带前导斜杠（/D:/...）导致扫描失败
+const rootPath = fileURLToPath(root);
 const sourceFiles = [];
 const files = new Set();
 const routes = new Set(['/']);

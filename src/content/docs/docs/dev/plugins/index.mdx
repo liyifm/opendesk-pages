@@ -168,6 +168,8 @@ export default {
 | agent | `ctx.agents.register`、`ctx.agents.registerDirectory` 或 `resources.agents` |
 | browser | `ctx.browser.hint.register` |
 | channel | `ctx.channels.register` |
+| account | `ctx.accounts.registerBackend` 与 `ctx.accounts` 下的其他方法 |
+| appearance | `ctx.appearance.setAppTitle`、`ctx.appearance.setAppDescription`、`ctx.appearance.setAppLogo`（0.3.7 起） |
 
 插件只能注册已声明且已经获准的能力。manifest 中的静态 Skill、MCP 或 Agent 资源也必须分别声明 `skill`、`mcp` 或 `agent`。
 
@@ -408,6 +410,10 @@ export default {
 | agents.registerDirectory | function | 扫描插件目录下的 agent 目录并批量注册子 Agent |
 | browser.hint.register | function | 为匹配的页面注册浏览器提示生成器 |
 | channels.register | function | 注册 Channel 实例（消息渠道） |
+| accounts.registerBackend | function | 注册账号后端，`ctx.accounts` 下还提供网络、外链与凭据存取 |
+| appearance.setAppTitle | function | 自定义应用标题（GUI 左上角品牌区，0.3.7 起） |
+| appearance.setAppDescription | function | 自定义应用描述（左上角标题下方文案，0.3.7 起） |
+| appearance.setAppLogo | function | 自定义应用 Logo（相对插件根目录的图片路径，0.3.7 起） |
 
 每个 `register` 或 `on` 方法都返回 PluginRegistration。通常不需要手工调用 `dispose`，因为宿主会在插件退出时统一清理；只有插件需要提前撤销某一项注册时才主动调用。
 
@@ -442,6 +448,7 @@ Hook 按插件激活顺序串行执行。默认 `failureMode: 'open'` 会记录�
 - [在插件中贡献子 Agent](/docs/dev/plugins/agents/) — 声明可由主 Agent 调度的子 Agent，支持 agents.md 目录与动态注册
 - [在插件中注入浏览器提示](/docs/dev/plugins/browser/) — 为特定站点向 use-browser 注入文本提示与可触发的页面动作
 - [在插件中开发消息渠道](/docs/dev/plugins/channels/) — 接入 IM 平台收发消息，支持扫码/参数登录与结构化交互（权限审批 / askUser 卡片）
+- [通过插件进行外观定制](/docs/dev/plugins/appearance/) — 自定义应用标题、描述与左上角 Logo，能力逐步开放中（0.3.7 起）
 - [扩展自定义命令](/docs/dev/plugins/commands/) — 注册可从 CLI、TUI 和 GUI 调用的命令
 - [插件的调试与发布](/docs/dev/plugins/debug-publish/) — 配置、内置插件、安装与开发目录、校验与发布
 
