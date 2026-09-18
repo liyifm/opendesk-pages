@@ -1,0 +1,233 @@
+---
+title: "通过插件集成内容来源"
+description: "在插件中集成技能市场或 MCP 市场的内容来源：搜索、安装计划、筛选器与品牌化组织方式"
+---
+
+import VersionNote from '../../../../../components/VersionNote.astro';
+
+<VersionNote since="0.3.7" />
+
+内容来源（API 中称为 Registry，注册表）是技能市场与 MCP 管理器中的「市场来源」：每个内容来源对应一个市场 tab，提供搜索与安装入口。通过 `registry` capability，插件可以向技能市场（`ctx.registry.registerSkillRegistry`）和 MCP 管理器（`ctx.registry.registerMcpRegistry`）集成自定义内容来源，与内置内容来源在 UI、agent 工具和安装流程中完全同权。
+
+一个插件可以同时集成技能与 MCP 两类内容来源。OpenDesk 内置的内容来源就是按品牌组织的：`matrix` 与 `modelscope` 两个插件各自同时集成 MCP 与技能内容来源，`clawhub`、`skillhub`、`skill0`、`skillsmp` 各集成一个技能内容来源，都可以作为参考实现（源码位于仓库的 `resources/plugins/`）。
+
+## 能力声明
+
+manifest 与入口对象都需要声明 `registry` capability：
+
+~~~json
+{
+  "schemaVersion": 1,
+  "id": "my-brand",
+  "displayName": "My Brand",
+  "entry": "./index.mjs",
+  "apiVersion": 1,
+  "capabilities": ["registry"]
+}
+~~~
+
+## ctx.registry API
+
+| 方法 / 字段 | 类型 | 说明 |
+| --- | --- | --- |
+| registry.fetch | function | 继承 OpenDesk 代理配置的 fetch；内容来源实现内的所有网络请求都应使用它 |
+| registry.registerSkillRegistry | function | 集成一个技能内容来源，返回 PluginRegistration |
+| registry.registerMcpRegistry | function | 集成一个 MCP 内容来源，返回 PluginRegistration |
+
+集成的内容来源 `id` 跨插件全局唯一（它同时是安装链接 `installUrl` 的前缀）。集成后，宿主把定义适配为与内置内容来源同构的对象：技能侧进入技能市场的 tab 列表、TUI 与 agent 工具（`searchSkillFromRegistry` / `addSkillFromRegistry` 等）的搜索与安装路由；MCP 侧进入 MCP 管理器的 tab 列表与 `listMcpRegistries` / `searchMcpRegistry` / `installFromRegistry` 等工具。在插件中心停用品牌插件后，其内容来源随宿主重载从市场移除（已打开的市场页面在重新打开后刷新）。
+
+## 技能内容来源定义
+
+| 字段 | 类型 | 必填 | 说明 |
+| --- | --- | --- | --- |
+| id | string | 是 | 内容来源唯一标识，格式同插件 id；同时是 `installUrl` 前缀（`id:`），跨插件全局唯一 |
+| label | string | 是 | 展示名称（市场 tab 文本），如 `Matrix Skill` |
+| icon | string | 否 | GUI 中的 emoji 图标，缺省为 `🧩` |
+| iconClass | string | 否 | 预留的图标样式类名，缺省取 `id` |
+| slogan | string | 否 | 热门条目页标语；缺省使用宿主默认文案 |
+| guiHidden | boolean | 否 | `true` 时不在 GUI 市场出 tab（agent 工具与 TUI 仍可用），适合需要 API Key 或实验性的来源 |
+| filters | RegistryFilter[] | 否 | 声明后 GUI 在搜索区渲染开关式过滤，选中值经 `options.categoryFilter` 传回 `search` |
+| search | function | 是 | `search(options?) => Promise<SearchResult>` |
+| resolveInstall | function | 否 | `resolveInstall(installUrl, parsed) => Promise&lt;{ downloadUrl: string }&gt;`；把本来源的 `installUrl` 解析为 zip 下载地址，未声明时宿主按内置规则处理 |
+
+RegistryFilter：
+
+| 字段 | 类型 | 必填 | 说明 |
+| --- | --- | --- | --- |
+| id | string | 是 | 筛选器唯一标识 |
+| labelOn / labelOff | string | 是 | 开关打开 / 关闭时的标签文本 |
+| categoryValue | string | 是 | 打开时传给 `search(options.categoryFilter)` 的值 |
+| apiTagIds | string[] | 否 | 需要服务端按 tag 过滤时使用（如 Matrix） |
+
+`search` 的入参 `options`：
+
+| 字段 | 类型 | 说明 |
+| --- | --- | --- |
+| query | string | 关键字，空串表示热门 / 默认列表 |
+| page | number | 页码，从 1 开始 |
+| limit | number | 每页条数 |
+| apiKey | string | 宿主按配置注入的访问凭证（如 SkillsMP 的 API Key） |
+| cursor | string | 游标分页：上一页返回的 `nextCursor` |
+| categoryFilter | string | `filters` 中选中的 `categoryValue` |
+
+`search` 的返回 `SearchResult`：
+
+| 字段 | 类型 | 必填 | 说明 |
+| --- | --- | --- | --- |
+| skills | RegistrySkill[] | 是 | 当前页条目 |
+| total | number | 否 | 总数（用于分页展示） |
+| hasMore | boolean | 否 | 是否还有下一页 |
+| nextCursor | string | 否 | 游标分页时的下一页游标 |
+| message | string | 否 | 展示在搜索结果上方的提示文案（如错误或统计信息） |
+
+RegistrySkill：
+
+| 字段 | 类型 | 必填 | 说明 |
+| --- | --- | --- | --- |
+| id | string | 是 | 条目唯一标识 |
+| name | string | 是 | 技能名（安装后的默认技能名） |
+| description | string | 是 | 描述 |
+| source | string | 是 | 来源标识，通常与内容来源 `id` 一致 |
+| installUrl | string | 是 | 安装链接，约定为本来源前缀形式 `id:slug`（或 GitHub / zip 地址） |
+| canInstall | boolean | 是 | 是否可安装（GUI 据此渲染安装按钮） |
+| author | string | 否 | 作者 |
+| stars / score / downloads | number | 否 | 展示用统计 |
+| categories | string[] | 否 | 分类标签 |
+
+## MCP 内容来源定义
+
+| 字段 | 类型 | 必填 | 说明 |
+| --- | --- | --- | --- |
+| id / label / icon / iconClass / slogan / guiHidden | 同上 | — | 与技能内容来源的元数据字段一致 |
+| search | function | 是 | `search(options?) => Promise&lt;McpSearchResult&gt;`，入参与技能侧一致 |
+| getDetail | function | 是 | `getDetail(id) => Promise&lt;RegistryMcp \| null&gt;`；安装流程（`installFromRegistry`）依赖它取回条目配置 |
+
+`McpSearchResult.mcps` 中的条目（RegistryMcp）：
+
+| 字段 | 类型 | 必填 | 说明 |
+| --- | --- | --- | --- |
+| id | string | 是 | 条目唯一标识；安装链接为 `id:` + 该值（含特殊字符时需 `encodeURIComponent`） |
+| name | string | 是 | Server 名 |
+| description | string | 是 | 描述 |
+| source | string | 是 | 来源标识 |
+| installUrl | string | 是 | `id:` + 条目 id |
+| configuration | string | 否 | 可安装的 MCP 配置 JSON（`mcpServers` 形式）；安装时宿主解析其中的 command / url / env 等 |
+| canInstall | boolean | 是 | 是否可安装（需有 `configuration`） |
+| displayName / author / repository / logo / deployType / serverType / downloads / stars / views / updateTime / tags / categories | — | 否 | 详情弹窗与卡片的展示字段 |
+
+## installUrl 与安装流程
+
+内容来源的 `installUrl` 约定为 `id:条目标识`：
+
+- 技能侧约定 `id:slug[@version]`；安装时宿主按前缀找到内容来源，优先调用插件声明的 `resolveInstall` 取 `downloadUrl`（zip）后走统一安装流程。未声明 `resolveInstall` 时按内置规则处理：内置四个技能来源的下载地址内置于安装器，其余回退为按普通 zip URL 尝试。
+- MCP 侧安装时宿主调用 `getDetail(条目标识)`，解析 `configuration` 中的 `mcpServers` JSON 落成本地 MCP 配置；条目 id 含特殊字符时建议在 `installUrl` 中 `encodeURIComponent`，并在 `getDetail` 内自行解码。
+- 内置四个技能来源（`matrix` / `clawhub` / `modelscope` / `skillhub`）的安装路由不依赖对应插件是否启用，历史安装链接始终可重装。
+
+## 依赖 SDK 的示例
+
+一个品牌插件同时集成技能与 MCP 两类内容来源：
+
+~~~js
+import { definePlugin } from '@bitclub.ai/opendesk-plugin-sdk';
+
+export default definePlugin({
+  id: 'my-brand',
+  capabilities: ['registry'],
+  setup(ctx) {
+    ctx.registry.registerSkillRegistry({
+      id: 'my-brand-skills',
+      label: 'My Brand',
+      icon: '🧪',
+      slogan: 'My Brand 技能市场',
+      filters: [
+        { id: 'official', labelOn: '仅官方', labelOff: '全部', categoryValue: 'official' }
+      ],
+      async search(options = {}) {
+        const query = options.query || '';
+        const res = await ctx.registry.fetch(
+          `https://registry.my-brand.example/skills?q=${encodeURIComponent(query)}`,
+          { headers: { Accept: 'application/json' } }
+        );
+        const data = await res.json();
+        return {
+          skills: data.items.map((item) => ({
+            id: item.slug,
+            name: item.name,
+            description: item.summary,
+            source: 'my-brand-skills',
+            installUrl: `my-brand-skills:${item.slug}`,
+            canInstall: true
+          })),
+          total: data.total,
+          hasMore: false
+        };
+      },
+      async resolveInstall(installUrl, parsed) {
+        return { downloadUrl: `https://dl.my-brand.example/${parsed.slug}.zip` };
+      }
+    });
+
+    ctx.registry.registerMcpRegistry({
+      id: 'my-brand-mcps',
+      label: 'My Brand MCPs',
+      async search() {
+        return { mcps: [], total: 0, hasMore: false };
+      },
+      async getDetail(id) {
+        return {
+          id,
+          name: id,
+          description: 'My Brand MCP server',
+          source: 'my-brand-mcps',
+          installUrl: `my-brand-mcps:${id}`,
+          configuration: JSON.stringify({
+            mcpServers: { [id]: { command: 'npx', args: ['-y', `@my-brand/${id}`] } }
+          }),
+          canInstall: true
+        };
+      }
+    });
+  }
+});
+~~~
+
+## 不依赖 SDK 的示例
+
+~~~js
+export default {
+  id: 'my-brand',
+  capabilities: ['registry'],
+  setup(ctx) {
+    ctx.registry.registerSkillRegistry({
+      id: 'my-brand-skills',
+      label: 'My Brand',
+      async search(options = {}) {
+        return { skills: [], total: 0, hasMore: false };
+      }
+    });
+  }
+};
+~~~
+
+## 内置品牌插件参考
+
+OpenDesk 0.3.7 起内置以下按品牌划分的内容来源插件（源码位于仓库的 `resources/plugins/`，每个插件内含 `opendesk.plugin.json`、`index.mjs` 入口与内容来源实现模块）：
+
+| 插件 | 集成的内容来源 | 说明 |
+| --- | --- | --- |
+| matrix | MCP `matrix` + 技能 `matrix` | OpenHarmony Matrix 市场，技能带「鸿蒙PC兼容」筛选器 |
+| modelscope | MCP `modelscope-mcp` + 技能 `modelscope` | ModelScope（魔搭社区）市场 |
+| clawhub | 技能 `clawhub` | ClawHub 社区市场 |
+| skillhub | 技能 `skillhub` | SkillHub 市场 |
+| skill0 | 技能 `skill0`（guiHidden） | 仅 agent 工具与 TUI 可用 |
+| skillsmp | 技能 `skillsmp`（guiHidden） | 需要 API Key，宿主经 `options.apiKey` 注入 |
+
+在插件中心可以按品牌独立启用 / 停用；停用后对应市场 tab 在页面重新打开时移除，重新启用后恢复。每个内容来源的搜索实现可以直接对照插件源码阅读。
+
+## 行为与注意事项
+
+- `search` / `getDetail` 的返回必须是可结构化克隆的纯数据（会跨线程传递给 worker 侧的市场搜索），不要在返回值中携带函数或宿主对象。
+- 内容来源内的网络请求使用 `ctx.registry.fetch`，以继承宿主代理配置；直接使用全局 fetch 会绕过代理。
+- `id` 是安装链接前缀，注册时宿主做跨插件全局唯一校验，重复注册会使插件 `setup` 失败并回滚本次已注册的项。
+- 每次市场读取前宿主都会重新拉取当前生效的内容来源集合：插件重载后定义被替换（不会重复），插件停用 / 卸载后其内容来源从市场移除。
+- `guiHidden` 只影响 GUI 市场 tab；CLI / TUI 与 agent 工具仍可搜索和安装该来源的内容。
