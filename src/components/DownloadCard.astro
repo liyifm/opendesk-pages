@@ -1,21 +1,7 @@
 ---
-interface DownloadAsset {
-  url: string;
-  label: string;
-}
-
-interface DownloadItem {
-  title: string;
-  version: string;
-  date: Date;
-  category: string;
-  summary: string;
-  cli?: string;
-  windows?: DownloadAsset;
-  harmonyos?: DownloadAsset;
-  macos?: DownloadAsset;
-  noteUrl: string;
-}
+import type { CpuArch } from '../lib/device';
+import type { DownloadAsset, DownloadItem, DownloadOs } from '../lib/releases';
+import PlatformIcon from './PlatformIcon.astro';
 
 interface Props {
   item?: DownloadItem;
@@ -32,12 +18,65 @@ const formatDate = new Intl.DateTimeFormat('zh-CN', {
   day: 'numeric',
 });
 
-const fileHint = (url: string, fallbackExt: string, detail: string) => {
-  const ext = url.split('?')[0]?.match(/\.[a-z0-9]+$/i)?.[0] ?? fallbackExt;
-  return `${ext} · ${detail}`;
+const isHapFile = (url: string) => /\.hap(\?|$)/i.test(url);
+
+const isExternalLink = (os: DownloadOs, url: string) => os === 'harmonyos' && !isHapFile(url);
+
+/** 平台名已经在标题里，每个安装包只标架构 */
+const archLabels: Record<DownloadOs, Partial<Record<CpuArch, string>>> = {
+  windows: { x86: 'x86（64 位）', arm64: 'ARM64' },
+  macos: { arm64: 'Apple 芯片', x86: 'Intel 芯片' },
+  harmonyos: {},
 };
 
-const isHapFile = (url: string) => /\.hap(\?|$)/i.test(url);
+interface PlatformRow {
+  label: string;
+  url: string;
+  external: boolean;
+  /** 文件后缀徽标，应用市场链接显示来源 */
+  badge: string;
+  version: string;
+}
+
+interface PlatformBlock {
+  os: DownloadOs;
+  name: string;
+  rows: PlatformRow[];
+}
+
+const assetExt = (url: string) => url.split('?')[0]?.match(/\.[a-z0-9]+$/i)?.[0] ?? '';
+
+const buildBlock = (
+  os: DownloadOs,
+  name: string,
+  assets: DownloadAsset[],
+  version: string,
+): PlatformBlock => ({
+  os,
+  name,
+  rows: assets.map((asset) => {
+    const external = isExternalLink(os, asset.url);
+    return {
+      label:
+        (asset.arch && archLabels[os][asset.arch]) || (external ? '应用市场安装' : asset.label),
+      url: asset.url,
+      external,
+      badge: external ? '' : assetExt(asset.url),
+      version,
+    };
+  }),
+});
+
+// 日构建的版本号是 0.2.0-nightly-YYYYMMDD 这类长串，且正文里的日期容易被误判为版本号，只在稳定版展示
+const rowVersion = (item: DownloadItem) => (item.category === 'stable-release' ? `v${item.version}` : '');
+
+const blocks: PlatformBlock[] = item
+  ? [
+      buildBlock('windows', 'Windows 安装包下载', item.windows, rowVersion(item)),
+      buildBlock('macos', 'macOS 安装包下载', item.macos, rowVersion(item)),
+      buildBlock('harmonyos', 'HarmonyOS 安装链接', item.harmonyos, rowVersion(item)),
+    ].filter((block) => block.rows.length > 0)
+  : [];
 ---
 
 {
@@ -73,34 +112,33 @@ const isHapFile = (url: string) => /\.hap(\?|$)/i.test(url);
         </div>
       )}
 
-      {(item.windows || item.harmonyos || item.macos) && (
-        <div class="download-buttons">
-          {item.windows && (
-            <a
-              class="download-btn download-btn--primary"
-              href={item.windows.url}
-              download
-            >
-              <span>{item.windows.label}</span>
-              <span class="download-btn__sub">{fileHint(item.windows.url, '.msi', '下载安装')}</span>
-            </a>
-          )}
-          {item.harmonyos && (
-            <a class="download-btn download-btn--secondary" href={item.harmonyos.url} download={isHapFile(item.harmonyos.url) ? '' : undefined}>
-              <span>{item.harmonyos.label}</span>
-              <span class="download-btn__sub">{isHapFile(item.harmonyos.url) ? fileHint(item.harmonyos.url, '.hap', '需手动签名') : '从App Gallery应用市场安装'}</span>
-            </a>
-          )}
-          {item.macos && (
-            <a class="download-btn download-btn--secondary" href={item.macos.url} download>
-              <span>{item.macos.label}</span>
-              <span class="download-btn__sub">{fileHint(item.macos.url, '.dmg', 'Apple Silicon')}</span>
-            </a>
-          )}
+      {blocks.length > 0 && (
+        <div class="download-platforms">
+          {blocks.map((block) => (
+            <section class="download-platform">
+              <h3 class="download-platform__name">
+                <PlatformIcon os={block.os} />
+                <span>{block.name}</span>
+              </h3>
+              <div class="download-platform__list">
+                {block.rows.map((row) => (
+                  <a
+                    class="download-item"
+                    href={row.url}
+                    download={row.external ? undefined : ''}
+                  >
+                    <span class="download-item__label">{row.label}</span>
+                    {row.badge && <span class="download-item__badge">{row.badge}</span>}
+                    {row.version && <span class="download-item__version">{row.version}</span>}
+                  </a>
+                ))}
+              </div>
+            </section>
+          ))}
         </div>
       )}
 
-      {item.harmonyos && isHapFile(item.harmonyos.url) && (
+      {item.harmonyos.some((asset) => isHapFile(asset.url)) && (
         <p class="download-signing-note">
           HarmonyOS 安装提示：下载 <code>.hap</code> 后，需要通过{' '}
           <a href="https://developer.huawei.com/consumer/cn/deveco-studio/" target="_blank" rel="noreferrer">

@@ -3,16 +3,22 @@ import { getCollection } from 'astro:content';
 import { Image } from 'astro:assets';
 import homepage from '../../assets/images/quickstart/homepage.jpg';
 import homepageDark from '../../assets/images/quickstart/homepage_dark.jpg';
+import type { DownloadAsset } from '../../lib/releases';
+import { toDownloadItem } from '../../lib/releases';
 
 const notes = await getCollection('releaseNotes');
 const sorted = notes.sort((a, b) => b.data.date.getTime() - a.data.date.getTime());
 const latestStable = sorted.find((n) => n.data.category === 'stable-release');
-const downloads = latestStable?.data.downloads;
-const version = latestStable?.data.version ?? '';
-const windowsUrl = downloads?.windows?.url ?? '';
-const macosUrl = downloads?.macos?.url ?? '';
-const harmonyosUrl = downloads?.harmonyos?.url ?? '';
-const latestNoteUrl = latestStable ? `/news/${latestStable.id.replace(/\.mdx?$/, '')}/` : '/news/';
+const latest = toDownloadItem(latestStable);
+const version = latest?.version ?? '';
+const latestNoteUrl = latest?.noteUrl ?? '/news/';
+
+const toTargets = (assets: DownloadAsset[] = []) => assets.map(({ url, arch }) => ({ url, arch }));
+const downloadTargets = JSON.stringify({
+  windows: toTargets(latest?.windows),
+  macos: toTargets(latest?.macos),
+  harmonyos: toTargets(latest?.harmonyos),
+});
 ---
 
 <section class="home-hero">
@@ -27,9 +33,7 @@ const latestNoteUrl = latestStable ? `/news/${latestStable.id.replace(/\.mdx?$/,
         class="home-cta"
         href="/download/"
         data-download-btn
-        data-windows={windowsUrl}
-        data-macos={macosUrl}
-        data-harmonyos={harmonyosUrl}
+        data-download-targets={downloadTargets}
         data-fallback="/download/"
         data-version={version}
       >
@@ -89,43 +93,47 @@ const latestNoteUrl = latestStable ? `/news/${latestStable.id.replace(/\.mdx?$/,
 </section>
 
 <script>
-  // OS detection
-  const btn = document.querySelector('[data-download-btn]');
-  const hint = document.querySelector('[data-download-hint]');
-  if (btn) {
-    const ua = navigator.userAgent;
-    const platform = navigator.platform ?? '';
+  import { detectDevice, fallbackArch, selectAsset } from '../../lib/device';
+  import type { CpuArch, DeviceOs } from '../../lib/device';
 
-    // HarmonyOS first: HarmonyOS browsers may expose a Windows-like UA
-    // (e.g. "Win64") or a Linux platform, so check both UA and platform
-    // before windows/mac to avoid misrouting.
-    const isHarmony = /harmony\s?os|ohos|openharmony/i.test(`${ua} ${platform}`);
-    const isWindows = /windows|win32|win64/i.test(platform) || /windows/i.test(ua);
-    const isMac = /macintosh|macintel|macppc|mac68k|darwin/i.test(platform) || /mac os x/i.test(ua);
+  interface DownloadTarget {
+    url: string;
+    arch?: CpuArch;
+  }
 
-    let url = '';
-    let label = '';
-    let isExternal = false;
-    if (isHarmony && btn.dataset.harmonyos) {
-      url = btn.dataset.harmonyos;
-      label = 'HarmonyOS';
-      isExternal = true;
-    } else if (isWindows && btn.dataset.windows) {
-      url = btn.dataset.windows;
-      label = 'Windows';
-    } else if (isMac && btn.dataset.macos) {
-      url = btn.dataset.macos;
-      label = 'macOS';
+  const deviceLabel = (os: DeviceOs, arch?: CpuArch) => {
+    if (os === 'harmonyos') return 'HarmonyOS';
+    if (os === 'macos') {
+      if (arch === 'arm64') return 'macOS (Apple 芯片)';
+      if (arch === 'x86') return 'macOS (Intel 芯片)';
+      return 'macOS';
     }
+    if (arch === 'arm64') return 'Windows ARM64';
+    if (arch === 'x86') return 'Windows x86';
+    return 'Windows';
+  };
 
+  const setupDownloadButton = async () => {
+    const btn = document.querySelector<HTMLAnchorElement>('[data-download-btn]');
+    const hint = document.querySelector('[data-download-hint]');
+    if (!btn) return;
+
+    const targets = JSON.parse(btn.dataset.downloadTargets ?? '{}') as Record<string, DownloadTarget[]>;
     const ver = btn.dataset.version ? ` · v${btn.dataset.version}` : '';
 
-    if (url) {
-      btn.href = url;
-      if (!isExternal) btn.setAttribute('download', '');
-      if (hint) hint.textContent = `适用于 ${label}${ver}`;
-    } else if (ver && hint) {
-      hint.textContent = `最新稳定版${ver}`;
+    const device = await detectDevice();
+    const asset = selectAsset(targets[device.os] ?? [], device.arch ?? fallbackArch(device.os));
+
+    if (!asset) {
+      if (ver && hint) hint.textContent = `最新稳定版${ver}`;
+      return;
     }
-  }
+
+    btn.href = asset.url;
+    if (device.os !== 'harmonyos') btn.setAttribute('download', '');
+    if (hint) hint.textContent = `适用于 ${deviceLabel(device.os, asset.arch)}${ver}`;
+  };
+
+  setupDownloadButton();
+  document.addEventListener('astro:page-load', setupDownloadButton);
 </script>

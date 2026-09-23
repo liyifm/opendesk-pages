@@ -17,7 +17,11 @@ const { note } = Astro.props;
 const { Content } = await render(note);
 const downloadItem = toDownloadItem(note);
 const hasDownloads = Boolean(
-  downloadItem && (downloadItem.cli || downloadItem.windows || downloadItem.harmonyos || downloadItem.macos),
+  downloadItem &&
+    (downloadItem.cli ||
+      downloadItem.windows.length > 0 ||
+      downloadItem.harmonyos.length > 0 ||
+      downloadItem.macos.length > 0),
 );
 
 const formatDate = new Intl.DateTimeFormat('zh-CN', {

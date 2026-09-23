@@ -1,6 +1,7 @@
 ---
 import { getCollection } from 'astro:content';
 import SiteLayout from '../layouts/SiteLayout.astro';
+import { toDownloadItem } from '../lib/releases';
 
 const notes = (await getCollection('releaseNotes')).sort(
   (a, b) => b.data.date.getTime() - a.data.date.getTime(),
@@ -17,6 +18,7 @@ const notePath = (id: string) => `/news/${id.replace(/\.mdx?$/, '')}/`;
 const packageHost = 'download.bitclub.ai';
 
 const getPackageDownloads = (note: (typeof notes)[number]) => {
+  const item = toDownloadItem(note);
   const downloads: Array<{ label: string; url: string }> = [];
   const seenUrls = new Set<string>();
 
@@ -26,8 +28,9 @@ const getPackageDownloads = (note: (typeof notes)[number]) => {
     downloads.push({ label, url });
   };
 
-  addDownload(note.data.downloads?.windows?.label, note.data.downloads?.windows?.url);
-  addDownload(note.data.downloads?.harmonyos?.label, note.data.downloads?.harmonyos?.url);
+  for (const asset of [...(item?.windows ?? []), ...(item?.harmonyos ?? []), ...(item?.macos ?? [])]) {
+    addDownload(asset.label, asset.url);
+  }
 
   for (const match of note.body.matchAll(/\[([^\]]+)\]\((https?:\/\/[^)]+)\)/g)) {
     const [, label, url] = match;

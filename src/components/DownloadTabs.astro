@@ -1,23 +1,6 @@
 ---
 import DownloadCard from './DownloadCard.astro';
-
-interface DownloadAsset {
-  url: string;
-  label: string;
-}
-
-interface DownloadItem {
-  title: string;
-  version: string;
-  date: Date;
-  category: string;
-  summary: string;
-  cli?: string;
-  windows?: DownloadAsset;
-  harmonyos?: DownloadAsset;
-  macos?: DownloadAsset;
-  noteUrl: string;
-}
+import type { DownloadItem } from '../lib/releases';
 
 interface Props {
   stable?: DownloadItem;
