@@ -49,6 +49,14 @@ src/server/
     └── feedback.js          # POST /api/feedback
 ```
 
+### Static catalogs
+
+`public/` 原样发布到站点根目录，客户端会按需拉取其中的静态清单：
+
+| Path | Consumer | Purpose |
+| --- | --- | --- |
+| `/static/categories/benchmarks.json` | OpenDesk 桌面端「测评」应用 | 测评集下载清单。数组，每项含 `id` / `name` / `version` / `downloadUrl` / `tracks`，字段语义与测评集自带的 `dataset.json` 一致；改完直接部署即可，客户端每次打开下载列表都会重新请求，不需要发版。格式由 `tests/benchmark-catalog.test.mjs` 校验（`pnpm test`）。 |
+
 ### Admin-only endpoints
 
 管理员接口（`/api/stats`）通过 Bearer token 鉴权：请求携带 `Authorization: Bearer <token>`（或 `x-admin-token` 头），与服务端 `ADMIN_TOKEN` 一致才放行，否则 401。`ADMIN_TOKEN` 在 Cloudflare dashboard 的 **Settings → Variables and Secrets** 配置；本地 `wrangler pages dev` 从 `.dev.vars` 读取（已 gitignore）。未配置 token 时接口返回 503。`astro dev` 不提供 D1 与 token，stats 需用 `pnpm pages:dev` 验证。

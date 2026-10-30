@@ -1,0 +1,22 @@
+[
+  {
+    "id": "workbuddy-bench",
+    "name": "WorkBuddy Bench",
+    "description": "WorkBuddy Bench 的 Office 与 Code 两个 track：Office 50 个办公文件处理用例，Code 80 个仓库级软件工程用例。",
+    "homepage": "https://github.com/Tencent/workbuddy-bench",
+    "version": "0.1",
+    "downloadUrl": "https://gitcode.com/openharmony-robot/OpenDesk/releases/download/benchmarks/workbuddy-bench-0.1.zip",
+    "tracks": [
+      {
+        "id": "office",
+        "name": "Office",
+        "description": "办公文件处理（xlsx / csv / pdf / docx），评分 = pytest 规则分 + LLM rubric 分"
+      },
+      {
+        "id": "code",
+        "name": "Code",
+        "description": "仓库级软件工程（Python），评分 = 注入测试后的 pytest 通过率"
+      }
+    ]
+  }
+]
