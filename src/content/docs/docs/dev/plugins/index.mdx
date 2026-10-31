@@ -31,6 +31,8 @@ hello-plugin/
 └── index.mjs
 ~~~
 
+这个目录是插件的**代码目录**：覆盖安装会整体替换，卸载会被移走。插件运行期产生的状态、缓存和账号文件不要写在这里，应写入[插件私有数据目录](/docs/dev/plugins/data/)（`ctx.dataDir`）。
+
 OpenDesk 直接执行 JavaScript 入口，不会替插件编译 TypeScript。TypeScript 项目必须先构建，并把 JavaScript 产物及运行时依赖放入安装包。
 
 ### opendesk.plugin.json
@@ -398,8 +400,9 @@ export default {
 | 字段 | 类型 | 说明 |
 | --- | --- | --- |
 | pluginId | string | 当前插件 id |
-| pluginDir | string | 当前插件安装根目录的绝对路径 |
-| configDir | string | OpenDesk 配置目录的绝对路径 |
+| pluginDir | string | 当前插件安装根目录（代码目录）的绝对路径；覆盖安装与卸载会改动它 |
+| configDir | string | OpenDesk 配置目录的绝对路径，由所有应用与插件共享 |
+| dataDir | string | 当前插件私有数据目录的绝对路径；覆盖安装与重新启用后保持不变，卸载默认保留（0.3.10 起） |
 | options | Readonly object | 用户为插件保存的配置，已经由 configSchema 校验 |
 | hooks.on | function | 注册 Hook |
 | tools.register | function | 注册 Tool |
@@ -418,6 +421,8 @@ export default {
 | registry.fetch / registry.registerSkillRegistry / registry.registerMcpRegistry | function | 集成技能市场或 MCP 市场内容来源，fetch 继承宿主代理配置（0.3.7 起） |
 
 每个 `register` 或 `on` 方法都返回 PluginRegistration。通常不需要手工调用 `dispose`，因为宿主会在插件退出时统一清理；只有插件需要提前撤销某一项注册时才主动调用。
+
+`pluginDir`、`dataDir` 与 `configDir` 的区别：`pluginDir` 是插件代码目录，覆盖安装与卸载都会改动它；`dataDir` 是插件私有的持久化目录（`plugins/.pluginmgr/data/&lt;插件ID&gt;/`），覆盖安装、重新启用与重装后保持不变，卸载时默认保留；`configDir` 是整个 OpenDesk 配置目录根，由所有应用与插件共享，只有跨插件共享数据时才使用。`dataDir` 是普通属性，不需要声明 capability，用法与卸载时的保留策略详见[在插件中持久化保存数据](/docs/dev/plugins/data/)。
 
 ## 生命周期与安全边界
 

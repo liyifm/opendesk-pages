@@ -14,14 +14,16 @@ opendesk plugins install <本地目录、ZIP、TGZ、URL 或 npm spec>
 opendesk plugins list
 opendesk plugins enable <插件ID>
 opendesk plugins disable <插件ID>
-opendesk plugins uninstall <插件ID>
+opendesk plugins uninstall <插件ID> [--remove-data]
 ~~~
+
+卸载默认只删除插件代码，插件的私有数据目录（插件状态、缓存、账号文件等）会保留在 `plugins/.pluginmgr/data/<插件ID>/`，重新安装同一个插件后可以继续沿用；传入 `--remove-data`，或在插件中心的卸载确认弹窗中勾选“同时删除该插件的数据目录”，才会把数据一并删除，删除后不可恢复。
 
 插件代码在 OpenDesk 主进程中运行。安装或启用第三方插件前，应确认来源可信，并检查其文件、网络、进程和凭据访问行为。
 
 ## 开发插件
 
-需要创建自己的插件时，请阅读[插件开发指南](/docs/dev/plugins/)。指南从[插件结构概述](/docs/dev/plugins/)开始，并分章节讲解 Tool、MCP、Skills、钩子、自定义命令，以及调试与发布。
+需要创建自己的插件时，请阅读[插件开发指南](/docs/dev/plugins/)。指南从[插件结构概述](/docs/dev/plugins/)开始，并分章节讲解[数据持久化](/docs/dev/plugins/data/)、Tool、MCP、Skills、钩子、自定义命令，以及调试与发布。
 
 ## 相关文档
 

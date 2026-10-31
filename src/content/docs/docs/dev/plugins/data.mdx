@@ -1,0 +1,128 @@
+---
+title: "在插件中持久化保存数据"
+description: "使用 ctx.dataDir 保存插件状态、缓存与账号文件，并在覆盖安装、重装与卸载之间保持数据"
+---
+
+import VersionNote from '../../../../../components/VersionNote.astro';
+
+`ctx.pluginDir` 是插件的**代码目录**：覆盖安装会被整体替换，卸载会被移走。把状态文件、缓存或账号信息写在那里，一次升级就会全部丢失。
+
+OpenDesk 为每个插件准备了独立的私有数据目录，插件通过 `ctx.dataDir` 拿到它的绝对路径。该目录与插件代码目录分离，覆盖安装、升级、禁用后再启用都不会影响其中的内容，卸载时默认保留，重新安装同一个插件 id 后可以直接继承原有数据。
+
+`ctx.dataDir` 是一个普通属性，不需要声明任何 capability。
+
+<VersionNote since="0.3.10" />
+
+## 目录位置
+
+~~~text
+<OpenDesk 配置目录>/plugins/.pluginmgr/data/<插件ID>/
+~~~
+
+例如插件 id 为 `team-helper` 时：
+
+~~~text
+plugins/
+├── .pluginmgr/
+│   ├── registry.json
+│   ├── data/
+│   │   └── team-helper/          # ctx.dataDir 指向这里
+│   └── trash/
+└── team-helper/                  # ctx.pluginDir（代码目录）
+~~~
+
+数据目录位于 `.pluginmgr` 之下，不参与插件扫描：放进这里的文件永远不会被当作插件加载，插件也不会因为多出数据文件而被重新发现。目录名是**插件 id**，与插件目录名无关（手工改过插件目录名时尤其要注意）。
+
+宿主会在插件激活前创建该目录。创建失败（配置目录只读、被安全软件短暂占用等）不会阻止插件加载，只有在插件真正写入时才会拿到 `ENOENT` 或 `EPERM` 错误。
+
+## 与其它目录的区别
+
+| 路径 | 含义 | 覆盖安装 / 升级 | 卸载 |
+| --- | --- | --- | --- |
+| `ctx.pluginDir` | 插件代码目录，包含入口与 `node_modules` | 整体替换，内容重置为新版本 | 移入 `.pluginmgr/trash/` |
+| `ctx.dataDir` | 本插件私有数据目录 | 保持不变 | 默认保留，可选择一并删除 |
+| `ctx.configDir` | OpenDesk 配置目录根，所有应用与插件共享 | 保持不变 | 保持不变 |
+
+需要跨插件共享时才使用 `ctx.configDir`，并且必须自建子目录避免命名冲突；插件自己的状态一律写 `ctx.dataDir`。
+
+## 依赖 SDK 的示例
+
+把状态以 JSON 形式写入数据目录，使用"写临时文件再改名"的方式避免半截文件：
+
+~~~js
+import fs from 'node:fs';
+import path from 'node:path';
+import { definePlugin } from '@bitclub.ai/opendesk-plugin-sdk';
+
+function readState(ctx) {
+  const file = path.join(ctx.dataDir, 'state.json');
+  try {
+    return JSON.parse(fs.readFileSync(file, 'utf-8'));
+  } catch {
+    return { launchCount: 0 };
+  }
+}
+
+function writeState(ctx, state) {
+  const file = path.join(ctx.dataDir, 'state.json');
+  const temporary = `${file}.tmp`;
+  fs.writeFileSync(temporary, JSON.stringify(state, null, 2), 'utf-8');
+  fs.renameSync(temporary, file);
+}
+
+export default definePlugin({
+  id: 'team-helper',
+  capabilities: [],
+  setup(ctx) {
+    const state = readState(ctx);
+    state.launchCount += 1;
+    writeState(ctx, state);
+    console.info('Load count:', state.launchCount, 'data dir:', ctx.dataDir);
+  }
+});
+~~~
+
+## 不依赖 SDK 的示例
+
+数据目录同样可用，只是少了类型检查：
+
+~~~js
+import fs from 'node:fs';
+import path from 'node:path';
+
+export default {
+  id: 'team-helper',
+  capabilities: [],
+  setup(ctx) {
+    const cacheDirectory = path.join(ctx.dataDir, 'cache');
+    fs.mkdirSync(cacheDirectory, { recursive: true });
+    console.info('Cache directory:', cacheDirectory);
+  }
+};
+~~~
+
+## 卸载时如何处理数据
+
+卸载插件默认**只删除代码目录**，数据目录原样保留，因此重新安装同一个 id 的插件后可以直接读取原有状态。需要彻底清理时，在各入口显式选择删除：
+
+| 入口 | 操作 | 结果 |
+| --- | --- | --- |
+| GUI 插件中心 | 卸载确认弹窗中勾选"同时删除该插件的数据目录"（默认不勾选） | 代码目录进 `.pluginmgr/trash/`，数据目录被直接删除 |
+| TUI 插件列表 / 设置 → 插件中心 | 选择"确认卸载并删除数据目录" | 同上 |
+| CLI | `opendesk plugins uninstall <插件ID> --remove-data` | 同上 |
+| Agent 的 `uninstallPlugin` 工具 | 不支持删除数据 | 始终保留数据目录 |
+
+被删除的数据不进入回收站，无法恢复；代码目录仍然可以在 `.pluginmgr/trash/` 中找回。删除数据目录失败时（例如插件的数据库文件仍被残留进程占用）会重试若干次再放弃，不会让已经完成的卸载变成失败。
+
+## 建议
+
+- **只写数据，不写代码**：放进数据目录的文件不会被执行，但把入口或依赖放进去会让插件在升级后行为不一致。
+- **自己管理子目录**：整个 `data/<插件ID>/` 都属于该插件，按用途分子目录（如 `cache/`、`state/`、`accounts/`）便于清理。
+- **缓存要可重建**：数据目录在用户勾选删除时会被整目录移除，插件必须能在目录为空的情况下正常启动。
+- **兼容旧宿主**：`ctx.dataDir` 从 0.3.10 起提供；在更早的版本上该值为 `undefined`，需要兼容时先判断再回退（例如回退到 `ctx.pluginDir` 并提示数据可能丢失）。
+- **不要依赖目录名**：目录由插件 id 决定；如果插件更换 id，旧数据不会被自动迁移。
+
+## 相关
+
+- [插件结构概述](/docs/dev/plugins/) — manifest、入口对象与 PluginContext 全貌
+- [插件的调试与发布](/docs/dev/plugins/debug-publish/) — 安装目录、外部插件与 `opendesk plugins` 校验命令

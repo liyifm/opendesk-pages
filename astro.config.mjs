@@ -173,6 +173,7 @@ export default defineConfig({
           label: '插件开发指南',
           items: [
             { label: '插件结构概述', slug: 'docs/dev/plugins' },
+            { label: '在插件中持久化保存数据', slug: 'docs/dev/plugins/data' },
             { label: '在插件中添加工具', slug: 'docs/dev/plugins/tool' },
             { label: '在插件中挂载 MCP', slug: 'docs/dev/plugins/mcp' },
             { label: '在插件中添加 Skills', slug: 'docs/dev/plugins/skills' },
