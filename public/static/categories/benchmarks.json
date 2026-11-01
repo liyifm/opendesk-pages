@@ -2,10 +2,10 @@
   {
     "id": "workbuddy-bench",
     "name": "WorkBuddy Bench",
-    "description": "WorkBuddy Bench 的 Office 与 Code 两个 track：Office 50 个办公文件处理用例，Code 80 个仓库级软件工程用例。",
+    "description": "WorkBuddy Bench 的 Office / Code / Web track：Office 50 个办公文件处理用例，Code 80 个仓库级软件工程用例，Web 70 个前端实现与交互用例。",
     "homepage": "https://github.com/Tencent/workbuddy-bench",
-    "version": "0.1",
-    "downloadUrl": "https://gitcode.com/openharmony-robot/OpenDesk/releases/download/benchmarks/workbuddy-bench-0.1.zip",
+    "version": "0.2",
+    "downloadUrl": "https://gitcode.com/openharmony-robot/OpenDesk/releases/download/benchmarks/workbuddy-bench-0.2.zip",
     "tracks": [
       {
         "id": "office",
@@ -15,7 +15,42 @@
       {
         "id": "code",
         "name": "Code",
-        "description": "仓库级软件工程（Python），评分 = 注入测试后的 pytest 通过率"
+        "description": "仓库级软件工程（Python），评分 = 官方 verifier 的检查通过率"
+      },
+      {
+        "id": "web",
+        "name": "Web",
+        "description": "前端页面实现与交互（HTML/CSS/JS），评分 = 官方 rubric 的 penalty 加权扣分"
+      }
+    ]
+  },
+  {
+    "id": "webvoyager",
+    "name": "WebVoyager",
+    "description": "WebVoyager 的 643 个真实站点浏览器任务（Amazon / GitHub / Google Flights / Booking 等 15 个站点）：在活网页上完成搜索、导航、表单与信息检索，必须使用内置浏览器 use-browser；任务真正完成得 1 分。",
+    "homepage": "https://github.com/MinorJerry/WebVoyager",
+    "version": "0.1",
+    "downloadUrl": "https://gitcode.com/openharmony-robot/OpenDesk/releases/download/benchmarks/WebVoyager-0.1.zip",
+    "tracks": [
+      {
+        "id": "webvoyager",
+        "name": "WebVoyager",
+        "description": "真实站点上的端到端浏览器任务，成功=1、失败=0"
+      }
+    ]
+  },
+  {
+    "id": "browsecomp",
+    "name": "BrowseComp",
+    "description": "OpenAI BrowseComp 的 1266 道短答案浏览研究题（20+ 主题）：答案易于验证但难以检索，必须使用内置浏览器 use-browser 持续浏览定位；提取答案与标准答案等价得 1 分。",
+    "homepage": "https://openai.com/index/browsecomp/",
+    "version": "0.1",
+    "downloadUrl": "https://gitcode.com/openharmony-robot/OpenDesk/releases/download/benchmarks/BrowseComp-0.1.zip",
+    "tracks": [
+      {
+        "id": "browsecomp",
+        "name": "BrowseComp",
+        "description": "短答案浏览研究，答案等价 0/1 判定"
       }
     ]
   }
