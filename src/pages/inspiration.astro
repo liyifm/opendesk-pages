@@ -1,0 +1,725 @@
+---
+import SiteLayout from '../layouts/SiteLayout.astro';
+---
+
+<SiteLayout frontmatter={{ title: '灵感社区', description: '浏览 OpenDesk 官方灵感案例' }}>
+  <section class="content-page inspiration-community-page" data-inspiration-community>
+    <div class="inspiration-community__header">
+      <div>
+        <p class="inspiration-community__eyebrow">OPENDESK COMMUNITY</p>
+        <h1>灵感社区</h1>
+        <p>浏览官方灵感案例，先看成果，再把适合的做法带回 OpenDesk。</p>
+      </div>
+      <span class="inspiration-community__source">官方案例</span>
+    </div>
+
+    <div class="inspiration-community__status" data-inspiration-status aria-live="polite">正在加载案例…</div>
+    <div class="inspiration-community__toolbar">
+      <nav class="inspiration-community__filters" data-inspiration-filters aria-label="案例分类">
+        <button type="button" class="is-active" data-inspiration-filter="all">全部精选</button>
+        <button type="button" data-inspiration-filter="analysis">数据分析</button>
+        <button type="button" data-inspiration-filter="productivity">效率工作</button>
+        <button type="button" data-inspiration-filter="website">网页套版</button>
+      </nav>
+      <label class="inspiration-community__search">
+        <span aria-hidden="true">⌕</span>
+        <input type="search" data-inspiration-search placeholder="搜索案例" aria-label="搜索案例" />
+      </label>
+    </div>
+    <div class="inspiration-community__grid" data-inspiration-grid></div>
+
+    <dialog class="inspiration-community__dialog" data-inspiration-dialog aria-labelledby="inspiration-dialog-title">
+      <div data-inspiration-dialog-content></div>
+    </dialog>
+  </section>
+</SiteLayout>
+
+<script>
+  const escapeHtml = (value: unknown) =>
+    String(value ?? '')
+      .replaceAll('&', '&amp;')
+      .replaceAll('<', '&lt;')
+      .replaceAll('>', '&gt;')
+      .replaceAll('"', '&quot;')
+      .replaceAll("'", '&#39;');
+
+  const labels: Record<string, string> = {
+    analysis: '分析',
+    productivity: '效率',
+    website: '网页',
+  };
+
+  const initialize = () => {
+    const root = document.querySelector<HTMLElement>('[data-inspiration-community]');
+    if (!root || root.dataset.initialized === 'true') return;
+    root.dataset.initialized = 'true';
+
+    const status = root.querySelector<HTMLElement>('[data-inspiration-status]');
+    const grid = root.querySelector<HTMLElement>('[data-inspiration-grid]');
+    const dialog = root.querySelector<HTMLDialogElement>('[data-inspiration-dialog]');
+    const dialogContent = root.querySelector<HTMLElement>('[data-inspiration-dialog-content]');
+    const search = root.querySelector<HTMLInputElement>('[data-inspiration-search]');
+    if (!status || !grid || !dialog || !dialogContent) return;
+
+    let cases: Array<any> = [];
+    let category = 'all';
+    let query = '';
+
+    const showError = () => {
+      status.innerHTML = '<span>灵感案例暂时无法加载。</span><button type="button" data-inspiration-retry>重试</button>';
+      root.querySelector<HTMLButtonElement>('[data-inspiration-retry]')?.addEventListener('click', load);
+    };
+
+    const renderPreview = async (host: HTMLElement, preview: any, compact = false) => {
+      host.textContent = '正在加载预览…';
+      if (!preview) return;
+      if (preview.type === 'html') {
+        const iframe = document.createElement('iframe');
+        iframe.title = String(preview.title?.['zh-CN'] || '灵感案例预览');
+        iframe.setAttribute('sandbox', '');
+        iframe.src = preview.url;
+        iframe.className = compact ? 'inspiration-community__preview-frame--card' : '';
+        host.replaceChildren(iframe);
+        return;
+      }
+      try {
+        const response = await fetch(preview.url);
+        if (!response.ok) throw new Error('preview failed');
+        const pre = document.createElement('pre');
+        pre.textContent = await response.text();
+        host.replaceChildren(pre);
+      } catch {
+        host.textContent = '预览加载失败，请稍后重试。';
+      }
+    };
+
+    const mountDialogPreview = async (entry: any, previewIndex: number) => {
+      const previewRoot = dialog.querySelector<HTMLElement>('[data-inspiration-preview]');
+      const preview = entry.previewFiles?.[previewIndex];
+      if (!previewRoot || !preview) return;
+      await renderPreview(previewRoot, preview);
+      dialog.querySelectorAll<HTMLButtonElement>('[data-dialog-preview]').forEach((button) => {
+        button.classList.toggle('is-active', Number(button.dataset.dialogPreview) === previewIndex);
+      });
+    };
+
+    const openCase = async (index: number, previewIndex = 0) => {
+      const entry = cases[index];
+      if (!entry) return;
+      const manifest = entry.manifest;
+      dialogContent.innerHTML = `
+        <div class="inspiration-community__dialog-head"><button type="button" class="inspiration-community__back" data-inspiration-close>← 返回案例</button><span class="inspiration-community__tag">${escapeHtml(labels[manifest.category] || manifest.category)}</span></div>
+        <div class="inspiration-community__dialog-layout">
+          <div class="inspiration-community__dialog-preview"><div class="inspiration-community__preview-heading"><span>案例预览</span><span>示例成果</span></div><nav class="inspiration-community__preview-tabs">${(entry.previewFiles || []).map((file: any, fileIndex: number) => `<button type="button" data-dialog-preview="${fileIndex}" class="${fileIndex === previewIndex ? 'is-active' : ''}">${escapeHtml(file.title?.['zh-CN'] || file.path)}</button>`).join('')}</nav><div class="inspiration-community__preview" data-inspiration-preview>正在加载预览…</div><div class="inspiration-community__outputs"><span>预期产物</span>${(manifest.outputs || []).map((output: any) => `<code>${escapeHtml(output.path)}</code>`).join('')}</div></div>
+          <aside class="inspiration-community__dialog-info"><button type="button" class="inspiration-community__info-toggle" data-inspiration-info-toggle aria-expanded="true" aria-controls="inspiration-dialog-info-body" title="收起案例信息"><span class="inspiration-community__info-toggle-icon" aria-hidden="true">▾</span></button><div class="inspiration-community__info-body" id="inspiration-dialog-info-body"><div class="inspiration-community__eyebrow">${escapeHtml(manifest.kind === 'template' ? '网页套版' : '灵感配方')}</div><h2 id="inspiration-dialog-title">${escapeHtml(manifest.title?.['zh-CN'])}</h2><p class="inspiration-community__dialog-description">${escapeHtml(manifest.description?.['zh-CN'])}</p><div class="inspiration-community__dialog-meta">作者：${escapeHtml(manifest.author?.name || 'OpenDesk 社区')} · 版本 ${escapeHtml(manifest.version)}</div><div class="inspiration-community__dialog-note">在 OpenDesk Client 中可以使用同一案例资源生成任务草稿。</div></div></aside>
+        </div>`;
+      dialog.showModal();
+      dialog.querySelector<HTMLButtonElement>('[data-inspiration-close]')?.addEventListener('click', () => dialog.close());
+      const infoToggle = dialog.querySelector<HTMLButtonElement>('[data-inspiration-info-toggle]');
+      infoToggle?.addEventListener('click', () => {
+        const panel = infoToggle.closest<HTMLElement>('.inspiration-community__dialog-info');
+        if (!panel) return;
+        const collapsed = panel.classList.toggle('is-collapsed');
+        infoToggle.setAttribute('aria-expanded', collapsed ? 'false' : 'true');
+        infoToggle.title = collapsed ? '展开案例信息' : '收起案例信息';
+      });
+      dialog.querySelectorAll<HTMLButtonElement>('[data-dialog-preview]').forEach((button) => {
+        button.addEventListener('click', () => void mountDialogPreview(entry, Number(button.dataset.dialogPreview)));
+      });
+      await mountDialogPreview(entry, previewIndex);
+    };
+
+    const render = () => {
+      const normalizedQuery = query.trim().toLocaleLowerCase();
+      const visibleCases = cases
+        .map((entry, index) => ({ entry, index }))
+        .filter(({ entry }) => {
+          const manifest = entry.manifest;
+          if (category !== 'all' && manifest.category !== category) return false;
+          if (!normalizedQuery) return true;
+          return `${manifest.title?.['zh-CN']} ${manifest.description?.['zh-CN']} ${manifest.author?.name}`
+            .toLocaleLowerCase()
+            .includes(normalizedQuery);
+        });
+      grid.innerHTML = visibleCases.length
+        ? visibleCases
+        .map(({ entry, index }) => {
+          const { manifest } = entry;
+          return `<article class="inspiration-community__card">
+            <div class="inspiration-community__card-preview" data-inspiration-preview-index="${index}"></div>
+            <div class="inspiration-community__card-body">
+              <strong>${escapeHtml(manifest.title?.['zh-CN'])}</strong>
+              <span class="inspiration-community__author">${escapeHtml(manifest.author?.name || 'OpenDesk 社区')}</span>
+              <button type="button" class="inspiration-community__detail" data-inspiration-index="${index}">查看案例详情 →</button>
+            </div>
+          </article>`;
+        })
+        .join('')
+        : '<div class="inspiration-community__empty"><strong>没有找到匹配案例</strong><span>换个关键词或分类试试。</span></div>';
+      grid.querySelectorAll<HTMLElement>('[data-inspiration-preview-index]').forEach((host) => {
+        const index = Number(host.dataset.inspirationPreviewIndex);
+        void renderPreview(host, cases[index]?.previewFiles?.[0], true);
+      });
+      grid.querySelectorAll<HTMLButtonElement>('[data-inspiration-index]').forEach((button) => {
+        button.addEventListener('click', () => openCase(Number(button.dataset.inspirationIndex)));
+      });
+    };
+
+    async function load() {
+      status.textContent = '正在加载案例…';
+      grid.replaceChildren();
+      try {
+        const response = await fetch('/api/inspiration/catalog/');
+        if (!response.ok) throw new Error('catalog failed');
+        const body = await response.json();
+        if (!Array.isArray(body.cases)) throw new Error('invalid catalog');
+        cases = body.cases;
+        status.textContent = `${cases.length} 个官方灵感案例`;
+        render();
+      } catch {
+        showError();
+      }
+    }
+
+    dialog.addEventListener('click', (event) => {
+      if (event.target === dialog) dialog.close();
+    });
+    root.querySelectorAll<HTMLButtonElement>('[data-inspiration-filter]').forEach((button) => {
+      button.addEventListener('click', () => {
+        category = button.dataset.inspirationFilter || 'all';
+        root.querySelectorAll<HTMLButtonElement>('[data-inspiration-filter]').forEach((item) => item.classList.toggle('is-active', item === button));
+        render();
+      });
+    });
+    search?.addEventListener('input', () => {
+      query = search.value;
+      render();
+    });
+    load();
+  };
+
+  initialize();
+  document.addEventListener('astro:page-load', initialize);
+</script>
+
+<style is:global>
+  /* 弹窗与卡片内容均由脚本在运行时通过 innerHTML 注入，无法携带 Astro 作用域类，
+     因此整个组件样式必须使用全局作用域；所有类名均带 inspiration-community__ 前缀避免冲突。 */
+  .inspiration-community-page {
+    max-width: 1120px;
+  }
+
+  .inspiration-community__header {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 24px;
+    margin-bottom: 28px;
+  }
+
+  .inspiration-community__eyebrow {
+    margin: 0 0 10px;
+    color: var(--accent-deep);
+    font-size: 12px;
+    font-weight: 800;
+    letter-spacing: 0.16em;
+  }
+
+  .inspiration-community__header h1 {
+    margin: 0 0 12px;
+  }
+
+  .inspiration-community__header p:not(.inspiration-community__eyebrow) {
+    max-width: 620px;
+    margin: 0;
+    color: var(--muted);
+    line-height: 1.7;
+  }
+
+  .inspiration-community__source,
+  .inspiration-community__tag {
+    display: inline-flex;
+    align-items: center;
+    width: fit-content;
+    border: 1px solid rgba(29, 127, 103, 0.24);
+    border-radius: 999px;
+    background: rgba(29, 127, 103, 0.08);
+    color: var(--accent-deep);
+    font-size: 12px;
+    font-weight: 760;
+    padding: 6px 10px;
+  }
+
+  .inspiration-community__status {
+    min-height: 28px;
+    margin-bottom: 18px;
+    color: var(--muted);
+    font-size: 14px;
+  }
+
+  .inspiration-community__status button {
+    margin-left: 10px;
+    border: 0;
+    background: none;
+    color: var(--accent-deep);
+    cursor: pointer;
+    font: inherit;
+    font-weight: 760;
+    text-decoration: underline;
+  }
+
+  .inspiration-community__toolbar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+    margin-bottom: 20px;
+    flex-wrap: wrap;
+  }
+
+  .inspiration-community__filters {
+    display: flex;
+    gap: 4px;
+    flex-wrap: wrap;
+  }
+
+  .inspiration-community__filters button {
+    border: 0;
+    border-radius: 8px;
+    background: transparent;
+    color: var(--muted);
+    padding: 8px 12px;
+    cursor: pointer;
+    font: inherit;
+    font-size: 13px;
+  }
+
+  .inspiration-community__filters button:hover {
+    background: rgba(29, 127, 103, 0.08);
+  }
+
+  .inspiration-community__filters button.is-active {
+    background: var(--ink);
+    color: var(--surface);
+  }
+
+  .inspiration-community__search {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    width: 220px;
+    border: 1px solid var(--line);
+    border-radius: 9px;
+    background: var(--surface);
+    color: var(--muted);
+    padding: 8px 11px;
+  }
+
+  .inspiration-community__search input {
+    width: 100%;
+    border: 0;
+    outline: 0;
+    background: transparent;
+    color: var(--ink);
+    font: inherit;
+    font-size: 13px;
+  }
+
+  .inspiration-community__grid {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 18px;
+  }
+
+  .inspiration-community__card {
+    display: grid;
+    overflow: hidden;
+    min-height: 0;
+    border: 1px solid var(--line);
+    border-radius: 12px;
+    background: var(--surface);
+    color: var(--ink);
+    text-align: left;
+    transition: transform 180ms ease, border-color 180ms ease, box-shadow 180ms ease;
+  }
+
+  .inspiration-community__card:hover {
+    transform: translateY(-2px);
+    border-color: rgba(29, 127, 103, 0.42);
+    box-shadow: 0 18px 40px rgba(16, 19, 20, 0.1);
+  }
+
+  .inspiration-community__card-preview {
+    aspect-ratio: 16 / 10;
+    overflow: hidden;
+    border-bottom: 1px solid var(--line);
+    background: #fff;
+  }
+
+  .inspiration-community__card-preview iframe {
+    display: block;
+    width: 200%;
+    height: 200%;
+    border: 0;
+    background: #fff;
+    pointer-events: none;
+    transform: scale(0.5);
+    transform-origin: top left;
+  }
+
+  .inspiration-community__card-preview pre {
+    overflow: hidden;
+    height: 100%;
+    margin: 0;
+    padding: 14px;
+    color: #26322f;
+    font: 11px/1.55 ui-monospace, SFMono-Regular, Menlo, monospace;
+    white-space: pre-wrap;
+  }
+
+  .inspiration-community__card-body {
+    display: grid;
+    gap: 13px;
+    padding: 16px 18px 17px;
+  }
+
+  .inspiration-community__card strong {
+    font-size: 19px;
+    line-height: 1.3;
+  }
+
+  .inspiration-community__author {
+    color: var(--muted);
+    font-size: 13px;
+  }
+
+  .inspiration-community__detail {
+    width: fit-content;
+    border: 0;
+    background: transparent;
+    color: var(--accent-deep);
+    padding: 0;
+    cursor: pointer;
+    font: inherit;
+    font-size: 13px;
+    font-weight: 760;
+  }
+
+  .inspiration-community__empty {
+    display: grid;
+    justify-items: center;
+    gap: 8px;
+    grid-column: 1 / -1;
+    padding: 70px 20px;
+    border: 1px dashed var(--line);
+    border-radius: 12px;
+    color: var(--muted);
+  }
+
+  .inspiration-community__dialog {
+    width: min(1600px, 98vw);
+    height: min(1040px, 98dvh);
+    max-width: none;
+    max-height: none;
+    overflow: hidden;
+    border: 1px solid var(--line);
+    border-radius: 14px;
+    background: var(--surface);
+    color: var(--ink);
+    padding: 0;
+  }
+
+  .inspiration-community__dialog > div {
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+    height: 100%;
+    padding: 16px;
+  }
+
+  .inspiration-community__dialog::backdrop {
+    background: rgba(16, 19, 20, 0.5);
+  }
+
+  .inspiration-community__dialog-head {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 18px;
+  }
+
+  .inspiration-community__back {
+    border: 0;
+    background: transparent;
+    color: var(--muted);
+    padding: 0;
+    cursor: pointer;
+    font: inherit;
+  }
+
+  .inspiration-community__dialog-layout {
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+    flex: 1 1 auto;
+    margin-top: 10px;
+  }
+
+  .inspiration-community__dialog-preview,
+  .inspiration-community__dialog-info {
+    display: flex;
+    min-width: 0;
+    min-height: 0;
+    flex-direction: column;
+  }
+
+  .inspiration-community__dialog-preview {
+    width: 100%;
+    flex: 1 1 auto;
+  }
+
+  .inspiration-community__dialog-info {
+    position: absolute;
+    z-index: 2;
+    top: 16px;
+    right: 16px;
+    width: min(280px, 30%);
+    height: auto;
+    max-height: calc(100% - 32px);
+    overflow: auto;
+    border: 1px solid var(--line);
+    border-radius: 12px;
+    background: color-mix(in srgb, var(--surface) 92%, transparent);
+    padding: 16px;
+    backdrop-filter: blur(14px);
+  }
+
+  /* 案例信息浮层的收起/展开切换：收起后仅保留右上角小按钮，避免遮挡 HTML 预览 */
+  .inspiration-community__info-toggle {
+    align-self: flex-end;
+    flex: 0 0 auto;
+    width: 28px;
+    height: 28px;
+    display: grid;
+    place-items: center;
+    margin-bottom: 8px;
+    border: 1px solid var(--line);
+    border-radius: 9px;
+    background: color-mix(in srgb, var(--paper) 88%, transparent);
+    color: var(--ink);
+    cursor: pointer;
+    padding: 0;
+    font-size: 14px;
+    line-height: 1;
+  }
+
+  .inspiration-community__info-toggle:hover {
+    border-color: var(--accent, #1d7f67);
+  }
+
+  .inspiration-community__info-toggle-icon {
+    display: inline-block;
+    transition: transform 0.18s ease;
+  }
+
+  .inspiration-community__info-body {
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+  }
+
+  .inspiration-community__dialog-info.is-collapsed {
+    width: auto;
+    height: auto;
+    max-height: none;
+    overflow: visible;
+    padding: 4px;
+  }
+
+  .inspiration-community__dialog-info.is-collapsed .inspiration-community__info-toggle {
+    margin-bottom: 0;
+  }
+
+  .inspiration-community__dialog-info.is-collapsed .inspiration-community__info-toggle-icon {
+    transform: rotate(90deg);
+  }
+
+  .inspiration-community__dialog-info.is-collapsed .inspiration-community__info-body {
+    display: none;
+  }
+
+  .inspiration-community__preview-heading {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 10px;
+    color: var(--muted);
+    font-size: 12px;
+  }
+
+  .inspiration-community__preview-tabs {
+    display: flex;
+    gap: 4px;
+    overflow-x: auto;
+    margin-bottom: 10px;
+  }
+
+  .inspiration-community__preview-tabs button {
+    flex: 0 0 auto;
+    border: 0;
+    border-radius: 7px;
+    background: transparent;
+    color: var(--muted);
+    padding: 7px 10px;
+    cursor: pointer;
+    font: inherit;
+    font-size: 12px;
+  }
+
+  .inspiration-community__preview-tabs button.is-active {
+    background: rgba(29, 127, 103, 0.1);
+    color: var(--accent-deep);
+    font-weight: 760;
+  }
+
+  .inspiration-community__dialog h2 {
+    margin: 14px 0 0;
+  }
+
+  .inspiration-community__close {
+    border: 1px solid var(--line);
+    border-radius: 999px;
+    background: transparent;
+    color: var(--muted);
+    padding: 7px 12px;
+    cursor: pointer;
+    font: inherit;
+  }
+
+  .inspiration-community__dialog-description {
+    color: var(--muted);
+    line-height: 1.7;
+  }
+
+  .inspiration-community__dialog-info h2 {
+    margin: 12px 0;
+    font-size: 28px;
+    line-height: 1.25;
+  }
+
+  .inspiration-community__dialog-note {
+    margin-top: auto;
+    border: 1px solid var(--line);
+    border-radius: 9px;
+    background: rgba(29, 127, 103, 0.06);
+    color: var(--muted);
+    padding: 12px;
+    font-size: 13px;
+    line-height: 1.6;
+  }
+
+  .inspiration-community__outputs {
+    display: grid;
+    grid-template-columns: auto minmax(0, 1fr);
+    align-items: start;
+    gap: 10px 12px;
+    margin-top: 10px;
+    color: var(--muted);
+    font-size: 12px;
+  }
+
+  .inspiration-community__outputs code {
+    display: block;
+    width: fit-content;
+    border: 1px solid var(--line);
+    border-radius: 5px;
+    padding: 3px 6px;
+    color: var(--ink);
+    font: 11px ui-monospace, SFMono-Regular, Menlo, monospace;
+  }
+
+  .inspiration-community__preview {
+    flex: 1 1 auto;
+    overflow: hidden;
+    min-height: 0;
+    border: 1px solid var(--line);
+    border-radius: 10px;
+    background: var(--paper);
+  }
+
+  .inspiration-community__preview iframe {
+    display: block;
+    width: 100%;
+    height: 100%;
+    min-height: 0;
+    border: 0;
+    background: #fff;
+  }
+
+  .inspiration-community__preview pre {
+    overflow: auto;
+    height: 100%;
+    margin: 0;
+    padding: 18px;
+    white-space: pre-wrap;
+    color: var(--ink);
+    font: 13px/1.65 ui-monospace, SFMono-Regular, Menlo, monospace;
+  }
+
+  .inspiration-community__dialog-meta {
+    margin-top: 14px;
+    color: var(--muted);
+    font-size: 13px;
+  }
+
+  @media (max-width: 820px) {
+    .inspiration-community__grid {
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+  }
+
+  @media (max-width: 560px) {
+    .inspiration-community__header {
+      display: grid;
+    }
+
+    .inspiration-community__grid {
+      grid-template-columns: 1fr;
+    }
+
+    .inspiration-community__dialog {
+      width: calc(100vw - 12px);
+      height: calc(100dvh - 12px);
+    }
+
+    .inspiration-community__dialog > div {
+      padding: 18px;
+    }
+
+    .inspiration-community__search {
+      width: 100%;
+    }
+
+    .inspiration-community__dialog-layout {
+      display: flex;
+      flex-direction: column;
+    }
+
+    .inspiration-community__dialog-info {
+      position: static;
+      width: auto;
+      max-height: none;
+      overflow: visible;
+      flex: 0 0 auto;
+    }
+
+    .inspiration-community__dialog-note {
+      margin-top: 14px;
+    }
+  }
+
+  :root[data-theme="dark"] .inspiration-community__preview iframe {
+    background: #fff;
+  }
+</style>

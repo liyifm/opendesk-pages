@@ -5,6 +5,7 @@ import { register as registerStats } from './routes/stats.js'
 import { register as registerStatsDaily } from './routes/stats-daily.js'
 import { register as registerFeedback } from './routes/feedback.js'
 import { register as registerAccount } from './routes/account.js'
+import { register as registerInspiration } from './routes/inspiration.js'
 
 // 所有 /api/* 请求统一交由 Hono 处理（唯一事实来源）：
 // - 开发环境：@hono/vite-dev-server 用 exclude 放行 /api 前缀，原样交给 app；
@@ -21,6 +22,7 @@ export function createApi() {
   registerStatsDaily(app)
   registerFeedback(app)
   registerAccount(app)
+  registerInspiration(app)
 
   app.notFound((c) => c.json({ error: 'Not Found' }, 404))
   return app
