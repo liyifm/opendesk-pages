@@ -70,7 +70,7 @@ dist/plugins/
 
 Electron 打包时，`dist/plugins` 会作为只读资源复制到 `process.resourcesPath/plugins`；独立 CLI/TUI 从可执行文件相邻的 `dist/plugins` 读取相同产物。开发环境也加载 `dist/plugins`，因此修改内置插件源码后需要重新执行插件构建或重启开发命令。
 
-内置插件在 `pluginmgr` 中的来源为 `builtin`，默认启用且不允许卸载。启停、权限和 options 只作为用户策略写入 `pluginmgr` 注册表，不会修改内置插件文件。内置插件 `id` 具有最高优先级；用户目录、托管安装或外部路径中的同 `id` 插件不会覆盖内置插件。
+内置插件在 `pluginmgr` 中的来源为 `builtin`，默认启用且不允许卸载。普通内置插件的启停、权限和 options 只作为用户策略写入 `pluginmgr` 注册表，不会修改内置插件文件；在清单里声明 `system: true` 的内置插件启停由清单固定（见[插件结构概述](/docs/dev/plugins/)中的「system 与 enabled」），插件中心、`opendesk plugins enable/disable` 和 Agent 的 `setPluginEnabled` 工具都不能修改。内置插件 `id` 具有最高优先级；用户目录、托管安装或外部路径中的同 `id` 插件不会覆盖内置插件。
 
 ## 安装与开发目录
 

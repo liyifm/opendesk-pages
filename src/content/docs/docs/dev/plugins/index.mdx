@@ -125,7 +125,30 @@ export default {
 | platforms | string[] | 否 | 限制插件可运行的目标平台，值为 `win32`、`darwin`、`linux`、`android`、`openharmony` 之一。未指定时任意平台都加载该插件 |
 | minOpenDeskVersion | string | 否 | 可运行的最低 OpenDesk 语义化版本 |
 | maxOpenDeskVersion | string | 否 | 可运行的最高 OpenDesk 语义化版本 |
+| system | boolean | 否 | 仅内置插件生效：由清单固定该插件的启停状态，插件中心与 CLI 都不允许再修改它的开关；后装插件声明会被忽略 |
+| enabled | boolean | 否 | 仅配合 `system: true` 生效：`true`（缺省）始终启用，`false` 始终禁用 |
 | resources | object | 否 | 无需执行 `setup` 即可声明的静态 Skill、MCP Server 和子 Agent |
+
+### system 与 enabled（仅内置插件）
+
+随产品一起发布的内置插件可以用这两个布尔字段把启停状态固定下来（当前 `opencodego` 即固定为始终启用）：
+
+~~~json
+{
+  "schemaVersion": 1,
+  "id": "example-builtin",
+  "entry": "./index.mjs",
+  "apiVersion": 1,
+  "capabilities": ["hook"],
+  "system": true,
+  "enabled": true
+}
+~~~
+
+- `system: true`：该插件的开关由清单固定。插件中心（GUI / TUI）与 `opendesk plugins list` 都会标出系统插件（GUI 开关置灰、TUI 不提供切换入口），`opendesk plugins enable/disable` 与 Agent 的 `setPluginEnabled` 工具同样会被拒绝；
+- `enabled`：`system` 固定时的实际状态。`true`（或缺省）表示始终启用；`false` 表示始终禁用，固定禁用的插件不会进入运行时，但仍会出现在插件列表里并标明原因。
+
+这两个字段**只对内置插件生效**。通过插件中心、`opendesk plugins install`、手工放入 `plugins/` 目录、`externalPaths` 或运行时插件目录声明的插件即使写了 `system` / `enabled`，宿主也只会在加载时记录一条 warning 并忽略它们，开关仍由用户控制。字段类型必须是布尔值，否则 manifest 校验失败（`plugin.manifest_invalid_system` / `plugin.manifest_invalid_enabled`）。
 
 ### displayName 本地化
 

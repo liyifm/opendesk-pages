@@ -17,6 +17,8 @@ opendesk plugins disable <插件ID>
 opendesk plugins uninstall <插件ID> [--remove-data]
 ~~~
 
+内置插件默认启用且不可卸载；其中在清单里声明了 `system: true` 的系统插件启停状态由 OpenDesk 固定，插件中心与 `opendesk plugins enable/disable` 都不能修改，插件列表会把它们标记为系统插件。
+
 卸载默认只删除插件代码，插件的私有数据目录（插件状态、缓存、账号文件等）会保留在 `plugins/.pluginmgr/data/<插件ID>/`，重新安装同一个插件后可以继续沿用；传入 `--remove-data`，或在插件中心的卸载确认弹窗中勾选“同时删除该插件的数据目录”，才会把数据一并删除，删除后不可恢复。
 
 插件代码在 OpenDesk 主进程中运行。安装或启用第三方插件前，应确认来源可信，并检查其文件、网络、进程和凭据访问行为。

@@ -394,6 +394,8 @@ opendesk plugins enable <插件ID>
 opendesk plugins disable <插件ID>
 ```
 
+声明了 `system: true` 的内置插件（系统插件）启停状态由 OpenDesk 固定，`enable` / `disable` 会直接拒绝；`plugins list` 会把它们标注为系统插件。
+
 **输出示例**
 
 ```
