@@ -52,42 +52,42 @@ Channel 是一个实现了以下契约的类实例：
 
 | 成员 | 类型 | 必填 | 说明 |
 | --- | --- | --- | --- |
-| meta | ChannelMeta | 是 | 渠道元数据：id、label、description、aliases |
-| capabilities | ChannelCapabilities | 是 | 渠道能力：会话形态、媒体、主题回复、结构化交互 |
-| configSchema | object | 否 | 非敏感配置的 JSON Schema，OpenDesk 据此渲染配置 UI |
-| setChannelRuntimeContext | function | 是 | OpenDesk 注入运行时上下文，实现者自行保存 |
-| listAccounts | async function | 是 | 列出已登录/已配置的账号 |
-| supportLoginWithQr | boolean | 是 | 是否支持扫码登录；为 true 时必须实现两个 QR 方法 |
-| getAccountLoginQr | function | 视能力 | 发起扫码登录，返回二维码会话 |
-| loginAccountWithQrWait | function | 视能力 | 轮询等待扫码结果，成功返回账号 |
-| getAccountLoginParams | function | 否 | 参数登录的表单字段描述，据此渲染登录表单 |
-| loginAccountWithParams | function | 视能力 | 用表单值登录，成功返回账号 |
-| checkAccountStatus | function | 是 | 主动检查账号连接是否正常（如 token 是否过期） |
-| logoutAccount | function | 是 | 登出并清理该账号的持久化凭证 |
-| start | async function | 是 | 启动账号的长连接（WebSocket/轮询/Webhook 订阅） |
-| stop | function | 是 | 停止账号的连接并清理资源 |
-| reload | function | 否 | 配置热更新入口；未实现则执行 stop + start |
-| sendOutboundMessage | async function | 是 | 发送消息到目标，返回平台消息 id 作为回执 |
-| sendInteraction | async function | 视能力 | 发送结构化交互请求；`interactive: true` 时必须实现 |
+| meta | `ChannelMeta` | 是 | 渠道元数据：id、label、description、aliases |
+| capabilities | `ChannelCapabilities` | 是 | 渠道能力：会话形态、媒体、主题回复、结构化交互 |
+| configSchema | `object` | 否 | 非敏感配置的 JSON Schema，OpenDesk 据此渲染配置 UI |
+| setChannelRuntimeContext | `function` | 是 | OpenDesk 注入运行时上下文，实现者自行保存 |
+| listAccounts | `async function` | 是 | 列出已登录/已配置的账号 |
+| supportLoginWithQr | `boolean` | 是 | 是否支持扫码登录；为 true 时必须实现两个 QR 方法 |
+| getAccountLoginQr | `function` | 视能力 | 发起扫码登录，返回二维码会话 |
+| loginAccountWithQrWait | `function` | 视能力 | 轮询等待扫码结果，成功返回账号 |
+| getAccountLoginParams | `function` | 否 | 参数登录的表单字段描述，据此渲染登录表单 |
+| loginAccountWithParams | `function` | 视能力 | 用表单值登录，成功返回账号 |
+| checkAccountStatus | `function` | 是 | 主动检查账号连接是否正常（如 token 是否过期） |
+| logoutAccount | `function` | 是 | 登出并清理该账号的持久化凭证 |
+| start | `async function` | 是 | 启动账号的长连接（WebSocket/轮询/Webhook 订阅） |
+| stop | `function` | 是 | 停止账号的连接并清理资源 |
+| reload | `function` | 否 | 配置热更新入口；未实现则执行 stop + start |
+| sendOutboundMessage | `async function` | 是 | 发送消息到目标，返回平台消息 id 作为回执 |
+| sendInteraction | `async function` | 视能力 | 发送结构化交互请求；`interactive: true` 时必须实现 |
 
 ### ChannelMeta
 
 | 字段 | 类型 | 说明 |
 | --- | --- | --- |
-| id | string | 渠道唯一标识，全局唯一 |
-| label | string \| object | 面向用户的渠道名称；支持 `{ en, zh }` 本地化对象 |
-| description | string | 渠道描述，展示在渠道管理中 |
-| aliases | string[] | 渠道别名 |
-| icon | string | 图标（可选） |
+| `id` | `string` | 渠道唯一标识，全局唯一 |
+| `label` | `string \| object` | 面向用户的渠道名称；支持 `{ en, zh }` 本地化对象 |
+| `description` | `string` | 渠道描述，展示在渠道管理中 |
+| `aliases` | `string[]` | 渠道别名 |
+| `icon` | `string` | 图标（可选） |
 
 ### ChannelCapabilities
 
 | 字段 | 类型 | 说明 |
 | --- | --- | --- |
-| chatTypes | array | 支持的会话形态：`direct`（私聊）、`group`（群聊） |
-| media | boolean | 是否支持媒体收发；缺省 false |
-| threading | boolean | 是否支持主题回复（thread） |
-| interactive | boolean | 是否支持结构化用户交互（权限审批 / askUser 卡片） |
+| `chatTypes` | `array` | 支持的会话形态：`direct`（私聊）、`group`（群聊） |
+| `media` | `boolean` | 是否支持媒体收发；缺省 false |
+| `threading` | `boolean` | 是否支持主题回复（thread） |
+| `interactive` | `boolean` | 是否支持结构化用户交互（权限审批 / askUser 卡片） |
 
 ## 生命周期
 
@@ -131,17 +131,17 @@ define(channel)
 
 | 成员 | 类型 | 说明 |
 | --- | --- | --- |
-| channelId | string | 渠道 id |
-| accountId | string | 注入该上下文时对应的账号（多账号区分用） |
-| config | object | OpenDesk 侧维护的非敏感配置（只读） |
-| dataDir | string | 渠道专属数据目录（`<opendesk>/channels/<channelId>/`） |
-| resolvePath | function | 将相对路径解析到 dataDir 内 |
-| dispatch | function | 投递入站消息；OpenDesk 解析会话并按消息分发策略决定复用当前任务还是新建任务 |
-| dispatchInteraction | function | 回传用户对交互卡片的操作 |
-| setStatus | function | 上报连接状态（连接/断开/错误） |
-| emit | function | 向 OpenDesk 发送扩展事件（如扫码过期、需要重新授权） |
-| fetch | function | 系统级 fetch，继承 OpenDesk 的代理配置 |
-| logger | object | 带渠道前缀的日志器（info/warn/error/debug） |
+| channelId | `string` | 渠道 id |
+| accountId | `string` | 注入该上下文时对应的账号（多账号区分用） |
+| config | `object` | OpenDesk 侧维护的非敏感配置（只读） |
+| dataDir | `string` | 渠道专属数据目录（`<opendesk>/channels/<channelId>/`） |
+| resolvePath | `function` | 将相对路径解析到 dataDir 内 |
+| dispatch | `function` | 投递入站消息；OpenDesk 解析会话并按消息分发策略决定复用当前任务还是新建任务 |
+| dispatchInteraction | `function` | 回传用户对交互卡片的操作 |
+| setStatus | `function` | 上报连接状态（连接/断开/错误） |
+| emit | `function` | 向 OpenDesk 发送扩展事件（如扫码过期、需要重新授权） |
+| fetch | `function` | 系统级 fetch，继承 OpenDesk 的代理配置 |
+| logger | `object` | 带渠道前缀的日志器（info/warn/error/debug） |
 
 ## 入站消息
 
@@ -149,17 +149,17 @@ define(channel)
 
 | 字段 | 类型 | 说明 |
 | --- | --- | --- |
-| messageId | string | 平台消息 id，OpenDesk 用于去重；无唯一 id 的平台可不填 |
-| accountId | string | 消息所属账号（多账号时须显式声明） |
-| chatType | string | `direct` 或 `group` |
-| sender | object | `{ id, name? }`，私聊场景为对端用户 |
-| group | object | 仅 `group` 时必填：`{ id, name? }` |
-| text | string | 消息文本 |
-| media | array | 媒体附件 |
-| replyToMessageId | string | 引用回复的源消息 id |
-| threadId | string | 主题回复场景的 thread id |
-| timestamp | number | 消息时间戳 |
-| raw | unknown | 平台原始事件对象，透传调试用 |
+| `messageId` | `string` | 平台消息 id，OpenDesk 用于去重；无唯一 id 的平台可不填 |
+| `accountId` | `string` | 消息所属账号（多账号时须显式声明） |
+| `chatType` | `string` | `direct` 或 `group` |
+| `sender` | `object` | `{ id, name? }`，私聊场景为对端用户 |
+| `group` | `object` | 仅 `group` 时必填：`{ id, name? }` |
+| `text` | `string` | 消息文本 |
+| `media` | `array` | 媒体附件 |
+| `replyToMessageId` | `string` | 引用回复的源消息 id |
+| `threadId` | `string` | 主题回复场景的 thread id |
+| `timestamp` | `number` | 消息时间戳 |
+| `raw` | `unknown` | 平台原始事件对象，透传调试用 |
 
 媒体附件 `{ path?, url?, contentType?, fileName? }`：入站方向，渠道负责把远端媒体下载到本地后填 `path`，OpenDesk 读取该文件交给 Agent；`contentType` 建议填实际 MIME（如 `image/jpeg`），避免 Agent 按扩展名误判。
 
@@ -192,12 +192,12 @@ await channel.sendOutboundMessage({
 
 | 字段 | 类型 | 说明 |
 | --- | --- | --- |
-| interactionId | string | 唯一交互 id，回调通过它关联回 pending 的请求 |
-| kind | string | `approval`（权限审批）、`askUser`（向用户提问）或 `selection`（单选列表，0.3.10 起） |
-| to | object | 出站目标（同 `sendOutboundMessage`） |
-| accountId | string | 目标账号 |
-| expiresAt | number | 过期时间（epoch ms），到期未响应视为取消 |
-| payload | object | 审批或提问的具体内容 |
+| `interactionId` | `string` | 唯一交互 id，回调通过它关联回 pending 的请求 |
+| `kind` | `string` | `approval`（权限审批）、`askUser`（向用户提问）或 `selection`（单选列表，0.3.10 起） |
+| `to` | `object` | 出站目标（同 `sendOutboundMessage`） |
+| `accountId` | `string` | 目标账号 |
+| `expiresAt` | `number` | 过期时间（epoch ms），到期未响应视为取消 |
+| `payload` | `object` | 审批或提问的具体内容 |
 
 `payload` 三种形态：
 

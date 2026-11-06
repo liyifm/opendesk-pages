@@ -30,9 +30,9 @@ manifest 与入口对象都需要声明 `registry` capability：
 
 | 方法 / 字段 | 类型 | 说明 |
 | --- | --- | --- |
-| registry.fetch | function | 继承 OpenDesk 代理配置的 fetch；内容来源实现内的所有网络请求都应使用它 |
-| registry.registerSkillRegistry | function | 集成一个技能内容来源，返回 PluginRegistration |
-| registry.registerMcpRegistry | function | 集成一个 MCP 内容来源，见[通过插件集成 MCP 市场](/docs/dev/plugins/mcp-market/) |
+| `registry.fetch` | `function` | 继承 OpenDesk 代理配置的 fetch；内容来源实现内的所有网络请求都应使用它 |
+| `registry.registerSkillRegistry` | `function` | 集成一个技能内容来源，返回 PluginRegistration |
+| `registry.registerMcpRegistry` | `function` | 集成一个 MCP 内容来源，见[通过插件集成 MCP 市场](/docs/dev/plugins/mcp-market/) |
 
 集成的内容来源 `id` 跨插件全局唯一（它同时是安装链接 `installUrl` 的前缀）。集成后，宿主把定义适配为与内置内容来源同构的对象：进入技能市场的 tab 列表、TUI 与 agent 工具（`searchSkillFromRegistry` / `addSkillFromRegistry` 等）的搜索与安装路由。在插件中心停用品牌插件后，其内容来源随宿主重载从市场移除（已打开的市场页面在重新打开后刷新）。
 
@@ -40,59 +40,59 @@ manifest 与入口对象都需要声明 `registry` capability：
 
 | 字段 | 类型 | 必填 | 说明 |
 | --- | --- | --- | --- |
-| id | string | 是 | 内容来源唯一标识，格式同插件 id；同时是 `installUrl` 前缀（`id:`），跨插件全局唯一 |
-| label | string | 是 | 展示名称（市场 tab 文本），如 `Matrix Skill` |
-| icon | string | 否 | GUI 中的 emoji 图标，缺省为 `🧩` |
-| iconClass | string | 否 | 预留的图标样式类名，缺省取 `id` |
-| slogan | string | 否 | 热门条目页标语；缺省使用宿主默认文案 |
-| guiHidden | boolean | 否 | `true` 时不在 GUI 市场出 tab（agent 工具与 TUI 仍可用），适合需要 API Key 或实验性的来源 |
-| filters | RegistryFilter[] | 否 | 声明后 GUI 在搜索区渲染开关式过滤，选中值经 `options.categoryFilter` 传回 `search` |
-| search | function | 是 | `search(options?) => Promise<SearchResult>` |
-| resolveInstall | function | 否 | `resolveInstall(installUrl, parsed) => Promise&lt;{ downloadUrl: string }&gt;`；把本来源的 `installUrl` 解析为 zip 下载地址，未声明时宿主按内置规则处理 |
+| `id` | `string` | 是 | 内容来源唯一标识，格式同插件 id；同时是 `installUrl` 前缀（`id:`），跨插件全局唯一 |
+| `label` | `string` | 是 | 展示名称（市场 tab 文本），如 `Matrix Skill` |
+| `icon` | `string` | 否 | GUI 中的 emoji 图标，缺省为 `🧩` |
+| `iconClass` | `string` | 否 | 预留的图标样式类名，缺省取 `id` |
+| `slogan` | `string` | 否 | 热门条目页标语；缺省使用宿主默认文案 |
+| `guiHidden` | `boolean` | 否 | `true` 时不在 GUI 市场出 tab（agent 工具与 TUI 仍可用），适合需要 API Key 或实验性的来源 |
+| `filters` | `RegistryFilter[]` | 否 | 声明后 GUI 在搜索区渲染开关式过滤，选中值经 `options.categoryFilter` 传回 `search` |
+| `search` | `function` | 是 | `search(options?) => Promise<SearchResult>` |
+| `resolveInstall` | `function` | 否 | `resolveInstall(installUrl, parsed) => Promise&lt;{ downloadUrl: string }&gt;`；把本来源的 `installUrl` 解析为 zip 下载地址，未声明时宿主按内置规则处理 |
 
 RegistryFilter：
 
 | 字段 | 类型 | 必填 | 说明 |
 | --- | --- | --- | --- |
-| id | string | 是 | 筛选器唯一标识 |
-| labelOn / labelOff | string | 是 | 开关打开 / 关闭时的标签文本 |
-| categoryValue | string | 是 | 打开时传给 `search(options.categoryFilter)` 的值 |
-| apiTagIds | string[] | 否 | 需要服务端按 tag 过滤时使用（如 Matrix） |
+| `id` | `string` | 是 | 筛选器唯一标识 |
+| labelOn / labelOff | `string` | 是 | 开关打开 / 关闭时的标签文本 |
+| `categoryValue` | `string` | 是 | 打开时传给 `search(options.categoryFilter)` 的值 |
+| `apiTagIds` | `string[]` | 否 | 需要服务端按 tag 过滤时使用（如 Matrix） |
 
 `search` 的入参 `options`：
 
 | 字段 | 类型 | 说明 |
 | --- | --- | --- |
-| query | string | 关键字，空串表示热门 / 默认列表 |
-| page | number | 页码，从 1 开始 |
-| limit | number | 每页条数 |
-| apiKey | string | 宿主按配置注入的访问凭证（如 SkillsMP 的 API Key） |
-| cursor | string | 游标分页：上一页返回的 `nextCursor` |
-| categoryFilter | string | `filters` 中选中的 `categoryValue` |
+| `query` | `string` | 关键字，空串表示热门 / 默认列表 |
+| `page` | `number` | 页码，从 1 开始 |
+| `limit` | `number` | 每页条数 |
+| `apiKey` | `string` | 宿主按配置注入的访问凭证（如 SkillsMP 的 API Key） |
+| `cursor` | `string` | 游标分页：上一页返回的 `nextCursor` |
+| `categoryFilter` | `string` | `filters` 中选中的 `categoryValue` |
 
 `search` 的返回 `SearchResult`：
 
 | 字段 | 类型 | 必填 | 说明 |
 | --- | --- | --- | --- |
-| skills | RegistrySkill[] | 是 | 当前页条目 |
-| total | number | 否 | 总数（用于分页展示） |
-| hasMore | boolean | 否 | 是否还有下一页 |
-| nextCursor | string | 否 | 游标分页时的下一页游标 |
-| message | string | 否 | 展示在搜索结果上方的提示文案（如错误或统计信息） |
+| `skills` | `RegistrySkill[]` | 是 | 当前页条目 |
+| `total` | `number` | 否 | 总数（用于分页展示） |
+| `hasMore` | `boolean` | 否 | 是否还有下一页 |
+| `nextCursor` | `string` | 否 | 游标分页时的下一页游标 |
+| `message` | `string` | 否 | 展示在搜索结果上方的提示文案（如错误或统计信息） |
 
 RegistrySkill：
 
 | 字段 | 类型 | 必填 | 说明 |
 | --- | --- | --- | --- |
-| id | string | 是 | 条目唯一标识 |
-| name | string | 是 | 技能名（安装后的默认技能名） |
-| description | string | 是 | 描述 |
-| source | string | 是 | 来源标识，通常与内容来源 `id` 一致 |
-| installUrl | string | 是 | 安装链接，约定为本来源前缀形式 `id:slug`（或 GitHub / zip 地址） |
-| canInstall | boolean | 是 | 是否可安装（GUI 据此渲染安装按钮） |
-| author | string | 否 | 作者 |
-| stars / score / downloads | number | 否 | 展示用统计 |
-| categories | string[] | 否 | 分类标签 |
+| `id` | `string` | 是 | 条目唯一标识 |
+| `name` | `string` | 是 | 技能名（安装后的默认技能名） |
+| `description` | `string` | 是 | 描述 |
+| `source` | `string` | 是 | 来源标识，通常与内容来源 `id` 一致 |
+| `installUrl` | `string` | 是 | 安装链接，约定为本来源前缀形式 `id:slug`（或 GitHub / zip 地址） |
+| `canInstall` | `boolean` | 是 | 是否可安装（GUI 据此渲染安装按钮） |
+| `author` | `string` | 否 | 作者 |
+| stars / score / downloads | `number` | 否 | 展示用统计 |
+| `categories` | `string[]` | 否 | 分类标签 |
 
 ## installUrl 与安装流程
 

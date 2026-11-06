@@ -9,13 +9,13 @@ Skill 插件把一组可由用户或模型调用的说明注册到 pluginMgr bun
 
 | 字段 | 类型 | 必填 | 说明 |
 | --- | --- | --- | --- |
-| name | string | 是 | Skill 名，必须以字母开头，只能包含字母、数字、点、下划线和连字符 |
-| description | string | 是 | Skill 用途，不能为空 |
-| body | string | 是 | Skill Markdown 正文 |
-| directory | string | 否 | Skill 资源目录，可相对 pluginDir；必须存在且位于插件根目录内 |
-| frontmatter | object | 否 | 额外 frontmatter；name 和 description 由顶层字段覆盖 |
-| userInvocable | boolean | 否 | 是否允许用户直接调用 |
-| modelInvocable | boolean | 否 | 是否允许模型调用 |
+| `name` | `string` | 是 | Skill 名，必须以字母开头，只能包含字母、数字、点、下划线和连字符 |
+| `description` | `string` | 是 | Skill 用途，不能为空 |
+| `body` | `string` | 是 | Skill Markdown 正文 |
+| `directory` | `string` | 否 | Skill 资源目录，可相对 pluginDir；必须存在且位于插件根目录内 |
+| `frontmatter` | `object` | 否 | 额外 frontmatter；name 和 description 由顶层字段覆盖 |
+| `userInvocable` | `boolean` | 否 | 是否允许用户直接调用 |
+| `modelInvocable` | `boolean` | 否 | 是否允许模型调用 |
 
 ## 依赖 SDK 的 Skill 示例
 

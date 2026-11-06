@@ -115,23 +115,23 @@ export default {
 
 | 字段 | 类型 | 必填 | 说明 |
 | --- | --- | --- | --- |
-| schemaVersion | 1 | 是 | Manifest 结构版本，当前只能为 1 |
-| id | string | 是 | 插件唯一标识；必须以字母开头，只能包含字母、数字、点、下划线和连字符 |
-| displayName | string \| object | 否 | 面向用户显示的名称；支持按语言本地化的对象形式，详见下文 |
-| entry | string | 是 | 相对插件根目录的 JavaScript 入口；不能越出插件目录 |
-| apiVersion | 1 | 是 | 插件 API 版本，当前只能为 1 |
-| version | string | 否 | 插件版本；npm 包通常使用 `package.json` 的 `version` |
-| capabilities | string[] | 是 | 插件申请的能力列表，详见下表 |
-| platforms | string[] | 否 | 限制插件可运行的目标平台，值为 `win32`、`darwin`、`linux`、`android`、`openharmony` 之一。未指定时任意平台都加载该插件 |
-| minOpenDeskVersion | string | 否 | 可运行的最低 OpenDesk 语义化版本 |
-| maxOpenDeskVersion | string | 否 | 可运行的最高 OpenDesk 语义化版本 |
-| system | boolean | 否 | 仅内置插件生效：由清单固定该插件的启停状态，插件中心与 CLI 都不允许再修改它的开关；后装插件声明会被忽略 |
-| enabled | boolean | 否 | 仅配合 `system: true` 生效：`true`（缺省）始终启用，`false` 始终禁用 |
-| category | string[] | 否 | 插件分类标签（0.3.10 起）；插件市场按它归类显示，仅用于展示 |
-| author | object | 否 | 作者信息（0.3.10 起）：`{ name, institution?, homepage? }`，仅用于展示 |
-| homepage | string | 否 | 插件自身的站点地址（0.3.10 起），只接受 http(s)；仅用于展示 |
-| iconUrl | string | 否 | 插件图标（0.3.10 起）：http(s) 图片链接或包内相对路径；未声明时按插件名渲染首字母图标 |
-| resources | object | 否 | 无需执行 `setup` 即可声明的静态 Skill、MCP Server 和子 Agent |
+| `schemaVersion` | 1 | 是 | Manifest 结构版本，当前只能为 1 |
+| `id` | `string` | 是 | 插件唯一标识；必须以字母开头，只能包含字母、数字、点、下划线和连字符 |
+| `displayName` | `string \| object` | 否 | 面向用户显示的名称；支持按语言本地化的对象形式，详见下文 |
+| `entry` | `string` | 是 | 相对插件根目录的 JavaScript 入口；不能越出插件目录 |
+| `apiVersion` | 1 | 是 | 插件 API 版本，当前只能为 1 |
+| `version` | `string` | 否 | 插件版本；npm 包通常使用 `package.json` 的 `version` |
+| `capabilities` | `string[]` | 是 | 插件申请的能力列表，详见下表 |
+| `platforms` | `string[]` | 否 | 限制插件可运行的目标平台，值为 `win32`、`darwin`、`linux`、`android`、`openharmony` 之一。未指定时任意平台都加载该插件 |
+| `minOpenDeskVersion` | `string` | 否 | 可运行的最低 OpenDesk 语义化版本 |
+| `maxOpenDeskVersion` | `string` | 否 | 可运行的最高 OpenDesk 语义化版本 |
+| `system` | `boolean` | 否 | 仅内置插件生效：由清单固定该插件的启停状态，插件中心与 CLI 都不允许再修改它的开关；后装插件声明会被忽略 |
+| `enabled` | `boolean` | 否 | 仅配合 `system: true` 生效：`true`（缺省）始终启用，`false` 始终禁用 |
+| `category` | `string[]` | 否 | 插件分类标签（0.3.10 起）；插件市场按它归类显示，仅用于展示 |
+| `author` | `object` | 否 | 作者信息（0.3.10 起）：`{ name, institution?, homepage? }`，仅用于展示 |
+| `homepage` | `string` | 否 | 插件自身的站点地址（0.3.10 起），只接受 http(s)；仅用于展示 |
+| `iconUrl` | `string` | 否 | 插件图标（0.3.10 起）：http(s) 图片链接或包内相对路径；未声明时按插件名渲染首字母图标 |
+| `resources` | `object` | 否 | 无需执行 `setup` 即可声明的静态 Skill、MCP Server 和子 Agent |
 
 ### 展示元数据（0.3.10 起）
 
@@ -218,9 +218,9 @@ export default {
 
 | 字段 | 类型 | 说明 |
 | --- | --- | --- |
-| skills | string[] | Skill 目录的相对路径。目录可以直接包含 `SKILL.md`，也可以包含多个以 `SKILL.md` 为入口的一级子目录 |
-| mcpServers | object[] | MCP Server 定义；字段与后文 MCP 插件相同 |
-| agents | string[] | 子 Agent 目录的相对路径。目录可以直接包含 `agents.md`，也可以包含多个以 `agents.md` 为入口的一级子目录；详见[在插件中贡献子 Agent](/docs/dev/plugins/agents/) |
+| `skills` | `string[]` | Skill 目录的相对路径。目录可以直接包含 `SKILL.md`，也可以包含多个以 `SKILL.md` 为入口的一级子目录 |
+| `mcpServers` | `object[]` | MCP Server 定义；字段与后文 MCP 插件相同 |
+| `agents` | `string[]` | 子 Agent 目录的相对路径。目录可以直接包含 `agents.md`，也可以包含多个以 `agents.md` 为入口的一级子目录；详见[在插件中贡献子 Agent](/docs/dev/plugins/agents/) |
 
 `resources` 是 manifest 中的静态声明。`pluginmgr` 发现插件后，会先解析这些声明并注册 Skill、MCP Server 和子 Agent，再执行入口的 `setup(ctx)`。因此，插件只需要携带标准 Skill 目录、MCP Server 文件或 agent 目录，不必在 `setup(ctx)` 中重复调用 `ctx.skills.register`、`ctx.mcps.registerServer` 或 `ctx.agents.register`。
 
@@ -413,20 +413,20 @@ export default {
 
 | 字段 | 类型 | 必填 | 说明 |
 | --- | --- | --- | --- |
-| id | string | 是 | 插件唯一标识，规则与 manifest 相同 |
-| displayName | string \| object | 否 | 显示名称；入口值优先于 manifest，支持按语言本地化的对象形式 |
-| version | string | 否 | 插件版本；入口值优先于 manifest |
-| category | string[] | 否 | 插件分类标签；入口值优先于 manifest（0.3.10 起） |
-| author | object | 否 | 作者信息 `{ name, institution?, homepage? }`；入口值优先于 manifest（0.3.10 起） |
-| homepage | string | 否 | 插件自身的站点地址；入口值优先于 manifest（0.3.10 起） |
-| apiVersion | number | 否 | 默认使用当前 API 版本，显式设置时必须为 1 |
-| capabilities | PluginCapability[] | 建议 | 申请的能力；入口值优先于 manifest |
-| platforms | PluginPlatform[] | 否 | 限制插件可运行的目标平台；入口值优先于 manifest |
-| minOpenDeskVersion | string | 否 | 最低宿主版本 |
-| maxOpenDeskVersion | string | 否 | 最高宿主版本 |
-| configSchema | Zod schema | 否 | 校验插件 options，解析结果必须是普通对象 |
-| failureMode | open 或 closed | 否 | Hook 默认失败策略，默认为 open |
-| setup | function | 是 | 激活插件时调用，可同步或异步 |
+| `id` | `string` | 是 | 插件唯一标识，规则与 manifest 相同 |
+| `displayName` | `string \| object` | 否 | 显示名称；入口值优先于 manifest，支持按语言本地化的对象形式 |
+| `version` | `string` | 否 | 插件版本；入口值优先于 manifest |
+| `category` | `string[]` | 否 | 插件分类标签；入口值优先于 manifest（0.3.10 起） |
+| `author` | `object` | 否 | 作者信息 `{ name, institution?, homepage? }`；入口值优先于 manifest（0.3.10 起） |
+| `homepage` | `string` | 否 | 插件自身的站点地址；入口值优先于 manifest（0.3.10 起） |
+| `apiVersion` | `number` | 否 | 默认使用当前 API 版本，显式设置时必须为 1 |
+| `capabilities` | `PluginCapability[]` | 建议 | 申请的能力；入口值优先于 manifest |
+| `platforms` | `PluginPlatform[]` | 否 | 限制插件可运行的目标平台；入口值优先于 manifest |
+| `minOpenDeskVersion` | `string` | 否 | 最低宿主版本 |
+| `maxOpenDeskVersion` | `string` | 否 | 最高宿主版本 |
+| `configSchema` | Zod schema | 否 | 校验插件 options，解析结果必须是普通对象 |
+| `failureMode` | open 或 closed | 否 | Hook 默认失败策略，默认为 open |
+| `setup` | `function` | 是 | 激活插件时调用，可同步或异步 |
 
 `setup` 可以返回以下任一种值：
 
@@ -440,26 +440,26 @@ export default {
 
 | 字段 | 类型 | 说明 |
 | --- | --- | --- |
-| pluginId | string | 当前插件 id |
-| pluginDir | string | 当前插件安装根目录（代码目录）的绝对路径；覆盖安装与卸载会改动它 |
-| configDir | string | OpenDesk 配置目录的绝对路径，由所有应用与插件共享 |
-| dataDir | string | 当前插件私有数据目录的绝对路径；覆盖安装与重新启用后保持不变，卸载默认保留（0.3.10 起） |
-| options | Readonly object | 用户为插件保存的配置，已经由 configSchema 校验 |
-| hooks.on | function | 注册 Hook |
-| tools.register | function | 注册 Tool |
-| skills.register | function | 注册 Skill |
-| mcps.registerServer | function | 注册 MCP Server |
-| commands.register | function | 注册 Command |
-| events.onApplication | function | 监听应用事件 |
-| agents.register | function | 注册单个子 Agent |
-| agents.registerDirectory | function | 扫描插件目录下的 agent 目录并批量注册子 Agent |
-| browser.hint.register | function | 为匹配的页面注册浏览器提示生成器 |
-| channels.register | function | 注册 Channel 实例（消息渠道） |
-| accounts.registerBackend | function | 注册账号后端，`ctx.accounts` 下还提供网络、外链与凭据存取 |
-| appearance.setAppTitle | function | 自定义应用标题（GUI 左上角品牌区，0.3.7 起） |
-| appearance.setAppDescription | function | 自定义应用描述（左上角标题下方文案，0.3.7 起） |
-| appearance.setAppLogo | function | 自定义应用 Logo（相对插件根目录的图片路径，0.3.7 起） |
-| registry.fetch / registry.registerSkillRegistry / registry.registerMcpRegistry | function | 集成技能市场或 MCP 市场内容来源，fetch 继承宿主代理配置（0.3.7 起） |
+| `pluginId` | `string` | 当前插件 id |
+| `pluginDir` | `string` | 当前插件安装根目录（代码目录）的绝对路径；覆盖安装与卸载会改动它 |
+| `configDir` | `string` | OpenDesk 配置目录的绝对路径，由所有应用与插件共享 |
+| `dataDir` | `string` | 当前插件私有数据目录的绝对路径；覆盖安装与重新启用后保持不变，卸载默认保留（0.3.10 起） |
+| `options` | Readonly object | 用户为插件保存的配置，已经由 configSchema 校验 |
+| `hooks.on` | `function` | 注册 Hook |
+| `tools.register` | `function` | 注册 Tool |
+| `skills.register` | `function` | 注册 Skill |
+| `mcps.registerServer` | `function` | 注册 MCP Server |
+| `commands.register` | `function` | 注册 Command |
+| `events.onApplication` | `function` | 监听应用事件 |
+| `agents.register` | `function` | 注册单个子 Agent |
+| `agents.registerDirectory` | `function` | 扫描插件目录下的 agent 目录并批量注册子 Agent |
+| `browser.hint.register` | `function` | 为匹配的页面注册浏览器提示生成器 |
+| `channels.register` | `function` | 注册 Channel 实例（消息渠道） |
+| `accounts.registerBackend` | `function` | 注册账号后端，`ctx.accounts` 下还提供网络、外链与凭据存取 |
+| `appearance.setAppTitle` | `function` | 自定义应用标题（GUI 左上角品牌区，0.3.7 起） |
+| `appearance.setAppDescription` | `function` | 自定义应用描述（左上角标题下方文案，0.3.7 起） |
+| `appearance.setAppLogo` | `function` | 自定义应用 Logo（相对插件根目录的图片路径，0.3.7 起） |
+| registry.fetch / registry.registerSkillRegistry / registry.registerMcpRegistry | `function` | 集成技能市场或 MCP 市场内容来源，fetch 继承宿主代理配置（0.3.7 起） |
 
 每个 `register` 或 `on` 方法都返回 PluginRegistration。通常不需要手工调用 `dispose`，因为宿主会在插件退出时统一清理；只有插件需要提前撤销某一项注册时才主动调用。
 

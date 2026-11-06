@@ -28,7 +28,7 @@ ctx.appearance.setAppTitle({ zh: '我的桌面', en: 'MyDesk' });
 
 | 参数 | 类型 | 说明 |
 | --- | --- | --- |
-| title | string \| object | 新的应用标题。字符串形式所有语言共用；对象形式键为 BCP 47 语言标签（解析时取主语言标签匹配，如 `zh-CN` 匹配 `zh`），值为对应语言的文案 |
+| `title` | `string \| object` | 新的应用标题。字符串形式所有语言共用；对象形式键为 BCP 47 语言标签（解析时取主语言标签匹配，如 `zh-CN` 匹配 `zh`），值为对应语言的文案 |
 
 返回 PluginRegistration。设置后 GUI 左上角的应用标题会替换默认的 "OpenDesk"，已打开的窗口立即热更新，无需重启。
 
@@ -57,7 +57,7 @@ ctx.appearance.setAppLogo({
 
 | 参数 | 类型 | 说明 |
 | --- | --- | --- |
-| logoPath | string \| object | 相对插件根目录（manifest 所在目录）的图片路径。对象形式支持 `dark` / `light` 两个键，至少提供其一，缺省一侧复用另一侧的图 |
+| `logoPath` | `string \| object` | 相对插件根目录（manifest 所在目录）的图片路径。对象形式支持 `dark` / `light` 两个键，至少提供其一，缺省一侧复用另一侧的图 |
 
 Logo 文件的约束：
 

@@ -9,21 +9,21 @@ MCP 插件可以注册本地 stdio Server 或远程 sse / streamableHttp Server�
 
 | 字段 | 类型 | 必填 | 说明 |
 | --- | --- | --- | --- |
-| name | string | 是 | Server 名，不能为空 |
-| transport | stdio | 是 | 传输类型 |
-| command | string | 是 | 可执行命令；推荐 `node` 等可移植命令 |
-| args | string[] | 否 | 命令参数 |
-| cwd | string | 否 | 工作目录 |
-| env | Record&lt;string, string&gt; | 否 | Server 进程环境变量 |
+| `name` | `string` | 是 | Server 名，不能为空 |
+| `transport` | `stdio` | 是 | 传输类型 |
+| `command` | `string` | 是 | 可执行命令；推荐 `node` 等可移植命令 |
+| `args` | `string[]` | 否 | 命令参数 |
+| `cwd` | `string` | 否 | 工作目录 |
+| `env` | Record&lt;string, string&gt; | 否 | Server 进程环境变量 |
 
 ## 远程 Server 参数
 
 | 字段 | 类型 | 必填 | 说明 |
 | --- | --- | --- | --- |
-| name | string | 是 | Server 名 |
-| transport | sse 或 streamableHttp | 是 | 远程传输类型 |
-| url | string | 是 | 合法的绝对 URL |
-| headers | Record&lt;string, string&gt; | 否 | 建立连接时附带的 Header |
+| `name` | `string` | 是 | Server 名 |
+| `transport` | sse 或 streamableHttp | 是 | 远程传输类型 |
+| `url` | `string` | 是 | 合法的绝对 URL |
+| `headers` | Record&lt;string, string&gt; | 否 | 建立连接时附带的 Header |
 
 ## 依赖 SDK 的 MCP 示例
 

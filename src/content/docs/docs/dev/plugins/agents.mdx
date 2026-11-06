@@ -9,10 +9,10 @@ Agent 能力让插件向系统贡献子 Agent（subagent）。声明后，子 Ag
 
 | 字段 | 类型 | 必填 | 说明 |
 | --- | --- | --- | --- |
-| name | string | 是 | Agent 名，在所属插件内唯一 |
-| whenToUse | string | 是 | 使用场景描述，指示主 Agent 何时应调度此 Agent，不能为空 |
-| body | string | 是 | Agent 的 system prompt 指令体；静态声明时来自 `agents.md` |
-| dispatchable | boolean | 否 | 是否可被主 Agent 作为子任务执行者调度，缺省为 `true` |
+| `name` | `string` | 是 | Agent 名，在所属插件内唯一 |
+| `whenToUse` | `string` | 是 | 使用场景描述，指示主 Agent 何时应调度此 Agent，不能为空 |
+| `body` | `string` | 是 | Agent 的 system prompt 指令体；静态声明时来自 `agents.md` |
+| `dispatchable` | `boolean` | 否 | 是否可被主 Agent 作为子任务执行者调度，缺省为 `true` |
 
 ## 依赖 SDK 的动态注册示例
 
@@ -169,9 +169,9 @@ Agent 目录固定、随插件一起发布时优先使用 `resources.agents`；�
 
 | 字段 | 推断规则 |
 | --- | --- |
-| name | 取 agent 目录名 |
-| when_to_use | 取 `agents.md` 的第一行标题（去掉开头的 `#`），为空时回退到目录名 |
-| dispatchable | 缺省为 `true`，不会被推断为不可调度 |
+| `name` | 取 agent 目录名 |
+| `when_to_use` | 取 `agents.md` 的第一行标题（去掉开头的 `#`），为空时回退到目录名 |
+| `dispatchable` | 缺省为 `true`，不会被推断为不可调度 |
 
 `agent.json` 中字段存在但类型非法（例如 `dispatchable` 不是布尔值）会直接导致插件激活失败，而不是静默忽略。
 

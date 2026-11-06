@@ -79,15 +79,15 @@ Windows 的临时工作空间默认是 `$USERPROFILE/opendesk`；类 Unix 默认
 | 字段 | 类型 | 默认值 | 说明 |
 | --- | --- | --- | --- |
 | `locale` | `"auto"`、`"zh-CN"`、`"en-US"` | `"auto"` | 界面语言。`auto` 会根据系统语言选择中文或英文。 |
-| `default_model` | string | `""` | 默认对话模型别名，必须指向 `models[].alias`。 |
-| `default_intent_parsing_model` | string | `""` | 意图解析模型别名。 |
-| `default_embedding_model` | string | `""` | 向量嵌入模型别名。 |
-| `default_reranker_model` | string | `""` | 检索重排序模型别名。 |
-| `default_vision_model` | string | `""` | 图片记忆提取等视觉场景模型别名。 |
-| `default_workspace` | string | `""` | 默认工作空间。为空或目录无效时使用临时工作空间。 |
+| `default_model` | `string` | `""` | 默认对话模型别名，必须指向 `models[].alias`。 |
+| `default_intent_parsing_model` | `string` | `""` | 意图解析模型别名。 |
+| `default_embedding_model` | `string` | `""` | 向量嵌入模型别名。 |
+| `default_reranker_model` | `string` | `""` | 检索重排序模型别名。 |
+| `default_vision_model` | `string` | `""` | 图片记忆提取等视觉场景模型别名。 |
+| `default_workspace` | `string` | `""` | 默认工作空间。为空或目录无效时使用临时工作空间。 |
 | `reason_display` | `"full"`、`"partial"` | `"full"` | 思考内容显示模式。`full` 显示完整 Markdown，`partial` 只显示末尾部分内容。 |
-| `environ` | object | `{}` | 全局 Shell 环境变量，所有 shell 命令执行时共享。 |
-| `applications` | object | `{}` | 应用级配置，按应用 bundleName 分区。 |
+| `environ` | `object` | `{}` | 全局 Shell 环境变量，所有 shell 命令执行时共享。 |
+| `applications` | `object` | `{}` | 应用级配置，按应用 bundleName 分区。 |
 
 启动参数 `--language <lang>` 只影响本次运行，不写入 `locale`。
 
@@ -108,12 +108,12 @@ Windows 的临时工作空间默认是 `$USERPROFILE/opendesk`；类 Unix 默认
 
 | 字段 | 类型 | 默认值 | 说明 |
 | --- | --- | --- | --- |
-| `name` | string | `"openrouter"` | 本地 provider 名称，被 `models[].provider_name` 引用。 |
+| `name` | `string` | `"openrouter"` | 本地 provider 名称，被 `models[].provider_name` 引用。 |
 | `provider_type` | `"openai"`、`"anthropic"` | `"openai"` | 协议类型。空值或缺省按 OpenAI 兼容格式处理。 |
-| `base_url` | string | `"https://openrouter.ai/api/v1"` | 模型服务 API 地址。 |
-| `api_key` | string | `""` | API Key。 |
-| `no_proxy` | boolean | `false` | 是否禁用代理。 |
-| `enabled` | boolean | 未设置 | 是否在启用该 provider。未设置或 `true` 表示启用，`false` 表示禁用。 |
+| `base_url` | `string` | `"https://openrouter.ai/api/v1"` | 模型服务 API 地址。 |
+| `api_key` | `string` | `""` | API Key。 |
+| `no_proxy` | `boolean` | `false` | 是否禁用代理。 |
+| `enabled` | `boolean` | 未设置 | 是否在启用该 provider。未设置或 `true` 表示启用，`false` 表示禁用。 |
 
 当前 TUI 内置 provider 模板包括 OpenAI、OpenRouter、Cerebras、硅基流动、DeepSeek、OpenCode Go、智谱、Kimi、MiniMax、阿里云百炼、百度千帆、火山引擎、Ollama、LM Studio 等。模板只用于创建配置，实际运行只读取上表字段。
 
@@ -136,12 +136,12 @@ Windows 的临时工作空间默认是 `$USERPROFILE/opendesk`；类 Unix 默认
 
 | 字段 | 类型 | 默认值 | 说明 |
 | --- | --- | --- | --- |
-| `alias` | string | `"model_alias"` | 本地模型别名。CLI、TUI 和默认模型字段都使用这个名字。 |
-| `provider_name` | string | `"openrouter"` | 服务商名称，对应 `providers[].name`。 |
-| `model_name` | string | `"google/gemini-2.5-flash"` | 服务商侧模型名称。 |
+| `alias` | `string` | `"model_alias"` | 本地模型别名。CLI、TUI 和默认模型字段都使用这个名字。 |
+| `provider_name` | `string` | `"openrouter"` | 服务商名称，对应 `providers[].name`。 |
+| `model_name` | `string` | `"google/gemini-2.5-flash"` | 服务商侧模型名称。 |
 | `reasoning_effort` | `""`、`"none"`、`"low"`、`"medium"`、`"high"` | `""` | 模型默认推理深度。空字符串表示使用模型默认值。 |
-| `context_length` | non-negative integer | 未设置 | 上下文长度。大于 0 时覆盖系统估算；0 或缺省表示自动估算。 |
-| `custom_headers` | object | 未设置 | 调模型接口时附加的 HTTP 请求头。 |
+| `context_length` | `non-negative integer` | 未设置 | 上下文长度。大于 0 时覆盖系统估算；0 或缺省表示自动估算。 |
+| `custom_headers` | `object` | 未设置 | 调模型接口时附加的 HTTP 请求头。 |
 
 加载配置后，OpenDesk 会校验所有 `default_*_model` 字段。如果默认模型指向不存在的 `alias`，会自动清空该默认模型字段并保存。
 
@@ -162,10 +162,10 @@ Windows 的临时工作空间默认是 `$USERPROFILE/opendesk`；类 Unix 默认
 | 字段 | 类型 | 默认值 | 说明 |
 | --- | --- | --- | --- |
 | `theme_preference` | `"system"`、`"light"`、`"dark"` | `"system"` | 主题偏好。 |
-| `scale_factor` | number | `1` | GUI 缩放系数，范围 0.5 到 2.0。 |
+| `scale_factor` | `number` | `1` | GUI 缩放系数，范围 0.5 到 2.0。 |
 | `font_preset` | `"default"`、`"lxgwwenkai"` | `"default"` | 字体预设。 |
-| `ctrl_enter_send` | boolean | `false` | 是否使用 Ctrl+Enter 发送消息。 |
-| `recent_workspaces` | string[] | `[]` | 最近使用的工作空间，运行时最多保留 20 个。 |
+| `ctrl_enter_send` | `boolean` | `false` | 是否使用 Ctrl+Enter 发送消息。 |
+| `recent_workspaces` | `string[]` | `[]` | 最近使用的工作空间，运行时最多保留 20 个。 |
 
 ## CLI 配置
 
@@ -291,11 +291,11 @@ Windows 的临时工作空间默认是 `$USERPROFILE/opendesk`；类 Unix 默认
 
 | 字段 | 类型 | 默认值 | 说明 |
 | --- | --- | --- | --- |
-| `enabled` | boolean | `false` | 是否启用 AI 文件系统。 |
-| `entries` | array | `[]` | 文件扫描入口列表。 |
-| `entries[].root` | string | 用户 home | 扫描根目录。 |
-| `entries[].include_patterns` | string[] | 文本、Office、JSON/Web 常见文件 | 包含模式。 |
-| `entries[].exclude_patterns` | string[] | `node_modules`、`.git`、IDE 缓存等 | 排除模式。 |
+| `enabled` | `boolean` | `false` | 是否启用 AI 文件系统。 |
+| `entries` | `array` | `[]` | 文件扫描入口列表。 |
+| `entries[].root` | `string` | 用户 home | 扫描根目录。 |
+| `entries[].include_patterns` | `string[]` | 文本、Office、JSON/Web 常见文件 | 包含模式。 |
+| `entries[].exclude_patterns` | `string[]` | `node_modules`、`.git`、IDE 缓存等 | 排除模式。 |
 
 macOS 会额外排除 `~/Library/**` 和 `.DS_Store`；Windows 会额外排除用户 `AppData`、`C:/Windows/**` 和 `C:/Temp/**`。
 
@@ -321,15 +321,15 @@ macOS 会额外排除 `~/Library/**` 和 `.DS_Store`；Windows 会额外排除�
 
 | 字段 | 类型 | 默认值 | 说明 |
 | --- | --- | --- | --- |
-| `channels.tavily.api_key` | string | `""` | Tavily API Key。 |
-| `channels.brave.api_key` | string | `""` | Brave API Key。 |
-| `channels.bocha.api_key` | string | `""` | 博查 API Key。 |
-| `channels.exa.api_key` | string | `""` | Exa API Key。 |
+| `channels.tavily.api_key` | `string` | `""` | Tavily API Key。 |
+| `channels.brave.api_key` | `string` | `""` | Brave API Key。 |
+| `channels.bocha.api_key` | `string` | `""` | 博查 API Key。 |
+| `channels.exa.api_key` | `string` | `""` | Exa API Key。 |
 | `channels.bing.lang` | `"zh"`、`"en"` | `"zh"` | Bing 搜索模式。 |
-| `defaultWebSearch` | enum | `"bing"` | 可选 `tavily`、`bing`、`duckduckgo`、`brave`、`bocha`、`exa`、`baidu`。 |
+| `defaultWebSearch` | `enum` | `"bing"` | 可选 `tavily`、`bing`、`duckduckgo`、`brave`、`bocha`、`exa`、`baidu`。 |
 | `defaultAcademicSearch` | `"arxiv"`、`"dblp"` | `"arxiv"` | 默认学术搜索引擎。 |
-| `webSearchEnabled` | boolean | `true` | 是否启用网页搜索工具。 |
-| `academicSearchEnabled` | boolean | `true` | 是否启用学术搜索工具。 |
+| `webSearchEnabled` | `boolean` | `true` | 是否启用网页搜索工具。 |
+| `academicSearchEnabled` | `boolean` | `true` | 是否启用学术搜索工具。 |
 
 ### mcpmgr
 
@@ -355,16 +355,16 @@ MCP 管理应用配置：
 
 | 字段 | 类型 | 默认值 | 说明 |
 | --- | --- | --- | --- |
-| `servers[].id` | string | `""` | 服务唯一标识符。 |
-| `servers[].name` | string | `""` | 显示名称，也用于 server API 中的 MCP 名称匹配。 |
+| `servers[].id` | `string` | `""` | 服务唯一标识符。 |
+| `servers[].name` | `string` | `""` | 显示名称，也用于 server API 中的 MCP 名称匹配。 |
 | `servers[].transport` | `"stdio"`、`"sse"`、`"streamableHttp"` | `"stdio"` | 传输协议。 |
-| `servers[].enabled` | boolean | `true` | 是否启用。 |
-| `servers[].command` | string | 未设置 | `stdio` 命令。 |
-| `servers[].args` | string[] | `[]` | `stdio` 参数。 |
-| `servers[].cwd` | string | 未设置 | `stdio` 工作目录。 |
-| `servers[].url` | string | 未设置 | `sse` 或 `streamableHttp` URL。 |
-| `servers[].env` | object | `{}` | `stdio` 环境变量。 |
-| `servers[].headers` | object | `{}` | HTTP 请求头。 |
+| `servers[].enabled` | `boolean` | `true` | 是否启用。 |
+| `servers[].command` | `string` | 未设置 | `stdio` 命令。 |
+| `servers[].args` | `string[]` | `[]` | `stdio` 参数。 |
+| `servers[].cwd` | `string` | 未设置 | `stdio` 工作目录。 |
+| `servers[].url` | `string` | 未设置 | `sse` 或 `streamableHttp` URL。 |
+| `servers[].env` | `object` | `{}` | `stdio` 环境变量。 |
+| `servers[].headers` | `object` | `{}` | HTTP 请求头。 |
 
 `servers[].id` 在通过 MCP 管理工具新增、安装或导入 server 时由 OpenDesk 自动生成，当前格式是：
 
@@ -390,9 +390,9 @@ Skill 管理应用配置：
 
 | 字段 | 类型 | 默认值 | 说明 |
 | --- | --- | --- | --- |
-| `enabled` | boolean | `false` | 是否启用技能。 |
-| `external_paths` | string[] | 未设置 | 额外 Skill 扫描目录。可指向单个 skill 根目录，也可指向包含多个 skill 的目录。 |
-| `skillsmp_api_key` | string | 未设置 | SkillsMP API Key。 |
+| `enabled` | `boolean` | `false` | 是否启用技能。 |
+| `external_paths` | `string[]` | 未设置 | 额外 Skill 扫描目录。可指向单个 skill 根目录，也可指向包含多个 skill 的目录。 |
+| `skillsmp_api_key` | `string` | 未设置 | SkillsMP API Key。 |
 
 `external_paths` 会递归扫描目录下所有包含 `SKILL.md` 的 skill 目录，并按真实目录去重。扫描到的 skill 会参与 Agent/server 模式的 skill 列表；GUI 技能中心会在存在外部 skill 时显示“外部技能”标签，只做展示，不提供启用、禁用或删除操作，详情中会显示外部路径。
 

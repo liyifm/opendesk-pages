@@ -47,19 +47,19 @@ description: "搭建自己的插件市场：plugins.json 清单格式、托管�
 
 | 字段 | 类型 | 必填 | 说明 |
 | --- | --- | --- | --- |
-| id | string | 是 | 插件唯一标识；必须以字母开头，只能包含字母、数字、点、下划线和连字符。安装后即为插件 id，**必须与包内 manifest 的 `id` 一致**，不一致时安装报错 |
-| downloadUrl | string | 是 | 插件归档包地址；扩展名必须是 `.zip` / `.tgz` / `.tar.gz`，可以是相对于清单的地址 |
-| displayName | string \| object | 否 | 显示名称，支持 `{ en, zh }` 本地化对象；省略时回退到插件 id |
-| description | string \| object | 否 | 描述，同样支持本地化对象 |
-| version | string | 否 | 插件版本；声明时必须是合法 SemVer（`1.2.3`，可带 `-beta.1`），市场用它与已装版本比较生成「可更新」标记 |
-| apiVersion | number | 否 | 插件 API 版本；声明时必须等于宿主支持的版本（当前为 `1`），省略表示不声明 |
-| minOpenDeskVersion | string | 否 | 可运行的最低 OpenDesk 版本（SemVer，含边界）；当前宿主不满足时条目仍展示，但标注「需要 OpenDesk ≥ x.y.z」且按钮禁用 |
-| maxOpenDeskVersion | string | 否 | 可运行的最高 OpenDesk 版本，语义同上 |
-| platforms | string[] | 否 | 支持平台，取值 `win32` / `darwin` / `linux` / `android` / `openharmony`；不含当前平台的条目**不展示、不可安装**，未声明表示全平台 |
-| category | string[] | 否 | 分类标签；取值与渠道 `categories` 一致才会被归入该分类 |
-| author | object | 否 | 作者信息：`{ name, institution?, homepage? }`，`name` 必填；`name` / `institution` 支持本地化对象，两个 homepage 都只接受 http(s) |
-| homepage | string | 否 | 插件自身的站点地址，只接受 http(s) |
-| iconUrl | string | 否 | 插件图标：http(s) 图片链接原样使用；相对链接与 `downloadUrl` 同一套基准解析。读不到时回退首字母图标 |
+| `id` | `string` | 是 | 插件唯一标识；必须以字母开头，只能包含字母、数字、点、下划线和连字符。安装后即为插件 id，**必须与包内 manifest 的 `id` 一致**，不一致时安装报错 |
+| `downloadUrl` | `string` | 是 | 插件归档包地址；扩展名必须是 `.zip` / `.tgz` / `.tar.gz`，可以是相对于清单的地址 |
+| `displayName` | `string \| object` | 否 | 显示名称，支持 `{ en, zh }` 本地化对象；省略时回退到插件 id |
+| `description` | `string \| object` | 否 | 描述，同样支持本地化对象 |
+| `version` | `string` | 否 | 插件版本；声明时必须是合法 SemVer（`1.2.3`，可带 `-beta.1`），市场用它与已装版本比较生成「可更新」标记 |
+| `apiVersion` | `number` | 否 | 插件 API 版本；声明时必须等于宿主支持的版本（当前为 `1`），省略表示不声明 |
+| `minOpenDeskVersion` | `string` | 否 | 可运行的最低 OpenDesk 版本（SemVer，含边界）；当前宿主不满足时条目仍展示，但标注「需要 OpenDesk ≥ x.y.z」且按钮禁用 |
+| `maxOpenDeskVersion` | `string` | 否 | 可运行的最高 OpenDesk 版本，语义同上 |
+| `platforms` | `string[]` | 否 | 支持平台，取值 `win32` / `darwin` / `linux` / `android` / `openharmony`；不含当前平台的条目**不展示、不可安装**，未声明表示全平台 |
+| `category` | `string[]` | 否 | 分类标签；取值与渠道 `categories` 一致才会被归入该分类 |
+| `author` | `object` | 否 | 作者信息：`{ name, institution?, homepage? }`，`name` 必填；`name` / `institution` 支持本地化对象，两个 homepage 都只接受 http(s) |
+| `homepage` | `string` | 否 | 插件自身的站点地址，只接受 http(s) |
+| `iconUrl` | `string` | 否 | 插件图标：http(s) 图片链接原样使用；相对链接与 `downloadUrl` 同一套基准解析。读不到时回退首字母图标 |
 
 ### 示例
 

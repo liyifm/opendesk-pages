@@ -37,13 +37,13 @@ description: "搭建自己的测评集来源：清单格式与测评集压缩包
 
 | 字段 | 类型 | 必填 | 说明 |
 | --- | --- | --- | --- |
-| id | string | 是 | 测评集稳定标识，**同一渠道内唯一**，不随版本变化；重复 id 只保留先出现的条目 |
-| downloadUrl | string | 是 | 压缩包地址，扩展名必须是 `.zip` / `.tar.gz` / `.tgz` / `.tar`；可以是相对于清单的地址 |
-| name | string | 是 | 测评集名称，展示在清单卡片与测评历史中 |
-| description | string | 否 | 描述文案 |
-| homepage | string | 否 | 测评集官网地址，详情页渲染成链接 |
-| version | string | 否 | 测评集版本；清单条目要求合法 SemVer（如 `0.2` 会被拒绝，需写 `0.2.0`）。清单版本高于已装版本时卡片显示「可更新」 |
-| tracks | array | 是 | track 概览，非空数组；每项为 `{ id, name, description }` 对象，`name` 或 `id` 至少声明一个。`id` 是压缩包内 track 目录名的对应关系 |
+| `id` | `string` | 是 | 测评集稳定标识，**同一渠道内唯一**，不随版本变化；重复 id 只保留先出现的条目 |
+| `downloadUrl` | `string` | 是 | 压缩包地址，扩展名必须是 `.zip` / `.tar.gz` / `.tgz` / `.tar`；可以是相对于清单的地址 |
+| `name` | `string` | 是 | 测评集名称，展示在清单卡片与测评历史中 |
+| `description` | `string` | 否 | 描述文案 |
+| `homepage` | `string` | 否 | 测评集官网地址，详情页渲染成链接 |
+| `version` | `string` | 否 | 测评集版本；清单条目要求合法 SemVer（如 `0.2` 会被拒绝，需写 `0.2.0`）。清单版本高于已装版本时卡片显示「可更新」 |
+| `tracks` | `array` | 是 | track 概览，非空数组；每项为 `{ id, name, description }` 对象，`name` 或 `id` 至少声明一个。`id` 是压缩包内 track 目录名的对应关系 |
 
 解析规则与插件清单一致：日常加载单条容错（写坏的条目跳过并记 warning），添加渠道时严格校验；https 清单只接受 https 下载地址；清单缓存 5 分钟，测评应用里的刷新入口强制重新拉取。
 
@@ -79,11 +79,11 @@ description: "搭建自己的测评集来源：清单格式与测评集压缩包
 
 | 字段 | 类型 | 必填 | 说明 |
 | --- | --- | --- | --- |
-| name | string | 是 | 测评集名称 |
-| tracks | array | 是 | track 声明，非空数组。每项可以是字符串（track 名）或对象 `{ id, name, description }`；对象的 `name` 或 `id` 至少要有其一 |
-| version | string | 否 | 版本号；从渠道安装的测评集必须是合法 SemVer，否则导入失败（自由文本版本只有读取本地历史数据时被容忍） |
-| description | string | 否 | 描述文案 |
-| homepage | string | 否 | 官网地址（兼容 `url` / `website` 别名） |
+| `name` | `string` | 是 | 测评集名称 |
+| `tracks` | `array` | 是 | track 声明，非空数组。每项可以是字符串（track 名）或对象 `{ id, name, description }`；对象的 `name` 或 `id` 至少要有其一 |
+| `version` | `string` | 否 | 版本号；从渠道安装的测评集必须是合法 SemVer，否则导入失败（自由文本版本只有读取本地历史数据时被容忍） |
+| `description` | `string` | 否 | 描述文案 |
+| `homepage` | `string` | 否 | 官网地址（兼容 `url` / `website` 别名） |
 
 ### case.json
 
@@ -91,15 +91,15 @@ description: "搭建自己的测评集来源：清单格式与测评集压缩包
 
 | 字段 | 类型 | 必填 | 说明 |
 | --- | --- | --- | --- |
-| name | string | 否 | 用例显示名；也接受 `title`，缺省用目录名（caseId） |
-| score | number | 否 | 用例权重（也接受 `points` / `weight`），用于加权汇总，默认 1 |
-| runPrompt | string | 否 | 运行提示词文件路径（相对用例目录），也接受 `runInstruction`，默认 `run.md`；文件必须存在 |
-| verifyPrompt | string | 否 | 验证提示词文件路径，也接受 `verifyInstruction`，默认 `verify.md`；文件必须存在 |
-| runPrepare | string | 否 | 运行前准备脚本（相对用例目录），也接受 `runScript`；未声明时自动探测 `run-prepare.sh`，声明的文件必须存在 |
-| verifyPrepare | string | 否 | 验证前准备脚本，也接受 `verifyScript`；未声明时自动探测 `verify-prepare.sh` |
-| runTimeoutSec | number | 否 | 运行超时（秒），默认 1800（兼容 `timeoutSec`） |
-| prepareTimeoutSec | number | 否 | 准备脚本超时（秒），默认 3600 |
-| verifyTimeoutSec | number | 否 | 验证超时（秒），默认 1800 |
+| `name` | `string` | 否 | 用例显示名；也接受 `title`，缺省用目录名（caseId） |
+| `score` | `number` | 否 | 用例权重（也接受 `points` / `weight`），用于加权汇总，默认 1 |
+| `runPrompt` | `string` | 否 | 运行提示词文件路径（相对用例目录），也接受 `runInstruction`，默认 `run.md`；文件必须存在 |
+| `verifyPrompt` | `string` | 否 | 验证提示词文件路径，也接受 `verifyInstruction`，默认 `verify.md`；文件必须存在 |
+| `runPrepare` | `string` | 否 | 运行前准备脚本（相对用例目录），也接受 `runScript`；未声明时自动探测 `run-prepare.sh`，声明的文件必须存在 |
+| `verifyPrepare` | `string` | 否 | 验证前准备脚本，也接受 `verifyScript`；未声明时自动探测 `verify-prepare.sh` |
+| `runTimeoutSec` | `number` | 否 | 运行超时（秒），默认 1800（兼容 `timeoutSec`） |
+| `prepareTimeoutSec` | `number` | 否 | 准备脚本超时（秒），默认 3600 |
+| `verifyTimeoutSec` | `number` | 否 | 验证超时（秒），默认 1800 |
 
 ## 本地调试
 

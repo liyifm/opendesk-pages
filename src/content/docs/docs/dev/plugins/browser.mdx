@@ -21,8 +21,8 @@ ctx.browser.hint.register(pattern, generator);
 
 | 参数 | 类型 | 说明 |
 | --- | --- | --- |
-| pattern | string \| RegExp | 页面地址匹配模式，**不包含协议部分**，支持前缀、通配符与正则三种写法，见下文 |
-| generator | function | 提示生成器，签名为 `(context: BrowserContext) => BrowserHint[] \| Promise<BrowserHint[]>` |
+| `pattern` | `string \| RegExp` | 页面地址匹配模式，**不包含协议部分**，支持前缀、通配符与正则三种写法，见下文 |
+| `generator` | `function` | 提示生成器，签名为 `(context: BrowserContext) => BrowserHint[] \| Promise<BrowserHint[]>` |
 
 返回 PluginRegistration。同一个插件可以注册多个 pattern，多个插件命中同一页面时提示会按插件激活顺序合并。
 
@@ -44,11 +44,11 @@ pattern 与页面地址在比较前都会去掉协议（`https://`、`//`）与�
 
 | 字段 | 类型 | 说明 |
 | --- | --- | --- |
-| url | string | 完整地址，含协议，例如 `https://www.bing.com/search?q=x` |
-| domain | string | 域名，例如 `www.bing.com` |
-| address | string | 去掉协议后的地址，即地址匹配 pattern 的作用对象 |
-| title | string | 页面标题 |
-| dom | function | `() => Promise<string>`，读取页面原始 DOM（`documentElement.outerHTML`） |
+| `url` | `string` | 完整地址，含协议，例如 `https://www.bing.com/search?q=x` |
+| `domain` | `string` | 域名，例如 `www.bing.com` |
+| `address` | `string` | 去掉协议后的地址，即地址匹配 pattern 的作用对象 |
+| `title` | `string` | 页面标题 |
+| `dom` | `function` | `() => Promise<string>`，读取页面原始 DOM（`documentElement.outerHTML`） |
 
 `dom()` 是按需拉取的：只依赖 URL 的生成器不调用它，就不会产生任何额外的页面通信。同一次快照内多次调用只求值一次。
 
@@ -101,10 +101,10 @@ actionHint(
 
 | 字段 | 类型 | 必填 | 说明 |
 | --- | --- | --- | --- |
-| name | string | 是 | 动作名，须匹配 `^[a-zA-Z][a-zA-Z0-9._-]*$`；Agent 用它作为 `trigger` 的 `action` |
-| description | string | 是 | 动作说明，指导 Agent 何时使用 |
-| args | object | 否 | 参数名到参数说明的映射，Agent 据此构造 `trigger` 的 `args` |
-| functionStr | string | 是 | 页面内可求值为函数的 JS 源码 |
+| `name` | `string` | 是 | 动作名，须匹配 `^[a-zA-Z][a-zA-Z0-9._-]*$`；Agent 用它作为 `trigger` 的 `action` |
+| `description` | `string` | 是 | 动作说明，指导 Agent 何时使用 |
+| `args` | `object` | 否 | 参数名到参数说明的映射，Agent 据此构造 `trigger` 的 `args` |
+| `functionStr` | `string` | 是 | 页面内可求值为函数的 JS 源码 |
 
 `functionStr` 的约定：
 
@@ -160,10 +160,10 @@ trigger({ action: "Search", args: { keyword: "OpenHarmony" }, snapshot: true })
 
 | 参数 | 说明 |
 | --- | --- |
-| action | 动作名，来自快照的 Action Hints 列表 |
-| args | 参数对象，键名与动作声明的参数一致 |
-| tabId | 可选，在指定标签页触发（会先切换到该标签页），缺省为当前活动标签页 |
-| snapshot | 可选，触发后是否自动获取快照 |
+| `action` | 动作名，来自快照的 Action Hints 列表 |
+| `args` | 参数对象，键名与动作声明的参数一致 |
+| `tabId` | 可选，在指定标签页触发（会先切换到该标签页），缺省为当前活动标签页 |
+| `snapshot` | 可选，触发后是否自动获取快照 |
 
 动作只在匹配的页面上可用。Agent 请求当前页面不存在的动作时，工具会返回失败并列出该页面可用的动作签名。
 

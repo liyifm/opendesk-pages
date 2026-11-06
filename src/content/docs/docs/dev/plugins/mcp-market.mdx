@@ -30,9 +30,9 @@ manifest 与入口对象都需要声明 `registry` capability：
 
 | 方法 / 字段 | 类型 | 说明 |
 | --- | --- | --- |
-| registry.fetch | function | 继承 OpenDesk 代理配置的 fetch；内容来源实现内的所有网络请求都应使用它 |
-| registry.registerMcpRegistry | function | 集成一个 MCP 内容来源，返回 PluginRegistration |
-| registry.registerSkillRegistry | function | 集成一个技能内容来源，见[通过插件集成 Skill 市场](/docs/dev/plugins/skill-market/) |
+| `registry.fetch` | `function` | 继承 OpenDesk 代理配置的 fetch；内容来源实现内的所有网络请求都应使用它 |
+| `registry.registerMcpRegistry` | `function` | 集成一个 MCP 内容来源，返回 PluginRegistration |
+| `registry.registerSkillRegistry` | `function` | 集成一个技能内容来源，见[通过插件集成 Skill 市场](/docs/dev/plugins/skill-market/) |
 
 集成的内容来源 `id` 跨插件全局唯一（它同时是安装链接 `installUrl` 的前缀）。集成后，宿主把定义适配为与内置内容来源同构的对象：进入 MCP 管理器的 tab 列表与 `listMcpRegistries` / `searchMcpRegistry` / `installFromRegistry` 等工具的搜索与安装路由。在插件中心停用品牌插件后，其内容来源随宿主重载从市场移除（已打开的市场页面在重新打开后刷新）。
 
@@ -40,36 +40,36 @@ manifest 与入口对象都需要声明 `registry` capability：
 
 | 字段 | 类型 | 必填 | 说明 |
 | --- | --- | --- | --- |
-| id | string | 是 | 内容来源唯一标识，格式同插件 id；同时是 `installUrl` 前缀（`id:`），跨插件全局唯一 |
-| label | string | 是 | 展示名称（市场 tab 文本） |
-| icon | string | 否 | GUI 中的 emoji 图标，缺省为 `🧩` |
-| iconClass | string | 否 | 预留的图标样式类名，缺省取 `id` |
-| slogan | string | 否 | 热门条目页标语；缺省使用宿主默认文案 |
-| guiHidden | boolean | 否 | `true` 时不在 GUI 市场出 tab（agent 工具仍可用） |
-| search | function | 是 | `search(options?) => Promise&lt;McpSearchResult&gt;`，入参与技能侧一致（`query` / `page` / `limit` / `apiKey` / `cursor` / `categoryFilter`） |
-| getDetail | function | 是 | `getDetail(id) => Promise&lt;RegistryMcp \| null&gt;`；安装流程（`installFromRegistry`）依赖它取回条目配置 |
+| `id` | `string` | 是 | 内容来源唯一标识，格式同插件 id；同时是 `installUrl` 前缀（`id:`），跨插件全局唯一 |
+| `label` | `string` | 是 | 展示名称（市场 tab 文本） |
+| `icon` | `string` | 否 | GUI 中的 emoji 图标，缺省为 `🧩` |
+| `iconClass` | `string` | 否 | 预留的图标样式类名，缺省取 `id` |
+| `slogan` | `string` | 否 | 热门条目页标语；缺省使用宿主默认文案 |
+| `guiHidden` | `boolean` | 否 | `true` 时不在 GUI 市场出 tab（agent 工具仍可用） |
+| `search` | `function` | 是 | `search(options?) => Promise&lt;McpSearchResult&gt;`，入参与技能侧一致（`query` / `page` / `limit` / `apiKey` / `cursor` / `categoryFilter`） |
+| `getDetail` | `function` | 是 | `getDetail(id) => Promise&lt;RegistryMcp \| null&gt;`；安装流程（`installFromRegistry`）依赖它取回条目配置 |
 
 `McpSearchResult`：
 
 | 字段 | 类型 | 必填 | 说明 |
 | --- | --- | --- | --- |
-| mcps | RegistryMcp[] | 是 | 当前页条目 |
-| total | number | 否 | 总数（用于分页展示） |
-| hasMore | boolean | 否 | 是否还有下一页 |
-| nextCursor | string | 否 | 游标分页时的下一页游标 |
-| message | string | 否 | 展示在搜索结果上方的提示文案 |
+| `mcps` | `RegistryMcp[]` | 是 | 当前页条目 |
+| `total` | `number` | 否 | 总数（用于分页展示） |
+| `hasMore` | `boolean` | 否 | 是否还有下一页 |
+| `nextCursor` | `string` | 否 | 游标分页时的下一页游标 |
+| `message` | `string` | 否 | 展示在搜索结果上方的提示文案 |
 
 `mcps` 中的条目（RegistryMcp）：
 
 | 字段 | 类型 | 必填 | 说明 |
 | --- | --- | --- | --- |
-| id | string | 是 | 条目唯一标识；安装链接为 `id:` + 该值（含特殊字符时需 `encodeURIComponent`） |
-| name | string | 是 | Server 名 |
-| description | string | 是 | 描述 |
-| source | string | 是 | 来源标识，通常与内容来源 `id` 一致 |
-| installUrl | string | 是 | `id:` + 条目 id |
-| configuration | string | 否 | 可安装的 MCP 配置 JSON（`mcpServers` 形式）；安装时宿主解析其中的 command / url / env 等 |
-| canInstall | boolean | 是 | 是否可安装（需有 `configuration`） |
+| `id` | `string` | 是 | 条目唯一标识；安装链接为 `id:` + 该值（含特殊字符时需 `encodeURIComponent`） |
+| `name` | `string` | 是 | Server 名 |
+| `description` | `string` | 是 | 描述 |
+| `source` | `string` | 是 | 来源标识，通常与内容来源 `id` 一致 |
+| `installUrl` | `string` | 是 | `id:` + 条目 id |
+| `configuration` | `string` | 否 | 可安装的 MCP 配置 JSON（`mcpServers` 形式）；安装时宿主解析其中的 command / url / env 等 |
+| `canInstall` | `boolean` | 是 | 是否可安装（需有 `configuration`） |
 | displayName / author / repository / logo / deployType / serverType / downloads / stars / views / updateTime / tags / categories | — | 否 | 详情弹窗与卡片的展示字段 |
 
 ## installUrl 与安装流程

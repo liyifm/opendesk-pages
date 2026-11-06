@@ -308,6 +308,95 @@ video {
   border: 0;
 }
 
+/* Markdown 表格：浅色用 Elegant（米色表头 + 淡格线），深色用 Dark（半透明白描边） */
+:root {
+  --od-table-head-bg: #ece5d4;
+  --od-table-head-fg: var(--sl-color-text);
+  --od-table-head-border: #ddd5c4;
+  --od-table-cell-border: #e8e0d0;
+  --od-table-row-alt-bg: #f1ede4;
+}
+
+:root[data-theme="dark"] {
+  --od-table-head-bg: rgba(255, 255, 255, 0.08);
+  --od-table-head-fg: var(--sl-color-white);
+  --od-table-head-border: rgba(255, 255, 255, 0.12);
+  --od-table-cell-border: rgba(255, 255, 255, 0.08);
+  --od-table-row-alt-bg: rgba(255, 255, 255, 0.04);
+}
+
+/* 块级布局保留宽表横向滚动；width: max-content 让外框贴合内容，避免窄表右侧出现空白带 */
+.sl-markdown-content table:not(:where(.not-content *)) {
+  border: 1px solid var(--od-table-head-border);
+  border-radius: 12px;
+  border-spacing: 0;
+  display: block;
+  font-size: var(--sl-text-xs);
+  margin-block: 1.5rem;
+  max-width: 100%;
+  overflow-x: auto;
+  width: max-content;
+}
+
+.sl-markdown-content :is(th, td):not(:where(.not-content *)) {
+  border-bottom: 1px solid var(--od-table-cell-border);
+  border-inline-end: 1px solid var(--od-table-cell-border);
+  padding: 0.5rem 0.9rem;
+  vertical-align: baseline;
+}
+
+.sl-markdown-content thead th:not(:where(.not-content *)) {
+  background: var(--od-table-head-bg);
+  border-bottom-color: var(--od-table-head-border);
+  color: var(--od-table-head-fg);
+  font-weight: 600;
+  text-align: start;
+  white-space: nowrap;
+}
+
+.sl-markdown-content :is(th, td):not(:where(.not-content *)):last-child {
+  border-inline-end: 0;
+}
+
+.sl-markdown-content tbody tr:last-child > :is(th, td):not(:where(.not-content *)) {
+  border-bottom: 0;
+}
+
+.sl-markdown-content tbody tr:nth-child(even) > :is(th, td):not(:where(.not-content *)) {
+  background: var(--od-table-row-alt-bg);
+}
+
+/* 抵消 Starlight 默认把首末列内边距清零，否则单元格文字贴住外框 */
+.sl-markdown-content :is(th:first-child, td:first-child):not(:where(.not-content *)) {
+  padding-inline-start: 0.9rem;
+}
+
+.sl-markdown-content :is(th:last-child, td:last-child):not(:where(.not-content *)) {
+  padding-inline-end: 0.9rem;
+}
+
+/* 整格只有一个行内代码的单元格（类型、字段名等）不折行，避免声明被拆成两行 */
+.sl-markdown-content :is(th, td) > code:only-child:not(:where(.not-content *)) {
+  white-space: nowrap;
+}
+
+/* 表头与末行单元格跟随外框圆角，避免直角盖住圆角 */
+.sl-markdown-content thead tr:first-child > th:first-child:not(:where(.not-content *)) {
+  border-start-start-radius: 11px;
+}
+
+.sl-markdown-content thead tr:first-child > th:last-child:not(:where(.not-content *)) {
+  border-start-end-radius: 11px;
+}
+
+.sl-markdown-content tbody tr:last-child > td:first-child:not(:where(.not-content *)) {
+  border-end-start-radius: 11px;
+}
+
+.sl-markdown-content tbody tr:last-child > td:last-child:not(:where(.not-content *)) {
+  border-end-end-radius: 11px;
+}
+
 /* 缩小 link-title 字体 */
 .link-title {
   font-size: var(--sl-text-xl);

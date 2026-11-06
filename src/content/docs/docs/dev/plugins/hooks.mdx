@@ -51,15 +51,15 @@ Input：
 
 | 字段 | 类型 | 说明 |
 | --- | --- | --- |
-| taskId | string，可选 | 当前任务 |
-| workspace | string，可选 | 当前工作空间 |
-| modelAlias | string，可选 | 当前模型别名 |
+| `taskId` | string，可选 | 当前任务 |
+| `workspace` | string，可选 | 当前工作空间 |
+| `modelAlias` | string，可选 | 当前模型别名 |
 
 Output：
 
 | 字段 | 类型 | 说明 |
 | --- | --- | --- |
-| headers | Record&lt;string, string&gt; | 最终请求 Header；值必须是字符串 |
+| `headers` | Record&lt;string, string&gt; | 最终请求 Header；值必须是字符串 |
 
 ~~~js
 ctx.hooks.on('chat.headers', (input, output) => {
@@ -75,8 +75,8 @@ Output：
 
 | 字段 | 类型 | 说明 |
 | --- | --- | --- |
-| reasoningEffort | 空字符串、none、low、medium、high、max，可选 | 推理强度；空字符串表示交给模型默认值 |
-| maxCompletionTokens | 正整数，可选 | 最大输出 token 数 |
+| `reasoningEffort` | 空字符串、none、low、medium、high、max，可选 | 推理强度；空字符串表示交给模型默认值 |
+| `maxCompletionTokens` | 正整数，可选 | 最大输出 token 数 |
 
 ~~~js
 ctx.hooks.on('chat.params', (input, output) => {
@@ -95,15 +95,15 @@ Input：
 
 | 字段 | 类型 | 说明 |
 | --- | --- | --- |
-| taskId | string | 被审查的主任务 id |
-| messages | readonly object[] | 本次审查范围内、经过过滤的可见对话 |
+| `taskId` | `string` | 被审查的主任务 id |
+| `messages` | `readonly object[]` | 本次审查范围内、经过过滤的可见对话 |
 
 `messages` 中每一项包含：
 
 | 字段 | 类型 | 说明 |
 | --- | --- | --- |
-| role | user 或 assistant | 消息角色 |
-| content | string | 去除首尾空白后的纯文本内容 |
+| `role` | user 或 assistant | 消息角色 |
+| `content` | `string` | 去除首尾空白后的纯文本内容 |
 
 自动审查只提供当前审查范围内的消息；手动 Task Review 当前从会话起点开始审查。插件不会收到子任务和内部任务的审查事件。消息列表只保留非内部的用户文本和 Assistant 的可见文本，不包含空消息、reasoning、工具调用、工具结果以及其他内部消息。
 
@@ -129,19 +129,19 @@ Input：
 
 | 字段 | 类型 | 说明 |
 | --- | --- | --- |
-| bundleName | string | Skill 所属 bundle |
-| skillName | string | Skill 名 |
-| skillDirectory | string，可选 | Skill 目录 |
-| source | installed、config、mounted、builtin、plugin，可选 | Skill 来源 |
-| frontmatter | object | 已解析的 Skill frontmatter |
+| `bundleName` | `string` | Skill 所属 bundle |
+| `skillName` | `string` | Skill 名 |
+| `skillDirectory` | string，可选 | Skill 目录 |
+| `source` | installed、config、mounted、builtin、plugin，可选 | Skill 来源 |
+| `frontmatter` | `object` | 已解析的 Skill frontmatter |
 
 Output：
 
 | 字段 | 类型 | 说明 |
 | --- | --- | --- |
-| operation | allow 或 deny | 默认 allow；deny 阻止加载 |
-| message | string，可选 | 允许或拒绝原因 |
-| metadata | object，可选 | 插件附加记录 |
+| `operation` | allow 或 deny | 默认 allow；deny 阻止加载 |
+| `message` | string，可选 | 允许或拒绝原因 |
+| `metadata` | object，可选 | 插件附加记录 |
 
 ~~~js
 ctx.hooks.on('skill.load.before', (input, output) => {
@@ -173,16 +173,16 @@ Input：
 
 | 字段 | 类型 | 说明 |
 | --- | --- | --- |
-| skills | readonly object[] | 用户提供的本地 Skill 列表 |
+| `skills` | `readonly object[]` | 用户提供的本地 Skill 列表 |
 
 `skills` 中每一项包含：
 
 | 字段 | 类型 | 说明 |
 | --- | --- | --- |
-| name | string | Skill 名称 |
-| directory | string | Skill 所在目录的绝对路径 |
-| source | installed、config 或 mounted | Skill 来源；三种来源保持独立，插件可以按需过滤 |
-| enabled | boolean | Skill 当前最终是否启用 |
+| `name` | `string` | Skill 名称 |
+| `directory` | `string` | Skill 所在目录的绝对路径 |
+| `source` | installed、config 或 mounted | Skill 来源；三种来源保持独立，插件可以按需过滤 |
+| `enabled` | `boolean` | Skill 当前最终是否启用 |
 
 列表不包含内置的 Application、Soul Skill，也不包含插件通过 `resources.skills` 或 `ctx.skills.register` 贡献的 Skill。`source` 的含义如下：
 
@@ -214,12 +214,12 @@ Input：
 
 | 字段 | 类型 | 说明 |
 | --- | --- | --- |
-| source | directory、zip、url、registry | 安装源类型 |
-| path | string，可选 | directory 或 zip 的本地路径 |
-| url | string，可选 | URL 安装地址 |
-| skillRelPath | string，可选 | 安装源内的 Skill 相对路径 |
-| force | boolean，可选 | 是否覆盖已有 Skill |
-| customName | string，可选 | 用户指定的 Skill 名 |
+| `source` | directory、zip、url、registry | 安装源类型 |
+| `path` | string，可选 | directory 或 zip 的本地路径 |
+| `url` | string，可选 | URL 安装地址 |
+| `skillRelPath` | string，可选 | 安装源内的 Skill 相对路径 |
+| `force` | boolean，可选 | 是否覆盖已有 Skill |
+| `customName` | string，可选 | 用户指定的 Skill 名 |
 
 Output 与 `skill.load.before` 相同：operation 为 allow 或 deny，message 和 metadata 可选。
 
@@ -295,17 +295,17 @@ Input：
 
 | 字段 | 类型 | 说明 |
 | --- | --- | --- |
-| tool | string | 完整 Tool 名 |
-| pluginId | string，可选 | Tool 来自插件时为其插件 id，原生 Tool 为空 |
-| taskId | string，可选 | 当前任务 |
-| workspace | string，可选 | 当前工作空间 |
+| `tool` | `string` | 完整 Tool 名 |
+| `pluginId` | string，可选 | Tool 来自插件时为其插件 id，原生 Tool 为空 |
+| `taskId` | string，可选 | 当前任务 |
+| `workspace` | string，可选 | 当前工作空间 |
 
 Output：
 
 | 字段 | 类型 | 说明 |
 | --- | --- | --- |
-| description | string | 给模型读取的说明，修改后仍不能为空 |
-| parameters | Zod object schema | Tool 参数 Schema，必须满足与 ToolDefinition.parameters 相同的校验 |
+| `description` | `string` | 给模型读取的说明，修改后仍不能为空 |
+| `parameters` | Zod object schema | Tool 参数 Schema，必须满足与 ToolDefinition.parameters 相同的校验 |
 
 ~~~js
 ctx.hooks.on('tool.definition', (input, output) => {
@@ -323,19 +323,19 @@ Input：
 
 | 字段 | 类型 | 说明 |
 | --- | --- | --- |
-| tool | string | 完整 Tool 名 |
-| taskId | string | 当前任务 |
-| callId | string | Tool 调用 id |
-| workspace | string，可选 | 当前工作空间 |
+| `tool` | `string` | 完整 Tool 名 |
+| `taskId` | `string` | 当前任务 |
+| `callId` | `string` | Tool 调用 id |
+| `workspace` | string，可选 | 当前工作空间 |
 
 Output：
 
 | 字段 | 类型 | 说明 |
 | --- | --- | --- |
-| args | unknown | 即将校验和执行的参数，可以替换 |
-| deny | object，可选 | 设置后拒绝执行 |
-| deny.message | string，可选 | 面向调用方的拒绝原因 |
-| deny.metadata | object，可选 | 写入 Tool 结构化结果的拒绝信息 |
+| `args` | `unknown` | 即将校验和执行的参数，可以替换 |
+| `deny` | object，可选 | 设置后拒绝执行 |
+| `deny.message` | string，可选 | 面向调用方的拒绝原因 |
+| `deny.metadata` | object，可选 | 写入 Tool 结构化结果的拒绝信息 |
 
 ~~~js
 ctx.hooks.on('tool.validate.before', (input, output) => {
@@ -354,18 +354,18 @@ Input：
 
 | 字段 | 类型 | 说明 |
 | --- | --- | --- |
-| tool | string | 完整 Tool 名 |
-| taskId | string | 当前任务 |
-| callId | string | Tool 调用 id |
-| workspace | string，可选 | 当前工作空间 |
+| `tool` | `string` | 完整 Tool 名 |
+| `taskId` | `string` | 当前任务 |
+| `callId` | `string` | Tool 调用 id |
+| `workspace` | string，可选 | 当前工作空间 |
 
 Output：
 
 | 字段 | 类型 | 说明 |
 | --- | --- | --- |
-| deny | object，可选 | 设置后拒绝执行 |
-| deny.message | string，可选 | 面向调用方的拒绝原因 |
-| deny.metadata | object，可选 | 写入 Tool 结构化结果的拒绝信息 |
+| `deny` | object，可选 | 设置后拒绝执行 |
+| `deny.message` | string，可选 | 面向调用方的拒绝原因 |
+| `deny.metadata` | object，可选 | 写入 Tool 结构化结果的拒绝信息 |
 
 ~~~js
 ctx.hooks.on('tool.execute.before', (input, output) => {
@@ -386,19 +386,19 @@ Input：
 
 | 字段 | 类型 | 说明 |
 | --- | --- | --- |
-| tool | string | 模型侧最终 Tool 名；适用于所有 Tool，插件 Tool 为 `plugin-{pluginId}-{本地名}` |
-| taskId | string | 当前任务 |
-| callId | string | Tool 调用 id |
-| workspace | string，可选 | 当前工作空间 |
-| args | unknown | 实际执行参数 |
+| `tool` | `string` | 模型侧最终 Tool 名；适用于所有 Tool，插件 Tool 为 `plugin-{pluginId}-{本地名}` |
+| `taskId` | `string` | 当前任务 |
+| `callId` | `string` | Tool 调用 id |
+| `workspace` | string，可选 | 当前工作空间 |
+| `args` | `unknown` | 实际执行参数 |
 
 Output：
 
 | 字段 | 类型 | 说明 |
 | --- | --- | --- |
-| status | success 或 error | 最终状态 |
-| result | string | 最终文本结果 |
-| resultObject | object，可选 | 最终结构化结果 |
+| `status` | success 或 error | 最终状态 |
+| `result` | `string` | 最终文本结果 |
+| `resultObject` | object，可选 | 最终结构化结果 |
 
 ~~~js
 ctx.hooks.on('tool.execute.after', (input, output) => {
@@ -417,17 +417,17 @@ Input：
 
 | 字段 | 类型 | 说明 |
 | --- | --- | --- |
-| taskId | string | 当前任务 |
-| workspace | string，可选 | 当前工作空间 |
-| tool | string | 请求权限的 Tool |
-| callId | string，可选 | Tool 调用 id |
-| requests | PermissionRequest[] | 需要确认的资源、操作和路径 |
+| `taskId` | `string` | 当前任务 |
+| `workspace` | string，可选 | 当前工作空间 |
+| `tool` | `string` | 请求权限的 Tool |
+| `callId` | string，可选 | Tool 调用 id |
+| `requests` | `PermissionRequest[]` | 需要确认的资源、操作和路径 |
 
 Output：
 
 | 字段 | 类型 | 说明 |
 | --- | --- | --- |
-| decision | ask、allow、deny | ask 保留用户确认；allow 或 deny 直接决定 |
+| `decision` | ask、allow、deny | ask 保留用户确认；allow 或 deny 直接决定 |
 
 只有明确的组织策略或安全策略才应自动 allow 或 deny。不要用该 Hook 隐式扩大 Tool 权限。
 
@@ -448,16 +448,16 @@ Input：
 
 | 字段 | 类型 | 说明 |
 | --- | --- | --- |
-| taskId | string，可选 | 当前任务 |
-| workspace | string，可选 | 当前工作空间 |
-| shell | string | Shell 可执行文件 |
-| command | string | 即将执行的命令 |
+| `taskId` | string，可选 | 当前任务 |
+| `workspace` | string，可选 | 当前工作空间 |
+| `shell` | `string` | Shell 可执行文件 |
+| `command` | `string` | 即将执行的命令 |
 
 Output：
 
 | 字段 | 类型 | 说明 |
 | --- | --- | --- |
-| env | Record&lt;string, string 或 undefined&gt; | 本次进程环境；字符串设置值，undefined 移除值 |
+| `env` | Record&lt;string, string 或 undefined&gt; | 本次进程环境；字符串设置值，undefined 移除值 |
 
 ~~~js
 ctx.hooks.on('shell.env', (input, output) => {
@@ -475,20 +475,20 @@ Input：
 
 | 字段 | 类型 | 说明 |
 | --- | --- | --- |
-| tool | string | 完整 Tool 名 |
-| taskId | string | 当前任务 |
-| callId | string | 调用 id |
-| workspace | string，可选 | 当前工作空间 |
-| shellType | bash、zsh、powershell | Shell 类型 |
+| `tool` | `string` | 完整 Tool 名 |
+| `taskId` | `string` | 当前任务 |
+| `callId` | `string` | 调用 id |
+| `workspace` | string，可选 | 当前工作空间 |
+| `shellType` | bash、zsh、powershell | Shell 类型 |
 
 Output：
 
 | 字段 | 类型 | 说明 |
 | --- | --- | --- |
-| args | unknown | 即将执行的参数，可以替换 |
-| deny | object，可选 | 设置后拒绝执行 |
-| deny.message | string，可选 | 面向调用方的拒绝原因 |
-| deny.metadata | object，可选 | 写入结构化结果的拒绝信息 |
+| `args` | `unknown` | 即将执行的参数，可以替换 |
+| `deny` | object，可选 | 设置后拒绝执行 |
+| `deny.message` | string，可选 | 面向调用方的拒绝原因 |
+| `deny.metadata` | object，可选 | 写入结构化结果的拒绝信息 |
 
 ~~~js
 ctx.hooks.on('shell.execute.before', (input, output) => {
@@ -506,21 +506,21 @@ Input：
 
 | 字段 | 类型 | 说明 |
 | --- | --- | --- |
-| tool | string | 完整 Tool 名 |
-| taskId | string | 当前任务 |
-| callId | string | 调用 id |
-| workspace | string，可选 | 当前工作空间 |
-| args | unknown | 实际执行参数 |
-| shellType | bash、zsh、powershell | Shell 类型 |
-| returnCode | number 或 null | 进程返回码 |
+| `tool` | `string` | 完整 Tool 名 |
+| `taskId` | `string` | 当前任务 |
+| `callId` | `string` | 调用 id |
+| `workspace` | string，可选 | 当前工作空间 |
+| `args` | `unknown` | 实际执行参数 |
+| `shellType` | bash、zsh、powershell | Shell 类型 |
+| `returnCode` | number 或 null | 进程返回码 |
 
 Output：
 
 | 字段 | 类型 | 说明 |
 | --- | --- | --- |
-| status | success 或 error | 最终状态 |
-| result | string | 最终文本结果 |
-| resultObject | object，可选 | 最终结构化结果 |
+| `status` | success 或 error | 最终状态 |
+| `result` | `string` | 最终文本结果 |
+| `resultObject` | object，可选 | 最终结构化结果 |
 
 ~~~js
 ctx.hooks.on('shell.execute.after', (input, output) => {
