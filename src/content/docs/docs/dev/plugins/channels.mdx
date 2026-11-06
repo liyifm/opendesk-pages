@@ -7,11 +7,11 @@ import VersionNote from '../../../../../components/VersionNote.astro';
 
 <VersionNote since="0.3.6" />
 
-通过 `ctx.channels.register`，插件可以把第三方 IM 平台（微信、飞书、Zalo 等）接入 OpenDesk，作为消息渠道（Channel）。渠道负责平台侧的登录、连接与收发消息；OpenDesk 侧的配对、allowlist、群组策略与消息路由由 `channelmgr` 统一处理。
+通过 `ctx.channels.register`，插件可以把第三方 IM 平台（微信、飞书、Zalo 等）接入 OpenDesk，作为消息渠道（Channel）。渠道负责平台侧的登录、连接与收发消息；OpenDesk 侧的会话绑定、消息分发策略与任务路由由 `channelmgr` 统一处理。
 
-渠道接入后，用户可以在渠道中与 Agent 对话：入站消息会投递到 Agent，Agent 的回复经渠道发回原会话。渠道声明 `interactive` 能力后，权限审批与 askUser 提问还能以结构化交互卡片（如飞书确认卡片）的形式下发到用户侧。
+渠道接入后，用户可以在渠道中与 Agent 对话：入站消息会投递到 Agent，Agent 的回复经渠道发回原会话。渠道声明 `interactive` 能力后，权限审批、askUser 提问与会话切换单选（0.3.10 起）还能以结构化交互卡片（如飞书确认卡片）的形式下发到用户侧。
 
-内置的 `feishu` 与 `weixin` 插件就是完整的 Channel 实现，可以作为参考。
+内置的 [`feishu`](https://gitcode.com/openharmony-robot/OpenDesk/tree/main/resources/plugins/feishu) 与 [`weixin`](https://gitcode.com/openharmony-robot/OpenDesk/tree/main/resources/plugins/weixin) 插件就是完整的 Channel 实现，可以作为参考。
 
 ## 能力声明
 
@@ -125,9 +125,9 @@ define(channel)
 
 `getAccountLoginParams()` 返回表单字段描述 `{ name, displayName, required, type?: 'text' | 'password' }`；`loginAccountWithParams(values)` 用表单值登录。渠道可以同时支持扫码与参数登录，也可以只支持其中一种。
 
-## 运行时上下文（ChannelRuntimeContext）
+## 运行时上下文
 
-`setChannelRuntimeContext` 注入的 ctx 是渠道与 OpenDesk 交互的唯一通道：
+`setChannelRuntimeContext` 注入的 ctx（类型 `ChannelRuntimeContext`）是渠道与 OpenDesk 交互的唯一通道：
 
 | 成员 | 类型 | 说明 |
 | --- | --- | --- |
@@ -136,7 +136,7 @@ define(channel)
 | config | object | OpenDesk 侧维护的非敏感配置（只读） |
 | dataDir | string | 渠道专属数据目录（`<opendesk>/channels/<channelId>/`） |
 | resolvePath | function | 将相对路径解析到 dataDir 内 |
-| dispatch | function | 投递入站消息，OpenDesk 执行配对/allowlist/群组策略后决定是否路由到 Agent |
+| dispatch | function | 投递入站消息；OpenDesk 解析会话并按消息分发策略决定复用当前任务还是新建任务 |
 | dispatchInteraction | function | 回传用户对交互卡片的操作 |
 | setStatus | function | 上报连接状态（连接/断开/错误） |
 | emit | function | 向 OpenDesk 发送扩展事件（如扫码过期、需要重新授权） |
@@ -165,6 +165,8 @@ define(channel)
 
 投递是异步的：`await ctx.dispatch(inbound)` 等 OpenDesk 完成策略判断与路由，渠道不应在 dispatch 返回前清理消息相关状态。
 
+路由规则渠道不需要关心，也不必自行维护会话与任务的映射：OpenDesk 按会话键（私聊用发送者、群聊用群 id）定位绑定任务，绑定不存在或已失效时一律新建任务；存在活跃任务时按账号配置的消息分发策略（0.3.10 起）决定复用还是新建——`sticky` 始终复用当前任务，`timeout` 在任务空闲超过阈值（默认 1 天）后新建，`smart` 由模型判定消息归属、判定失败按 15 分钟空闲兜底。
+
 ## 出站消息
 
 实现 `sendOutboundMessage(message)` 发送 Agent 的回复：
@@ -182,7 +184,7 @@ await channel.sendOutboundMessage({
 - `message.text` 为文本；`message.media` 出站时由 OpenDesk 提供本地 `path` 或远程 `url`，渠道负责上传/转换；
 - 返回 `{ messageId? }` 作为平台侧发送成功的回执。
 
-## 结构化交互（interactive）
+## 结构化交互
 
 渠道声明 `capabilities.interactive: true` 并实现 `sendInteraction` 后，OpenDesk 会把权限审批与 askUser 提问构造为 `ChannelInteractionRequest` 下发，渠道渲染为用户可见的交互 UI（如飞书确认卡片）；用户在渠道侧点击后，渠道把结果经 `ctx.dispatchInteraction(event)` 回传。
 
@@ -191,18 +193,21 @@ await channel.sendOutboundMessage({
 | 字段 | 类型 | 说明 |
 | --- | --- | --- |
 | interactionId | string | 唯一交互 id，回调通过它关联回 pending 的请求 |
-| kind | string | `approval`（权限审批）或 `askUser`（向用户提问） |
+| kind | string | `approval`（权限审批）、`askUser`（向用户提问）或 `selection`（单选列表，0.3.10 起） |
 | to | object | 出站目标（同 `sendOutboundMessage`） |
 | accountId | string | 目标账号 |
 | expiresAt | number | 过期时间（epoch ms），到期未响应视为取消 |
 | payload | object | 审批或提问的具体内容 |
 
-`payload` 两种形态：
+`payload` 三种形态：
 
 - `approval`：`{ prompt, tool?, requests, confirmLabel?, cancelLabel? }`，`requests` 为被请求授权的权限列表；
-- `askUser`：`{ questions: [{ question, header, options, multiple? }] }`，`options` 为 `{ label, description }` 列表。
+- `askUser`：`{ questions: [{ question, header, options, multiple? }] }`，`options` 为 `{ label, description }` 列表；
+- `selection`（0.3.10 起）：`{ header, options, hint? }`，`options` 为 `{ label, value }` 列表（`value` 是回传标识，如任务 id），`hint` 是列表末尾的可选提示文案（如分页语法说明）。典型场景是渠道内的会话切换（如 `/list` 命令）：OpenDesk 把可切换的任务列表作为单选请求下发，用户选中后恢复对应任务。
 
-用户操作经 `dispatchInteraction(event)` 回传：`{ kind, interactionId, accountId?, operator, decision?, answers?, cancelled?, raw? }`。`approval` 事件携带 `decision: 'allow' | 'deny'`；`askUser` 事件携带 `answers: { 问题索引: 选中的 option label 数组 }`；用户取消（点取消按钮、卡片超时）时 `cancelled: true`。
+三种 `kind` 的渲染方式由渠道按平台能力决定：[飞书](https://gitcode.com/openharmony-robot/OpenDesk/tree/main/resources/plugins/feishu)把选项渲染为按钮卡片，[微信](https://gitcode.com/openharmony-robot/OpenDesk/tree/main/resources/plugins/weixin)等纯文本渠道渲染为编号文本并解析用户回复的序号，可参考两者的内置实现。
+
+用户操作经 `dispatchInteraction(event)` 回传：`{ kind, interactionId, accountId?, operator, decision?, answers?, selected?, cancelled?, raw? }`。`approval` 事件携带 `decision: 'allow' | 'deny'`；`askUser` 事件携带 `answers: { 问题索引: 选中的 option label 数组 }`；`selection` 事件携带 `selected: string`（用户选中选项的 `value`）；用户取消（点取消按钮、卡片超时）时 `cancelled: true`。
 
 渠道不实现 `sendInteraction` 或 `interactive` 不为 true 时，OpenDesk 不向 Agent 挂载相关交互工具，权限请求自动拒绝、askUser 返回取消，避免出现无人响应的悬挂。
 

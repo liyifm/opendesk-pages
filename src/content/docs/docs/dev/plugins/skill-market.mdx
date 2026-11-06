@@ -1,15 +1,15 @@
 ---
-title: "通过插件集成内容来源"
-description: "在插件中集成技能市场或 MCP 市场的内容来源：搜索、安装计划、筛选器与品牌化组织方式"
+title: "通过插件集成 Skill 市场"
+description: "在插件中为技能市场集成自定义内容来源：搜索、筛选器、安装解析与品牌化组织方式"
 ---
 
 import VersionNote from '../../../../../components/VersionNote.astro';
 
 <VersionNote since="0.3.7" />
 
-内容来源（API 中称为 Registry，注册表）是技能市场与 MCP 管理器中的「市场来源」：每个内容来源对应一个市场 tab，提供搜索与安装入口。通过 `registry` capability，插件可以向技能市场（`ctx.registry.registerSkillRegistry`）和 MCP 管理器（`ctx.registry.registerMcpRegistry`）集成自定义内容来源，与内置内容来源在 UI、agent 工具和安装流程中完全同权。
+内容来源（API 中称为 Registry，注册表）是技能市场中的「市场来源」：每个内容来源对应一个市场 tab，提供搜索与安装入口。通过 `registry` capability 和 `ctx.registry.registerSkillRegistry`，插件可以把任意的技能站点集成为技能市场的内容来源，与内置内容来源在 UI、agent 工具和安装流程中完全同权。
 
-一个插件可以同时集成技能与 MCP 两类内容来源。OpenDesk 内置的内容来源就是按品牌组织的：`matrix` 与 `modelscope` 两个插件各自同时集成 MCP 与技能内容来源，`clawhub`、`skillhub`、`skill0`、`skillsmp` 各集成一个技能内容来源，都可以作为参考实现（源码位于仓库的 `resources/plugins/`）。
+OpenDesk 内置的内容来源就是按品牌组织的插件：[\`matrix\`](https://gitcode.com/openharmony-robot/OpenDesk/tree/main/resources/plugins/matrix) 与 [\`modelscope\`](https://gitcode.com/openharmony-robot/OpenDesk/tree/main/resources/plugins/modelscope) 同时集成 MCP 与技能两类来源，[\`clawhub\`](https://gitcode.com/openharmony-robot/OpenDesk/tree/main/resources/plugins/clawhub) 与 [\`skillhub\`](https://gitcode.com/openharmony-robot/OpenDesk/tree/main/resources/plugins/skillhub) 各集成一个技能内容来源，都可以作为参考实现。
 
 ## 能力声明
 
@@ -32,9 +32,9 @@ manifest 与入口对象都需要声明 `registry` capability：
 | --- | --- | --- |
 | registry.fetch | function | 继承 OpenDesk 代理配置的 fetch；内容来源实现内的所有网络请求都应使用它 |
 | registry.registerSkillRegistry | function | 集成一个技能内容来源，返回 PluginRegistration |
-| registry.registerMcpRegistry | function | 集成一个 MCP 内容来源，返回 PluginRegistration |
+| registry.registerMcpRegistry | function | 集成一个 MCP 内容来源，见[通过插件集成 MCP 市场](/docs/dev/plugins/mcp-market/) |
 
-集成的内容来源 `id` 跨插件全局唯一（它同时是安装链接 `installUrl` 的前缀）。集成后，宿主把定义适配为与内置内容来源同构的对象：技能侧进入技能市场的 tab 列表、TUI 与 agent 工具（`searchSkillFromRegistry` / `addSkillFromRegistry` 等）的搜索与安装路由；MCP 侧进入 MCP 管理器的 tab 列表与 `listMcpRegistries` / `searchMcpRegistry` / `installFromRegistry` 等工具。在插件中心停用品牌插件后，其内容来源随宿主重载从市场移除（已打开的市场页面在重新打开后刷新）。
+集成的内容来源 `id` 跨插件全局唯一（它同时是安装链接 `installUrl` 的前缀）。集成后，宿主把定义适配为与内置内容来源同构的对象：进入技能市场的 tab 列表、TUI 与 agent 工具（`searchSkillFromRegistry` / `addSkillFromRegistry` 等）的搜索与安装路由。在插件中心停用品牌插件后，其内容来源随宿主重载从市场移除（已打开的市场页面在重新打开后刷新）。
 
 ## 技能内容来源定义
 
@@ -94,38 +94,15 @@ RegistrySkill：
 | stars / score / downloads | number | 否 | 展示用统计 |
 | categories | string[] | 否 | 分类标签 |
 
-## MCP 内容来源定义
-
-| 字段 | 类型 | 必填 | 说明 |
-| --- | --- | --- | --- |
-| id / label / icon / iconClass / slogan / guiHidden | 同上 | — | 与技能内容来源的元数据字段一致 |
-| search | function | 是 | `search(options?) => Promise&lt;McpSearchResult&gt;`，入参与技能侧一致 |
-| getDetail | function | 是 | `getDetail(id) => Promise&lt;RegistryMcp \| null&gt;`；安装流程（`installFromRegistry`）依赖它取回条目配置 |
-
-`McpSearchResult.mcps` 中的条目（RegistryMcp）：
-
-| 字段 | 类型 | 必填 | 说明 |
-| --- | --- | --- | --- |
-| id | string | 是 | 条目唯一标识；安装链接为 `id:` + 该值（含特殊字符时需 `encodeURIComponent`） |
-| name | string | 是 | Server 名 |
-| description | string | 是 | 描述 |
-| source | string | 是 | 来源标识 |
-| installUrl | string | 是 | `id:` + 条目 id |
-| configuration | string | 否 | 可安装的 MCP 配置 JSON（`mcpServers` 形式）；安装时宿主解析其中的 command / url / env 等 |
-| canInstall | boolean | 是 | 是否可安装（需有 `configuration`） |
-| displayName / author / repository / logo / deployType / serverType / downloads / stars / views / updateTime / tags / categories | — | 否 | 详情弹窗与卡片的展示字段 |
-
 ## installUrl 与安装流程
 
-内容来源的 `installUrl` 约定为 `id:条目标识`：
+技能侧的 `installUrl` 约定为 `id:slug[@version]`。安装时宿主按前缀找到内容来源，优先调用插件声明的 `resolveInstall` 取 `downloadUrl`（zip）后走统一安装流程；未声明 `resolveInstall` 时按内置规则处理：内置四个技能来源的下载地址内置于安装器，其余回退为按普通 zip URL 尝试。
 
-- 技能侧约定 `id:slug[@version]`；安装时宿主按前缀找到内容来源，优先调用插件声明的 `resolveInstall` 取 `downloadUrl`（zip）后走统一安装流程。未声明 `resolveInstall` 时按内置规则处理：内置四个技能来源的下载地址内置于安装器，其余回退为按普通 zip URL 尝试。
-- MCP 侧安装时宿主调用 `getDetail(条目标识)`，解析 `configuration` 中的 `mcpServers` JSON 落成本地 MCP 配置；条目 id 含特殊字符时建议在 `installUrl` 中 `encodeURIComponent`，并在 `getDetail` 内自行解码。
-- 内置四个技能来源（`matrix` / `clawhub` / `modelscope` / `skillhub`）的安装路由不依赖对应插件是否启用，历史安装链接始终可重装。
+内置四个技能来源（`matrix` / `clawhub` / `modelscope` / `skillhub`）的安装路由不依赖对应插件是否启用，历史安装链接始终可重装。
 
-## 依赖 SDK 的示例
+## 示例
 
-一个品牌插件同时集成技能与 MCP 两类内容来源：
+依赖 SDK：
 
 ~~~js
 import { definePlugin } from '@bitclub.ai/opendesk-plugin-sdk';
@@ -166,32 +143,11 @@ export default definePlugin({
         return { downloadUrl: `https://dl.my-brand.example/${parsed.slug}.zip` };
       }
     });
-
-    ctx.registry.registerMcpRegistry({
-      id: 'my-brand-mcps',
-      label: 'My Brand MCPs',
-      async search() {
-        return { mcps: [], total: 0, hasMore: false };
-      },
-      async getDetail(id) {
-        return {
-          id,
-          name: id,
-          description: 'My Brand MCP server',
-          source: 'my-brand-mcps',
-          installUrl: `my-brand-mcps:${id}`,
-          configuration: JSON.stringify({
-            mcpServers: { [id]: { command: 'npx', args: ['-y', `@my-brand/${id}`] } }
-          }),
-          canInstall: true
-        };
-      }
-    });
   }
 });
 ~~~
 
-## 不依赖 SDK 的示例
+不依赖 SDK 时默认导出同样的普通对象：
 
 ~~~js
 export default {
@@ -211,22 +167,20 @@ export default {
 
 ## 内置品牌插件参考
 
-OpenDesk 0.3.7 起内置以下按品牌划分的内容来源插件（源码位于仓库的 `resources/plugins/`，每个插件内含 `opendesk.plugin.json`、`index.mjs` 入口与内容来源实现模块）：
+OpenDesk 0.3.7 起内置以下集成技能内容来源的品牌插件：
 
 | 插件 | 集成的内容来源 | 说明 |
 | --- | --- | --- |
-| matrix | MCP `matrix` + 技能 `matrix` | OpenHarmony Matrix 市场，技能带「鸿蒙PC兼容」筛选器 |
-| modelscope | MCP `modelscope-mcp` + 技能 `modelscope` | ModelScope（魔搭社区）市场 |
-| clawhub | 技能 `clawhub` | ClawHub 社区市场 |
-| skillhub | 技能 `skillhub` | SkillHub 市场 |
-| skill0 | 技能 `skill0`（guiHidden） | 仅 agent 工具与 TUI 可用 |
-| skillsmp | 技能 `skillsmp`（guiHidden） | 需要 API Key，宿主经 `options.apiKey` 注入 |
+| [matrix](https://gitcode.com/openharmony-robot/OpenDesk/tree/main/resources/plugins/matrix) | MCP `matrix` + 技能 `matrix` | OpenHarmony Matrix 市场，技能带「鸿蒙PC兼容」筛选器 |
+| [modelscope](https://gitcode.com/openharmony-robot/OpenDesk/tree/main/resources/plugins/modelscope) | MCP `modelscope-mcp` + 技能 `modelscope` | ModelScope（魔搭社区）市场 |
+| [clawhub](https://gitcode.com/openharmony-robot/OpenDesk/tree/main/resources/plugins/clawhub) | 技能 `clawhub` | ClawHub 社区市场 |
+| [skillhub](https://gitcode.com/openharmony-robot/OpenDesk/tree/main/resources/plugins/skillhub) | 技能 `skillhub` | SkillHub 市场 |
 
 在插件中心可以按品牌独立启用 / 停用；停用后对应市场 tab 在页面重新打开时移除，重新启用后恢复。每个内容来源的搜索实现可以直接对照插件源码阅读。
 
 ## 行为与注意事项
 
-- `search` / `getDetail` 的返回必须是可结构化克隆的纯数据（会跨线程传递给 worker 侧的市场搜索），不要在返回值中携带函数或宿主对象。
+- `search` / `resolveInstall` 的返回必须是可结构化克隆的纯数据（会跨线程传递给 worker 侧的市场搜索），不要在返回值中携带函数或宿主对象。
 - 内容来源内的网络请求使用 `ctx.registry.fetch`，以继承宿主代理配置；直接使用全局 fetch 会绕过代理。
 - `id` 是安装链接前缀，注册时宿主做跨插件全局唯一校验，重复注册会使插件 `setup` 失败并回滚本次已注册的项。
 - 每次市场读取前宿主都会重新拉取当前生效的内容来源集合：插件重载后定义被替换（不会重复），插件停用 / 卸载后其内容来源从市场移除。

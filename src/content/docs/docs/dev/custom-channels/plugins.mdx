@@ -1,0 +1,115 @@
+---
+title: "自建插件渠道"
+description: "搭建自己的插件市场：plugins.json 清单格式、托管方式、安装校验与本地调试"
+---
+
+插件渠道就是一份托管在 http(s) 地址上的插件清单 JSON。OpenDesk 按渠道拉取清单并渲染插件卡片，用户点击安装时由主进程下载归档包、解包、校验后安装。0.3.10 起支持在设置中添加自建渠道，本页描述清单格式与托管要求。
+
+## 准备工作
+
+1. 把每个插件打成归档包（`.zip` / `.tgz` / `.tar.gz`），包内插件结构见[插件结构概述](/docs/dev/plugins/)；
+2. 编写清单 JSON（下文「清单格式」）；
+3. 把清单与归档包放到同一台 HTTP 服务器上（同一个静态站点、对象存储或 Git 仓库的 raw 地址都可以）。归档包地址建议写成相对清单的路径，换域名、换分支时清单不用改；
+4. 在 **设置 → 渠道设置 → 插件渠道** 中添加渠道，填写名称与清单地址。保存前 OpenDesk 会联网拉取并严格解析清单，写坏的条目会让保存失败。
+
+每个启用的渠道在插件市场顶部独占一个 Tab，Tab 名用渠道名；官方渠道固定第一个。
+
+## 清单格式
+
+清单顶层支持两种结构形态，效果相同：
+
+**1. 顶层数组**，直接列出插件条目：
+
+~~~json
+[
+  { "id": "review-helper", "...": "..." }
+]
+~~~
+
+**2. 顶层对象**：`categories` 声明渠道支持的分类（可选，见下文），插件条目放在数组字段中——键用 `plugins` 或 `entries` 均可，两者没有区别：
+
+~~~json
+{
+  "categories": ["办公文档", "效率工具"],
+  "plugins": [
+    { "id": "review-helper", "...": "..." }
+  ]
+}
+~~~
+
+下面的字段说明都以对象形态为例。
+
+### 渠道分类
+
+`categories` 是可选的字符串数组，声明该渠道支持哪些分类，插件市场里「全部插件 / 分类A / 分类B」的切换项就来自它。分类名是自由文本，但需要与插件条目 `category` 的取值一致才会被归入；省略表示该渠道不支持按分类显示，所有插件都出现在「全部插件」里。
+
+### 插件条目
+
+| 字段 | 类型 | 必填 | 说明 |
+| --- | --- | --- | --- |
+| id | string | 是 | 插件唯一标识；必须以字母开头，只能包含字母、数字、点、下划线和连字符。安装后即为插件 id，**必须与包内 manifest 的 `id` 一致**，不一致时安装报错 |
+| downloadUrl | string | 是 | 插件归档包地址；扩展名必须是 `.zip` / `.tgz` / `.tar.gz`，可以是相对于清单的地址 |
+| displayName | string \| object | 否 | 显示名称，支持 `{ en, zh }` 本地化对象；省略时回退到插件 id |
+| description | string \| object | 否 | 描述，同样支持本地化对象 |
+| version | string | 否 | 插件版本；声明时必须是合法 SemVer（`1.2.3`，可带 `-beta.1`），市场用它与已装版本比较生成「可更新」标记 |
+| apiVersion | number | 否 | 插件 API 版本；声明时必须等于宿主支持的版本（当前为 `1`），省略表示不声明 |
+| minOpenDeskVersion | string | 否 | 可运行的最低 OpenDesk 版本（SemVer，含边界）；当前宿主不满足时条目仍展示，但标注「需要 OpenDesk ≥ x.y.z」且按钮禁用 |
+| maxOpenDeskVersion | string | 否 | 可运行的最高 OpenDesk 版本，语义同上 |
+| platforms | string[] | 否 | 支持平台，取值 `win32` / `darwin` / `linux` / `android` / `openharmony`；不含当前平台的条目**不展示、不可安装**，未声明表示全平台 |
+| category | string[] | 否 | 分类标签；取值与渠道 `categories` 一致才会被归入该分类 |
+| author | object | 否 | 作者信息：`{ name, institution?, homepage? }`，`name` 必填；`name` / `institution` 支持本地化对象，两个 homepage 都只接受 http(s) |
+| homepage | string | 否 | 插件自身的站点地址，只接受 http(s) |
+| iconUrl | string | 否 | 插件图标：http(s) 图片链接原样使用；相对链接与 `downloadUrl` 同一套基准解析。读不到时回退首字母图标 |
+
+### 示例
+
+~~~json
+{
+  "categories": ["办公文档"],
+  "plugins": [
+    {
+      "id": "opendesk-wps-slides",
+      "displayName": { "zh-CN": "OpenDesk WPS Slides", "en-US": "OpenDesk WPS Slides" },
+      "description": {
+        "zh-CN": "在 WPS 演示里用自然语言生成幻灯片。",
+        "en-US": "Generate WPS slides in natural language."
+      },
+      "version": "1.0.1",
+      "apiVersion": 1,
+      "platforms": ["win32", "openharmony"],
+      "category": ["办公文档"],
+      "author": { "name": { "zh-CN": "张三" }, "institution": { "zh-CN": "示例团队" } },
+      "homepage": "https://example.com/wps-slides",
+      "iconUrl": "icons/wps-slides.png",
+      "downloadUrl": "plugins/opendesk-wps-slides-1.0.1.zip"
+    }
+  ]
+}
+~~~
+
+## 解析与展示行为
+
+- **单条容错**：一条写坏只跳过该条并记 warning；整份清单一条都解析不了才报「清单加载失败」，并回退到上次成功的缓存；
+- **重复 id**：同一渠道里重复声明同一个 id 时保留先出现的那条；
+- **安装一致性**：安装时主进程会拿包内 manifest 与市场条目逐项核对，**两边都声明了**的 `version` / `apiVersion` / `minOpenDeskVersion` / `maxOpenDeskVersion` / `homepage` / `author` 必须一致（版本按 SemVer 比较，`v1.0.0` 与 `1.0.0` 等价；URL 忽略结尾斜杠；本地化文本按主语言标签逐项比较）。对不上整单失败，磁盘不留这一版，已装旧版本保持不动，界面弹窗列出差异字段。`displayName` / `description` 允许市场只提供部分语言，`category` 允许市场自行归类，因此不参与比较；
+- **内置插件冲突**：与内置插件同 id 的条目在下载前就被拒绝（内置优先）；
+- **进度反馈**：安装下载走平台 fetch（继承代理设置），进度回传到卡片上的进度条。
+
+清单缓存 5 分钟；插件市场右上角的刷新会强制重新拉取。
+
+官方插件渠道 [OpenDesk-Community/official-plugin-registry](https://gitcode.com/OpenDesk-Community/official-plugin-registry) 就是一份实际在用的完整清单：它采用对象形态（`categories` + `entries` 键），条目使用相对的 `downloadUrl` 与 `iconUrl`，归档包与图标直接放在同一仓库里，可以作为自建渠道的完整参考。
+
+## 本地调试
+
+开发插件市场时，不必先搭服务器：
+
+~~~bash
+# 把官方清单替换成本地 JSON 文件（对本次进程生效）
+OPENDESK_PLUGIN_CATEGORY=D:/market/plugins.json opendesk
+~~~
+
+- 清单是本地文件时**每次读取都直接读文件**，改完立即生效，不走 5 分钟缓存；
+- 条目里的相对地址（`plugins/demo.zip`、`./assets/icon.png`）按清单文件所在目录解析成绝对路径：归档包由本地安装流程直接处理，图标由宿主读出并内联成 data URL 交给界面；
+- 明文 http 下载地址也会被放行，便于用本地 HTTP 服务联调。
+
+环境变量也可以指向自建服务的 http(s) 地址，用于联调完整的市场交互。

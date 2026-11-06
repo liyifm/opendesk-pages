@@ -182,7 +182,7 @@ Agent 目录固定、随插件一起发布时优先使用 `resources.agents`；�
 - 不同插件可以定义同名 Agent，注册后 id 互不冲突（例如 `team-a:reviewer` 与 `team-b:reviewer`）；
 - 同一插件内每个 Agent 名只能出现一次；同名重复注册会使插件激活失败，其它已创建的注册项会一并回滚。
 
-## 可调度性（dispatchable）
+## 可调度性
 
 - `dispatchable: true` 的 Agent 会出现在主 Agent 的可调度候选列表中（system prompt 中的 `<agent>` frontmatter），主 Agent 可以按 `whenToUse` 描述选择它来执行子任务；
 - `dispatchable: false` 的 Agent 仍然注册并可通过完整 id 引用，但不会进入子任务候选列表。

@@ -84,9 +84,11 @@ Logo 文件的约束：
 - 单图形式的 Logo 不随明暗主题切换；主题变体形式缺省的一侧复用另一侧，均未设置时回退按主题自动切换的默认 Logo；
 - 标题、描述与 Logo 互相独立，可单独设置。
 
-## 完整示例：appearance-demo 内置插件
+## 完整示例
 
-OpenDesk 0.3.7 起内置了演示插件 `appearance-demo`（源码位于仓库的 `resources/plugins/appearance-demo/`）。它激活时把应用标题替换为本地化映射形式的 "我的桌面 / MyDesk"（随界面语言显示）、把描述替换为自定义文案、Logo 替换为下面这枚渐变星芒图标；在插件中心停用它即可观察外观回退到默认值，重新启用后再次生效。
+下面是一个完整的演示插件 `appearance-demo`，展示 appearance 能力的三种用法：激活时把应用标题替换为本地化映射形式的 "我的桌面 / MyDesk"（随界面语言显示）、把描述替换为自定义文案、Logo 替换为下面这枚渐变星芒图标；在插件中心停用它即可观察外观回退到默认值，重新启用后再次生效。
+
+appearance 能力当前没有随产品发布的内置插件；宿主对未声明 / 未授权能力时的拒绝行为可参考仓库中的测试用例 [`src/tests/ut/pluginmgr/appearance.test.ts`](https://gitcode.com/openharmony-robot/OpenDesk/blob/main/src/tests/ut/pluginmgr/appearance.test.ts)。
 
 目录结构：
 
@@ -171,13 +173,13 @@ assets/logo.svg —— 自定义 Logo 素材，圆角渐变底上的白色星芒
 
 注意事项：
 
-- 内置插件的元数据只允许声明在 `opendesk.plugin.json`，入口不要重复声明 `capabilities` 等字段，否则激活时会与 manifest 冲突；
+- 示例插件的元数据只允许声明在 `opendesk.plugin.json`，入口不要重复声明 `capabilities` 等字段，否则激活时会与 manifest 冲突；
 - 不依赖 SDK 的版本去掉 `definePlugin`、直接默认导出对象即可，注册 API 完全相同；
 - 想改用 PNG 等位图素材，把文件放进插件目录并把 `setAppLogo` 的参数改为相对路径即可，格式约束见上文。
 
 ## 验证步骤
 
-1. 启动 OpenDesk（开发模式 `npm start` 或安装版），左上角出现「我的桌面」（英文界面为 "MyDesk"）标题、自定义描述与渐变星芒 Logo，即说明插件已激活；
+1. 把插件目录放入 `plugins/` 目录（或通过插件中心安装），启动 OpenDesk（开发模式 `npm start` 或安装版），左上角出现「我的桌面」（英文界面为 "MyDesk"）标题、自定义描述与渐变星芒 Logo，即说明插件已激活；
 2. 打开插件中心，找到「外观定制演示」插件，详情中可见 `appearance` 能力；
 3. 停用该插件：标题、描述与 Logo 立即回退为默认的 OpenDesk 外观，无需重启；
 4. 重新启用：自定义外观再次生效；

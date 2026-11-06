@@ -5,17 +5,17 @@ description: ""
 
 import login from '../../../../assets/images/channels/weixin/login.webm';
 
-# OpenDesk 扫码一键连接微信
+# 1. OpenDesk 扫码一键连接微信
 
 本文介绍如何在 OpenDesk 中扫码连接微信。这是通过复用微信官方提供的微信 ClawBot 插件，以及 [OpenClaw @tencent-weixin/openclaw-weixin 插件](https://www.npmjs.com/package/@tencent-weixin/openclaw-weixin) 来实现的。在 OpenDesk 中，我们实现了一个与 OpenClaw Plugin SDK 对齐的兼容层（Shim Layer），从而可以快速复用 OpenClaw 的部分插件生态。
 
-## 1. 首先升级 OpenDesk 到最新版本
+## 升级 OpenDesk 到最新版本
 
 首先升级 OpenDesk 到最新版本。在终端中输入 `opendesk` 进入 OpenDesk 之后，输入 `/upgrade` 打开升级窗口，选择最新的 nightly 版本。
 
 ![](../../../../assets/images/common/upgrade_nightly.jpg)
 
-## 2. 在 OpenDesk 中安装微信插件并登录微信
+## 在 OpenDesk 中安装微信插件并扫码登录微信
 
 其实这比你想象的要更简单。你需要做的只是打开 OpenDesk 然后输入 **帮我登陆微信**。
 
@@ -25,17 +25,17 @@ import login from '../../../../assets/images/channels/weixin/login.webm';
 
 接下来，你只要打开微信扫一扫，扫码进行配置即可。扫码完成后，在微信中就会弹出微信 ClawBot 的界面，就可以跟你的 OpenDesk 对话了。
 
-# OpenDesk 扫码一键连接飞书
+# 2. OpenDesk 扫码一键连接飞书
 
 本文介绍如何在 OpenDesk 中扫码创建飞书机器人并绑定到 OpenDesk 中，这样你就可以直接在飞书中给 OpenDesk 安排活儿了。
 
-## 1. 首先升级 OpenDesk 到最新版本
+## 首先升级 OpenDesk 到最新版本
 
 首先升级 OpenDesk 到最新版本。在终端中输入 `opendesk` 进入 OpenDesk 之后，输入 `/upgrade` 打开升级窗口，选择最新的 nightly 版本。
 
 ![](../../../../assets/images/common/upgrade_nightly.jpg)
 
-## 2. 一键创建飞书机器人并连接到 OpenDesk
+## 一键创建飞书机器人并连接到 OpenDesk
 
 正如我们之前说的，OpenDesk 的设计宗旨是所有复杂配置过程都由自然语言进行。所以，你只要告诉 OpenDesk 连接飞书就行了。
 

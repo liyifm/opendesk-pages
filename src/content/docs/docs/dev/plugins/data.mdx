@@ -126,3 +126,5 @@ export default {
 
 - [插件结构概述](/docs/dev/plugins/) — manifest、入口对象与 PluginContext 全貌
 - [插件的调试与发布](/docs/dev/plugins/debug-publish/) — 安装目录、外部插件与 `opendesk plugins` 校验命令
+
+实际使用参考：内置的 [`feishu`](https://gitcode.com/openharmony-robot/OpenDesk/tree/main/resources/plugins/feishu) 与 [`weixin`](https://gitcode.com/openharmony-robot/OpenDesk/tree/main/resources/plugins/weixin) 渠道插件都把账号凭证持久化到 `ctx.dataDir`，可以在源码中查看 `dataDir` 的组织方式。

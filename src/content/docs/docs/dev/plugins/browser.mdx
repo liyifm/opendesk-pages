@@ -294,3 +294,7 @@ manifest 或入口的 `capabilities` 必须包含 `browser`，否则 `ctx.browse
 ~~~
 
 Browser 能力没有对应的 manifest 静态资源声明，只能在 `setup(ctx)` 中动态注册。插件被禁用、卸载或重新加载时，其注册的提示会随插件一起释放，之后的快照不再包含它们。插件中心的插件详情会列出该插件注册的全部地址 pattern。
+
+## 参考实现
+
+内置的 [`browserboost`](https://gitcode.com/openharmony-robot/OpenDesk/tree/main/resources/plugins/browserboost) 插件是 browser hint 的实际使用示例，按站点分类（finance / media / search / shopping）注册文本提示与快捷动作，可以直接对照源码阅读。

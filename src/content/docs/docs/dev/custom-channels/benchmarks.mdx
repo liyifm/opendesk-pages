@@ -1,0 +1,111 @@
+---
+title: "自建测评集渠道"
+description: "搭建自己的测评集来源：清单格式与测评集压缩包（dataset.json / track / case）规范"
+---
+
+测评集渠道是测评应用的内容来源：一份托管在 http(s) 地址上的清单 JSON，测评应用按渠道拉取清单并展示可下载的测评集，用户点击后由主进程下载压缩包并导入。0.3.10 起支持在设置中添加自建渠道，适合团队发布内部评测集或第三方基准的适配包。
+
+## 准备工作
+
+1. 把测评集打成压缩包（`.zip` / `.tar.gz` / `.tgz` / `.tar`），包内结构见下文「测评集压缩包格式」；
+2. 编写清单 JSON（下文「清单格式」）；
+3. 清单与压缩包放到同一台 HTTP 服务器上，压缩包地址建议写成相对清单的路径；
+4. 在 **设置 → 渠道设置 → 测评集渠道** 中添加渠道，填写名称与清单地址。保存前会联网严格解析清单，写坏的条目会让保存失败。
+
+每个启用的渠道在测评应用里独占一个 Tab；清单页提供测评集的下载入口与安装状态（未安装 / 可更新 / 已安装），测评历史与渠道无关，统一记录在本地。
+
+## 清单格式
+
+清单顶层是一个数组，每个元素描述一个测评集：
+
+~~~json
+[
+  {
+    "id": "workbuddy-bench",
+    "name": "WorkBuddy Bench",
+    "description": "WorkBuddy Bench 的 Office / Code / Web track。",
+    "homepage": "https://github.com/example/workbuddy-bench",
+    "version": "0.2",
+    "downloadUrl": "packages/workbuddy-bench-0.2.zip",
+    "tracks": [
+      { "id": "office", "name": "Office", "description": "办公文件处理用例" },
+      { "id": "code", "name": "Code", "description": "仓库级软件工程用例" }
+    ]
+  }
+]
+~~~
+
+| 字段 | 类型 | 必填 | 说明 |
+| --- | --- | --- | --- |
+| id | string | 是 | 测评集稳定标识，**同一渠道内唯一**，不随版本变化；重复 id 只保留先出现的条目 |
+| downloadUrl | string | 是 | 压缩包地址，扩展名必须是 `.zip` / `.tar.gz` / `.tgz` / `.tar`；可以是相对于清单的地址 |
+| name | string | 是 | 测评集名称，展示在清单卡片与测评历史中 |
+| description | string | 否 | 描述文案 |
+| homepage | string | 否 | 测评集官网地址，详情页渲染成链接 |
+| version | string | 否 | 测评集版本；清单条目要求合法 SemVer（如 `0.2` 会被拒绝，需写 `0.2.0`）。清单版本高于已装版本时卡片显示「可更新」 |
+| tracks | array | 是 | track 概览，非空数组；每项为 `{ id, name, description }` 对象，`name` 或 `id` 至少声明一个。`id` 是压缩包内 track 目录名的对应关系 |
+
+解析规则与插件清单一致：日常加载单条容错（写坏的条目跳过并记 warning），添加渠道时严格校验；https 清单只接受 https 下载地址；清单缓存 5 分钟，测评应用里的刷新入口强制重新拉取。
+
+官方测评集渠道 [OpenDesk-Community/official-benchmark-registry](https://gitcode.com/OpenDesk-Community/official-benchmark-registry) 就是一份实际在用的完整清单（顶层数组形态，当前收录 WorkBuddy Bench、WebVoyager、BrowseComp、SWE-bench Lite 等测评集），归档包以相对地址放在同一仓库中，可以作为自建渠道的完整参考。
+
+## 测评集压缩包格式
+
+压缩包解压后的目录结构：
+
+~~~text
+<测评集根目录>/
+├── dataset.json                 # 测评集清单（放在压缩包根目录，或唯一的一级子目录里）
+└── tracks/
+    ├── office/                  # track 目录名 = 清单 tracks[].id
+    │   ├── track.json           # 可选：{ "name": "...", "description": "..." }
+    │   ├── invoice-extract/     # 用例目录（目录名即 caseId）
+    │   │   ├── case.json        # 用例定义
+    │   │   ├── run.md           # 运行提示词
+    │   │   ├── verify.md        # 验证提示词
+    │   │   └── run-prepare.sh   # 可选：运行前准备脚本
+    │   └── ...
+    └── code/
+        └── ...
+~~~
+
+要点：
+
+- 解压后优先在根目录找 `dataset.json`；根目录没有时，会在一级子目录里找（允许压缩包多套一层目录）；
+- `tracks/` 目录下的每个一级子目录是一个 track（需要包含 `track.json`，内容可以为空对象）。兼容写法：没有 `tracks/` 这一层时，直接扫描 `dataset.json` 所在目录的一级子目录找 `track.json`；
+- track 按 `dataset.json` 中 `tracks` 声明的顺序展示，未声明的追加在后；track 目录内每个包含 `case.json` 的一级子目录是一个用例。
+
+### dataset.json
+
+| 字段 | 类型 | 必填 | 说明 |
+| --- | --- | --- | --- |
+| name | string | 是 | 测评集名称 |
+| tracks | array | 是 | track 声明，非空数组。每项可以是字符串（track 名）或对象 `{ id, name, description }`；对象的 `name` 或 `id` 至少要有其一 |
+| version | string | 否 | 版本号；从渠道安装的测评集必须是合法 SemVer，否则导入失败（自由文本版本只有读取本地历史数据时被容忍） |
+| description | string | 否 | 描述文案 |
+| homepage | string | 否 | 官网地址（兼容 `url` / `website` 别名） |
+
+### case.json
+
+用例的运行流程是：准备脚本（可选）→ 按运行提示词发起任务 → 验证模型按验证提示词对结果打分（0~1 得分率 × 用例权重计入总分）。
+
+| 字段 | 类型 | 必填 | 说明 |
+| --- | --- | --- | --- |
+| name | string | 否 | 用例显示名；也接受 `title`，缺省用目录名（caseId） |
+| score | number | 否 | 用例权重（也接受 `points` / `weight`），用于加权汇总，默认 1 |
+| runPrompt | string | 否 | 运行提示词文件路径（相对用例目录），也接受 `runInstruction`，默认 `run.md`；文件必须存在 |
+| verifyPrompt | string | 否 | 验证提示词文件路径，也接受 `verifyInstruction`，默认 `verify.md`；文件必须存在 |
+| runPrepare | string | 否 | 运行前准备脚本（相对用例目录），也接受 `runScript`；未声明时自动探测 `run-prepare.sh`，声明的文件必须存在 |
+| verifyPrepare | string | 否 | 验证前准备脚本，也接受 `verifyScript`；未声明时自动探测 `verify-prepare.sh` |
+| runTimeoutSec | number | 否 | 运行超时（秒），默认 1800（兼容 `timeoutSec`） |
+| prepareTimeoutSec | number | 否 | 准备脚本超时（秒），默认 3600 |
+| verifyTimeoutSec | number | 否 | 验证超时（秒），默认 1800 |
+
+## 本地调试
+
+~~~bash
+# 把官方清单替换成本地 JSON 文件（对本次进程生效）
+OPENDESK_BENCHMARK_CATEGORY=D:/bench/category.json opendesk
+~~~
+
+指向本地 JSON 文件时每次读取都直接读文件，改完立即生效；清单项的相对下载地址按清单文件所在目录解析，明文 http 下载地址也会被放行。环境变量同样可以指向自建服务的 http(s) 地址。

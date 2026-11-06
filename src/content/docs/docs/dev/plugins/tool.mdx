@@ -195,3 +195,7 @@ export default {
   }
 };
 ~~~
+
+## 参考实现
+
+内置的 [`hm-compat`](https://gitcode.com/openharmony-robot/OpenDesk/tree/main/resources/plugins/hm-compat) 插件同时演示了 Hook 与 Tool 两种能力：它注册了 `checkHarmonySupport` 工具用于查询鸿蒙兼容性依赖，并通过 Hook 在技能加载时注入鸿蒙环境的适配说明，可以直接对照源码阅读。
