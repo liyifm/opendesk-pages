@@ -11,3 +11,7 @@ pages_build_output_dir = "./dist"
 binding = "opendesk-stats-db"
 database_name = "opendesk-stats"
 database_id = "4147af83-785a-4ad3-9eaf-89e23a45a742"
+
+[[r2_buckets]]
+binding = "INSPIRATION_BUCKET"
+bucket_name = "opendesk"

@@ -7,6 +7,7 @@ export const site = {
     { label: '使用文档', href: '/docs/quickstart/cli/', activePath: '/docs/' },
     { label: '开发文档', href: '/docs/dev/', activePath: '/docs/dev/' },
     { label: '场景概览', href: '/gallery/' },
+    { label: '灵感社区', href: '/inspiration/', activePath: '/inspiration/' },
     { label: '下载', href: '/download/', activePath: '/download/' },
   ],
   socialLinks: {
